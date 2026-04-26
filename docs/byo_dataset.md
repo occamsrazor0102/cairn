@@ -93,6 +93,69 @@ samples = build_dataset([
 save_dataset(samples, "data/in_house.jsonl")
 ```
 
+## Path 4 — Regenerate the LLM side of HC3 with a current model
+
+HC3's `chatgpt_answers` are early-2023 gpt-3.5 outputs. Calibrating
+against them teaches "ChatGPT-2023" patterns, not modern-LLM
+patterns. `scripts/regenerate_llm_outputs.py` keeps HC3's real human
+answers and replaces the LLM side with fresh generations from a
+current model (Anthropic OR OpenAI):
+
+```bash
+# Dry-run first — 10 questions, ~$0.03 on Haiku.
+export ANTHROPIC_API_KEY=...
+python scripts/regenerate_llm_outputs.py \
+  --subset finance \
+  --max-questions 10 \
+  --provider anthropic \
+  --model claude-haiku-4-5-20251001 \
+  --out data/hc3_finance_regen_haiku.jsonl
+
+# Production — ~1000 questions (~$1.50 on Haiku).
+python scripts/regenerate_llm_outputs.py \
+  --subset all \
+  --max-questions 1000 \
+  --provider anthropic \
+  --model claude-haiku-4-5-20251001 \
+  --out data/hc3_all_regen_haiku.jsonl
+```
+
+OpenAI works the same way:
+
+```bash
+export OPENAI_API_KEY=...
+python scripts/regenerate_llm_outputs.py \
+  --subset all --max-questions 1000 \
+  --provider openai --model gpt-4o-mini \
+  --out data/hc3_all_regen_gpt4o.jsonl
+```
+
+The prompt is intentionally minimal — `system="You are a helpful
+assistant. Answer the user's question accurately and helpfully."` +
+the HC3 question verbatim. No "be concise" / "be human" / "match
+this style" instructions, since those would teach the detector to
+spot prompt-engineering artifacts instead of native model output.
+
+The script is **resumable** — it appends to `--out` and skips
+questions already generated. A crash, rate-limit, or Ctrl-C doesn't
+waste credits.
+
+For multi-model robustness (the strongest version), regenerate
+against several models and concatenate:
+
+```bash
+python scripts/regenerate_llm_outputs.py --provider anthropic --model claude-haiku-4-5-20251001 --max-questions 500 --out data/regen_haiku.jsonl
+python scripts/regenerate_llm_outputs.py --provider anthropic --model claude-sonnet-4-6      --max-questions 500 --out data/regen_sonnet.jsonl
+python scripts/regenerate_llm_outputs.py --provider openai    --model gpt-4o-mini             --max-questions 500 --out data/regen_gpt4o.jsonl
+
+cat data/regen_*.jsonl > data/regen_mixed.jsonl
+python scripts/split_dataset.py --in data/regen_mixed.jsonl --out-dir data --prefix regen_mixed
+# ...then the usual calibrate/train/conformal/benchmark recipe.
+```
+
+A mixed-model corpus teaches the detector "LLM-ness" rather than
+"Claude-ness" or "GPT-ness", which is what you want in the wild.
+
 ## Wiring the artifacts into a profile
 
 Once calibration artifacts exist, point a config profile at them:
