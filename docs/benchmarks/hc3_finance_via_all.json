@@ -1,0 +1,42 @@
+{
+  "n_samples": 150,
+  "n_failed": 0,
+  "config_hash": "c74522534308",
+  "metrics": {
+    "auroc": 0.9009,
+    "ece": 0.1132,
+    "brier": 0.1462,
+    "tpr_at_fpr_01": 0.4533
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.1518,
+      "brier": 0.0779,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.3321,
+      "brier": 0.2145,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 67,
+    "fp": 24,
+    "tn": 51,
+    "fn": 8,
+    "precision": 0.7363,
+    "recall": 0.8933,
+    "f1": 0.8072,
+    "accuracy": 0.7867
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\hc3_finance_test.jsonl",
+  "config": "configs\\calibrated_all.yaml",
+  "duration_seconds": 142.33
+}

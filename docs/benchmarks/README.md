@@ -36,6 +36,34 @@ historical comparison.
 The CI pipeline still runs the 100-sample smoke benchmark on every
 push to master and uploads the result as an artifact.
 
+### Broad calibration: HC3 `all`
+
+Second calibrated profile landed (`configs/calibrated_all.yaml`),
+trained on HC3's full `all` subset — 4000 balanced samples drawn
+across finance, medicine, open-QA, reddit-eli5, and wiki-csai. The
+profile is a generalist; the finance-only profile (`calibrated`)
+remains as a domain specialist.
+
+Three test slices, same trained profile:
+
+| slice                                     | AUROC | ECE   | Brier | TPR@1%FPR | F1@0.5 |
+|-------------------------------------------|-------|-------|-------|-----------|--------|
+| hc3_all test (broad, in-distribution, n=600)   | **0.9524** | 0.0297 | 0.0875 | 0.5200 | 0.8731 |
+| hc3_finance test via all (narrow, in-distribution, n=150) | 0.9009 | 0.1132 | 0.1462 | 0.4533 | 0.8072 |
+| hc3_medicine full subset (cross-genre check, n=1000) | 0.9117 | 0.0680 | 0.1033 | **0.6100** | 0.8806 |
+
+Generalist-vs-specialist on the 150-sample finance test set:
+
+| profile                | AUROC  | ECE    | F1@0.5 |
+|------------------------|--------|--------|--------|
+| `calibrated` (finance) | 0.9165 | 0.0498 | 0.8369 |
+| `calibrated_all`       | 0.9009 | 0.1132 | 0.8072 |
+
+The specialist wins narrowly on its home domain; the generalist is
+sharper on the broad mix and holds up well on medicine (a domain
+present in training but only ~20% of samples). Pick the profile that
+matches your deployment's input distribution.
+
 ## Reproducing the calibrated benchmark
 
 ```bash

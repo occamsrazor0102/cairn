@@ -1,0 +1,17 @@
+_profile: calibrated_all
+_extends: default
+_description: >
+  Calibrated against HC3 `all` (heterogeneous: finance, medicine,
+  open_qa, reddit_eli5, wiki_csai). Use this when you want a
+  general-purpose calibrated profile rather than the finance-narrow
+  `calibrated` profile.
+
+  Both profiles report calibration_status: "calibrated" via /health
+  when the underlying artifacts are present.
+
+  See docs/byo_dataset.md to retrain on your own corpus.
+
+fusion:
+  model_path: models/fusion/hc3_all_ebm.pkl
+  conformal_path: models/conformal/hc3_all.json
+  detector_calibration_path: models/calibrators/hc3_all.json
