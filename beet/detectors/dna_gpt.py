@@ -17,6 +17,23 @@ import os
 from beet.contracts import LayerResult
 
 
+# HEURISTIC weights mapping b-score statistics → p(LLM). Hand-picked, NOT
+# from a labeled dataset. Replace via isotonic calibration once a training
+# set exists. The mean term carries the bulk of the signal; the positive-
+# trend term boosts when later prefixes are easier to continue (LLM-like).
+_HEURISTIC_BSCORE_MEAN_WEIGHT = 3.0
+_HEURISTIC_BSCORE_TREND_WEIGHT = 5.0
+
+# Truncation fractions probed per submission. The string label is the
+# stable key used for record lookup; the float is preserved for the
+# error-formatting pathway and signal output.
+_TRUNCATION_FRACTIONS: list[tuple[str, float]] = [
+    ("30", 0.30),
+    ("50", 0.50),
+    ("70", 0.70),
+]
+
+
 def _ngrams(text: str, n: int) -> list[tuple]:
     tokens = text.lower().split()
     return [tuple(tokens[i:i + n]) for i in range(len(tokens) - n + 1)]
@@ -79,42 +96,50 @@ class DNAGPTDetector:
             return _skip(self, signals={"skipped": "too_short", "n_words": len(words)})
 
         provider_errors: list[str] = []
-        bscores: dict[float, float] = {}
-        succeeded: dict[float, bool] = {}
-        for frac in (0.30, 0.50, 0.70):
+        # One record per truncation. Stable string label avoids the float-
+        # key fragility while the float `frac` stays available for the
+        # `f"{frac}: {err}"` error format that downstream consumers parse.
+        records: list[dict] = []
+        for label, frac in _TRUNCATION_FRACTIONS:
             cut = int(len(words) * frac)
             prefix = " ".join(words[:cut])
             actual_continuation = " ".join(words[cut:cut + 100])
             generated, err = self._generate_continuation(prefix, api_key, provider, model)
             if err:
                 provider_errors.append(f"{frac}: {err}")
-                succeeded[frac] = False
-                bscores[frac] = 0.0
+                records.append({"label": label, "frac": frac, "ok": False, "bscore": 0.0})
             else:
-                succeeded[frac] = True
-                bscores[frac] = _bscore(actual_continuation, generated) if generated else 0.0
+                bs = _bscore(actual_continuation, generated) if generated else 0.0
+                records.append({"label": label, "frac": frac, "ok": True, "bscore": bs})
 
-        ok_fracs = [f for f, ok in succeeded.items() if ok]
-        if not ok_fracs:
+        by_label = {r["label"]: r for r in records}
+        ok_records = [r for r in records if r["ok"]]
+        if not ok_records:
             return _skip(self, signals={"skipped": "provider_error", "errors": provider_errors})
 
         # Compute mean/trend only over successful calls. A partial outage
         # must not flip the verdict by treating a failed call as b=0.0.
-        ok_bscores = [bscores[f] for f in ok_fracs]
+        ok_bscores = [r["bscore"] for r in ok_records]
         mean_bscore = sum(ok_bscores) / len(ok_bscores)
         # Trend requires both the first and last fractions to have succeeded;
         # otherwise it's not meaningful. Set to 0 (no bias) when incomplete.
-        if succeeded[0.30] and succeeded[0.70]:
-            bscore_trend = (bscores[0.70] - bscores[0.30]) / 2
+        if by_label["30"]["ok"] and by_label["70"]["ok"]:
+            bscore_trend = (by_label["70"]["bscore"] - by_label["30"]["bscore"]) / 2
         else:
             bscore_trend = 0.0
         bscore_variance = sum((b - mean_bscore) ** 2 for b in ok_bscores) / len(ok_bscores)
-        b30, b50, b70 = bscores[0.30], bscores[0.50], bscores[0.70]
+        b30 = by_label["30"]["bscore"]
+        b50 = by_label["50"]["bscore"]
+        b70 = by_label["70"]["bscore"]
 
         # HEURISTIC scoring — combine mean overlap with increasing trend.
         # Tuned against the DNA-GPT paper's operating range, NOT empirically
         # calibrated to a labeled dataset.
-        p_llm = min(mean_bscore * 3.0 + max(bscore_trend, 0.0) * 5.0, 1.0)
+        p_llm = min(
+            mean_bscore * _HEURISTIC_BSCORE_MEAN_WEIGHT
+            + max(bscore_trend, 0.0) * _HEURISTIC_BSCORE_TREND_WEIGHT,
+            1.0,
+        )
 
         if p_llm >= 0.60:
             determination = "RED"

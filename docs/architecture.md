@@ -119,9 +119,9 @@ short-circuit logic driven by configurable thresholds
 | Phase | Detectors | When it runs |
 |------:|-----------|--------------|
 | 1 | preamble, fingerprint_vocab, prompt_structure, voice_spec, instruction_density, nssi | always |
-| 2 | surprisal_dynamics, contrastive_lm, token_cohesiveness | if aggregated Phase 1 p(LLM) falls in the uncertain band |
+| 2 | surprisal_dynamics, contrastive_lm, token_cohesiveness, mixed_boundary | if aggregated Phase 1 p(LLM) falls in the uncertain band (between `phase1_short_circuit_low` and `phase1_short_circuit_high`; defaults 0.10 and 0.85) |
 | 3 | perturbation, contrastive_gen, dna_gpt | if aggregated Phase 1+2 is still uncertain |
-| 4 | cross_similarity, mixed_boundary, contributor_graph | batch-only (requires multiple submissions) |
+| 4 | cross_similarity | batch-only (requires multiple submissions). `contributor_graph` is invoked separately via `pipeline.analyze_contributors`, not through the normal cascade. |
 
 `phase3_always_run: true` forces every detector regardless of
 intermediate confidence — useful for evaluation.

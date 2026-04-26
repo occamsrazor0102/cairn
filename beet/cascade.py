@@ -1,14 +1,17 @@
 from beet.contracts import LayerResult
 
-PHASE1_DETECTORS = {"preamble", "fingerprint_vocab", "prompt_structure", "voice_spec", "instruction_density", "nssi"}
+# Phase membership uses tuples so iteration order is deterministic across
+# process restarts. Set iteration is hash-randomised in CPython, which
+# leaks into report ordering and detector_errors sequencing.
+PHASE1_DETECTORS = ("preamble", "fingerprint_vocab", "prompt_structure", "voice_spec", "instruction_density", "nssi")
 # mixed_boundary operates on sentence-level style dissonance within a single
 # submission, so it's a Phase-2 detector despite earlier being parked in
 # Phase 4 (batch-only) where it never fired.
-PHASE2_DETECTORS = {"surprisal_dynamics", "contrastive_lm", "token_cohesiveness", "mixed_boundary"}
-PHASE3_DETECTORS = {"perturbation", "contrastive_gen", "dna_gpt"}
+PHASE2_DETECTORS = ("surprisal_dynamics", "contrastive_lm", "token_cohesiveness", "mixed_boundary")
+PHASE3_DETECTORS = ("perturbation", "contrastive_gen", "dna_gpt")
 # Phase 4 is batch-only; contributor_graph is invoked separately via
 # pipeline.analyze_contributors, not through the normal cascade.
-PHASE4_DETECTORS = {"cross_similarity"}
+PHASE4_DETECTORS = ("cross_similarity",)
 
 class CascadeScheduler:
     def __init__(self, config: dict):
@@ -34,5 +37,5 @@ class CascadeScheduler:
         agg = self.aggregate_p_llm(all_results)
         return self._p2_low < agg < self._p2_high
 
-    def detectors_for_phase(self, phase: int) -> set[str]:
-        return {1: PHASE1_DETECTORS, 2: PHASE2_DETECTORS, 3: PHASE3_DETECTORS, 4: PHASE4_DETECTORS}.get(phase, set())
+    def detectors_for_phase(self, phase: int) -> tuple[str, ...]:
+        return {1: PHASE1_DETECTORS, 2: PHASE2_DETECTORS, 3: PHASE3_DETECTORS, 4: PHASE4_DETECTORS}.get(phase, ())

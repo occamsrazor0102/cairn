@@ -1,5 +1,6 @@
 import re
 from beet.contracts import LayerResult
+from beet.detectors._utils import interpolate as _interpolate
 
 _IMPERATIVE_RE = re.compile(
     r"\b(?:calculate|analyze|evaluate|assess|create|design|write|provide|"
@@ -11,14 +12,6 @@ _BINARY_RE = re.compile(r"\b(?:yes or no|true or false|correct or incorrect|pass
 # HEURISTIC mapping from IDI score to p(LLM). Hand-picked table — NOT from
 # a labeled dataset. Replace via beet.calibration once a training set exists.
 _IDI_HEURISTIC_P_LLM = [(0.0, 0.05), (3.0, 0.20), (6.0, 0.40), (9.0, 0.60), (12.0, 0.75), (16.0, 0.87), (22.0, 0.93)]
-
-def _interpolate(x, table):
-    if x <= table[0][0]: return table[0][1]
-    if x >= table[-1][0]: return table[-1][1]
-    for i in range(len(table) - 1):
-        x0, y0 = table[i]; x1, y1 = table[i + 1]
-        if x0 <= x <= x1: return y0 + (x - x0) / (x1 - x0) * (y1 - y0)
-    return table[-1][1]
 
 class InstructionDensityDetector:
     id = "instruction_density"

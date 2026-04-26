@@ -27,6 +27,7 @@ import random
 from typing import Any
 
 from beet.contracts import LayerResult
+from beet.detectors._utils import interpolate as _interpolate
 
 try:
     import torch  # type: ignore
@@ -52,19 +53,6 @@ _HEURISTIC_Z_TO_P_LLM = [
 _MIN_PERTURBATION_VARIANCE = 1e-4
 
 
-def _interpolate(x: float, table: list[tuple[float, float]]) -> float:
-    if x <= table[0][0]:
-        return table[0][1]
-    if x >= table[-1][0]:
-        return table[-1][1]
-    for i in range(len(table) - 1):
-        x0, y0 = table[i]
-        x1, y1 = table[i + 1]
-        if x0 <= x <= x1:
-            return y0 + (x - x0) / (x1 - x0) * (y1 - y0)
-    return table[-1][1]
-
-
 class PerturbationDetector:
     id = "perturbation"
     domain = "universal"
@@ -73,7 +61,7 @@ class PerturbationDetector:
     def __init__(self):
         self._model: Any = None
         self._tokenizer: Any = None
-        self._loaded_model_name: str | None = None
+        self._loaded_model_name: tuple[str, str] | None = None
 
     def _ensure_loaded(self, model_name: str, device: str) -> None:
         key = (model_name, device)

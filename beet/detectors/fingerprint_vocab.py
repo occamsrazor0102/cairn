@@ -1,6 +1,7 @@
 import re
 from beet.contracts import LayerResult
 from beet.config import get_pattern_list
+from beet.detectors._utils import interpolate as _interpolate
 
 # HEURISTIC mapping from fingerprint hits-per-1000 to p(LLM). Hand-picked
 # piecewise-linear table — NOT derived from a labeled dataset. Replace with
@@ -9,16 +10,6 @@ _HEURISTIC_P_LLM_MAPPING = [
     (0.0, 0.05), (2.0, 0.25), (5.0, 0.45), (8.0, 0.60),
     (12.0, 0.75), (18.0, 0.85), (25.0, 0.93),
 ]
-
-def _interpolate(x: float, table: list[tuple[float, float]]) -> float:
-    if x <= table[0][0]: return table[0][1]
-    if x >= table[-1][0]: return table[-1][1]
-    for i in range(len(table) - 1):
-        x0, y0 = table[i]; x1, y1 = table[i + 1]
-        if x0 <= x <= x1:
-            t = (x - x0) / (x1 - x0)
-            return y0 + t * (y1 - y0)
-    return table[-1][1]
 
 class FingerprintVocabDetector:
     id = "fingerprint_vocab"

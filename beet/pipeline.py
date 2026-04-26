@@ -98,9 +98,14 @@ def detector_availability(config: dict) -> list[dict]:
                 out.append(row)
                 continue
         if det_id == "dna_gpt":
-            row["requires"] = ["anthropic API key"]
-            if not (has_anthropic and anthropic_key):
+            provider = (det_cfg or {}).get("provider", "anthropic")
+            row["requires"] = [f"{provider} API key"]
+            if provider == "anthropic" and not (has_anthropic and anthropic_key):
                 row["reason"] = "requires beet[tier3] + ANTHROPIC_API_KEY"
+                out.append(row)
+                continue
+            if provider == "openai" and not (has_openai and openai_key):
+                row["reason"] = "requires beet[tier3] + OPENAI_API_KEY"
                 out.append(row)
                 continue
         row["available"] = True
@@ -116,6 +121,10 @@ class BeetPipeline:
         self._fusion = self._build_fusion(config)
         self._decision = DecisionEngine(config)
         self._detectors = detector_registry.get_all_detectors()
+        # Per-call accumulator for detector failures — initialised here so
+        # _run_phase can be invoked through any path without an
+        # AttributeError, and reset at the top of analyze_detailed.
+        self._phase_errors: list[dict] = []
         self._monitor = None
         if config.get("monitoring", {}).get("enabled"):
             from beet.monitoring.drift import DriftMonitor
@@ -167,9 +176,8 @@ class BeetPipeline:
         text = normalize_text(text)
         router_decision = self._router.route(text)
         cfg = self._config
-        # Per-call accumulator for detector failures — the run methods append
-        # to this and analyze_detailed threads it onto the Determination.
-        self._phase_errors: list[dict] = []
+        # Reset per-call detector-failure accumulator (initialised in __init__).
+        self._phase_errors = []
         results: list[LayerResult] = []
         phases_run = [1]
         phase1_results = self._run_phase(1, text, cfg, router_decision.skip_detectors)

@@ -7,11 +7,14 @@ Alerts fire when the current window diverges materially from a stored baseline:
 """
 from __future__ import annotations
 
+import logging
 import math
 import threading
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+_logger = logging.getLogger("beet")
 
 
 def _kl_symmetric(p: list[float], q: list[float], eps: float = 1e-6) -> float:
@@ -72,6 +75,10 @@ class DriftMonitor:
         self._baseline_features: dict[str, list[float]] = {}
         self._baseline_hist: dict[str, list[float]] = {}
         self._feature_bounds: dict[str, tuple[float, float]] = {}
+        # Concurrent analyze calls (HTTP workers, sidecar batch loops) can
+        # both append to and reset _observations. Without serialization a
+        # second writer can clobber the first's check_drift / window reset.
+        self._lock = threading.Lock()
 
     def set_baseline(self, feature_vectors: list[dict]) -> None:
         """Record baseline per-feature distributions for drift comparison.
@@ -99,17 +106,18 @@ class DriftMonitor:
 
     def record(self, p_llm: float, determination: str, feature_vector: dict,
                confirmed_label: int | None = None) -> list[str]:
-        self._observations.append({
-            "p_llm": p_llm, "determination": determination,
-            "features": feature_vector, "confirmed": confirmed_label,
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
-        })
-        alerts: list[str] = []
-        if len(self._observations) >= self._window:
-            alerts = self.check_drift()
-            self._flush_alerts(alerts)
-            self._observations = []
-        return alerts
+        with self._lock:
+            self._observations.append({
+                "p_llm": p_llm, "determination": determination,
+                "features": feature_vector, "confirmed": confirmed_label,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            alerts: list[str] = []
+            if len(self._observations) >= self._window:
+                alerts = self.check_drift()
+                self._flush_alerts(alerts)
+                self._observations = []
+            return alerts
 
     def check_drift(self) -> list[str]:
         alerts: list[str] = []
@@ -180,7 +188,7 @@ class DriftMonitor:
         if not alerts:
             return
         path = self._path / "alerts.jsonl"
-        timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         alerts_copy = list(alerts)
 
         def _write():
@@ -189,8 +197,11 @@ class DriftMonitor:
                 with open(path, "a", encoding="utf-8") as f:
                     for a in alerts_copy:
                         f.write(json.dumps({"alert": a, "timestamp": timestamp}) + "\n")
-            except Exception:
-                pass  # monitoring is best-effort; don't kill the thread noisily
+            except Exception as e:
+                # Monitoring is best-effort, but silent failure makes a full
+                # disk / permission error invisible — surface it via the
+                # standard logger and continue.
+                _logger.warning("drift alert flush failed: %s", e)
 
         threading.Thread(target=_write, daemon=True).start()
 

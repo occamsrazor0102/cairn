@@ -27,6 +27,7 @@ import re
 from typing import Iterable
 
 from beet.contracts import LayerResult
+from beet.detectors._utils import interpolate as _interpolate
 
 
 # HEURISTIC mapping from mean baseline similarity → p(LLM). The similarity
@@ -37,19 +38,6 @@ _HEURISTIC_SIM_TO_P_LLM = [
     (0.00, 0.08), (0.10, 0.18), (0.20, 0.32),
     (0.35, 0.55), (0.50, 0.75), (0.70, 0.90), (1.00, 0.97),
 ]
-
-
-def _interpolate(x: float, table: list[tuple[float, float]]) -> float:
-    if x <= table[0][0]:
-        return table[0][1]
-    if x >= table[-1][0]:
-        return table[-1][1]
-    for i in range(len(table) - 1):
-        x0, y0 = table[i]
-        x1, y1 = table[i + 1]
-        if x0 <= x <= x1:
-            return y0 + (x - x0) / (x1 - x0) * (y1 - y0)
-    return table[-1][1]
 
 
 def _tokenize(text: str) -> list[str]:
@@ -98,10 +86,11 @@ def _task_description_overlaps_submission(task_description: str, submission: str
         return False
     if td == sub:
         return True
-    # Task descriptions are typically short (a sentence or two). If someone
-    # passes something that's a large fraction of the submission length,
-    # treat it as suspicious.
-    if len(td) >= max(250, int(len(sub) * 0.5)):
+    # Task descriptions are typically short (a sentence or two). If the
+    # description is BOTH proportionally large versus the submission AND
+    # past a hard floor, treat it as suspicious. Without the floor, short
+    # submissions trigger the guard on legitimate one-paragraph briefs.
+    if len(td) >= 500 and len(td) >= int(len(sub) * 0.5):
         return True
     # Or if the full task description appears verbatim inside the
     # submission text (suggests the caller confused the fields).
