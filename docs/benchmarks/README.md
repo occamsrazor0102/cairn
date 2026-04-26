@@ -7,32 +7,53 @@ synthetic fixtures bundled with the repo.
 
 ## Status
 
-First public benchmark landed: `hc3_finance_screening_smoke.json` — 100
-HC3 finance samples (50 human / 50 ChatGPT), screening profile (Tier-1
-detectors only, no trained fusion or conformal). Headline numbers:
+First *calibrated* benchmark landed: `hc3_finance_calibrated.json` —
+150-sample test split of HC3 finance, evaluated with the EBM fusion +
+split-conformal wrapper trained on the disjoint train/calib slices.
+Same test split was also evaluated in heuristic mode for comparison
+(`hc3_finance_heuristic_baseline.json`).
 
-| metric         | value   | read-out |
-|----------------|---------|----------|
-| AUROC          | 0.734   | the Tier-1 ensemble has real ranking signal |
-| ECE            | 0.415   | severe miscalibration — expected in heuristic mode |
-| Brier          | 0.392   | high — the hand-picked p(LLM) mappings drift far from labels |
-| TPR @ FPR 1%   | 0.000   | can't discriminate at a strict FP budget |
-| accuracy @ p≥0.5 | 0.500 | predicts every sample as human at the default threshold |
+| metric           | heuristic | calibrated | Δ |
+|------------------|-----------|------------|---|
+| AUROC            | 0.7264    | **0.9165** | +0.190 |
+| ECE              | 0.3751    | **0.0498** | -0.325 |
+| Brier            | 0.3469    | **0.1190** | -0.228 |
+| TPR @ FPR 1%     | 0.1200    | **0.4267** | +0.307 |
+| accuracy @ p≥0.5 | 0.5067    | **0.8467** | +0.340 |
+| F1 @ p≥0.5       | 0.0263    | **0.8369** | +0.811 |
 
-The AUROC says the detectors rank correctly; the ECE/Brier and
-threshold behaviour say the probabilities they emit are not usable
-as calibrated probabilities. This is exactly the diagnosis the review
-called out: "the visual grammar of calibrated probabilities…without
-the underlying calibration."
+The headline is ECE: the calibrated stack is now genuinely calibrated
+(under 5% expected calibration error) rather than emitting hand-picked
+probabilities. The F1 jump from 0.026 to 0.84 reflects that the
+heuristic stack ranks correctly but doesn't predict positive at the
+default threshold — exactly the diagnosis the earlier reviews called
+out.
 
-Training the EBM fusion on a labeled dataset should move accuracy at
-a useful threshold well above 0.5 without changing AUROC much (fusion
-changes calibration more than ranking); an honest conformal wrapper
-then gives TPR@FPR a defensible operating point.
+Earlier smoke benchmark (`hc3_finance_screening_smoke.json`, 100
+items, screening profile / Tier-1 only) is preserved alongside for
+historical comparison.
 
-The CI pipeline runs this same 100-sample smoke benchmark on every push
-to master and uploads the result as an artifact, so this number can
-drift up as improvements land.
+The CI pipeline still runs the 100-sample smoke benchmark on every
+push to master and uploads the result as an artifact.
+
+## Reproducing the calibrated benchmark
+
+```bash
+# 1. Pull HC3 finance and stratified-split into train/calib/test.
+python scripts/download_hc3.py --subset finance --out data/hc3_finance.jsonl --max-per-class 500
+python scripts/split_dataset.py --in data/hc3_finance.jsonl --out-dir data --prefix hc3_finance
+
+# 2. Fit per-detector isotonic calibration, EBM fusion, conformal wrapper.
+python scripts/calibrate_detectors.py --dataset data/hc3_finance_train.jsonl --config configs/default.yaml    --out models/calibrators/hc3_finance.json
+python scripts/train_fusion.py        --dataset data/hc3_finance_train.jsonl --config configs/default.yaml    --out models/fusion/hc3_finance_ebm.pkl
+python scripts/calibrate_conformal.py --dataset data/hc3_finance_calib.jsonl --config configs/calibrated.yaml --alpha 0.10 --out models/conformal/hc3_finance.json
+
+# 3. Evaluate on the held-out test split with the calibrated config.
+python scripts/run_benchmark.py --dataset data/hc3_finance_test.jsonl --config configs/calibrated.yaml --out docs/benchmarks/hc3_finance_calibrated.json
+```
+
+To run the same recipe on your own corpus instead of HC3, see
+[`docs/byo_dataset.md`](../byo_dataset.md).
 
 ## HC3 — Human ChatGPT Comparison Corpus
 

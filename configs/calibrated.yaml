@@ -1,0 +1,13 @@
+_profile: calibrated
+_extends: default
+_description: >
+  Loads the EBM fusion + conformal wrapper + per-detector isotonic
+  calibrators trained on HC3 finance. /health reports
+  calibration_status: "calibrated" when all three artifacts load.
+
+  To re-train against your own corpus, see docs/byo_dataset.md.
+
+fusion:
+  model_path: models/fusion/hc3_finance_ebm.pkl
+  conformal_path: models/conformal/hc3_finance.json
+  detector_calibration_path: models/calibrators/hc3_finance.json
