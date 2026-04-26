@@ -246,8 +246,11 @@ def main() -> None:
                          "carve non-overlapping slices (e.g. provider A: --start-question 0 --max-questions 500, "
                          "provider B: --start-question 500 --max-questions 500). IDs use absolute row index, "
                          "so non-overlapping slices never collide.")
-    ap.add_argument("--max-tokens", type=int, default=600,
-                    help="max output tokens per generation (default: 600 ~= 450 words)")
+    ap.add_argument("--max-tokens", type=int, default=4000,
+                    help="max output tokens per generation (default: 4000). For Anthropic this caps "
+                         "the message; for OpenAI Responses it caps reasoning+message combined, so "
+                         "keep it generous when the template uses a reasoning model. Billing is per "
+                         "generated token, not per cap.")
     ap.add_argument("--openai-prompt-id", type=str, default=None,
                     help="when set, switches the OpenAI provider to the Responses API and uses the "
                          "saved prompt template with this ID (e.g. pmpt_abc123…). Ignored for Anthropic.")
@@ -281,10 +284,16 @@ def main() -> None:
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
-    source_tag = f"hc3_{args.subset}_regen_{args.model}"
+    if args.openai_prompt_id and args.provider == "openai":
+        # Template specifies its own model; --model is unused. Tag with a
+        # short prompt-id so the source field identifies the corpus.
+        source_tag = f"hc3_{args.subset}_regen_openai_{args.openai_prompt_id[:20]}"
+    else:
+        source_tag = f"hc3_{args.subset}_regen_{args.model}"
     total_in = 0
     total_out = 0
     n_processed = 0
+    n_attempted = 0
     n_skipped = 0
 
     with open(raw_path, encoding="utf-8") as f:
@@ -294,7 +303,9 @@ def main() -> None:
                 continue
             if i < args.start_question:
                 continue
-            if n_processed >= args.max_questions:
+            # Count attempts (success + failure) toward the cap. Otherwise an
+            # all-failing run loops indefinitely, retrying every question.
+            if n_attempted >= args.max_questions:
                 break
             row = json.loads(line)
             question = (row.get("question") or "").strip()
@@ -312,6 +323,7 @@ def main() -> None:
                 n_skipped += 1
                 continue
 
+            n_attempted += 1
             try:
                 llm_text, usage = _generate(
                     args.provider, question, api_key, args.model, args.max_tokens,
@@ -321,6 +333,20 @@ def main() -> None:
                 )
             except Exception as e:
                 print(f"FAILED q{i}: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr)
+                continue
+
+            if not llm_text or not llm_text.strip():
+                # Empty answer = budget exhausted on reasoning, refusal, or
+                # tool-only response. Don't write a corrupt row that would
+                # poison calibration. Bump --max-tokens or check the template.
+                print(
+                    f"EMPTY q{i}: model returned no text "
+                    f"(in={usage['input_tokens']} out={usage['output_tokens']}). "
+                    f"Try a higher --max-tokens or check the prompt template.",
+                    file=sys.stderr,
+                )
+                total_in += usage["input_tokens"]
+                total_out += usage["output_tokens"]
                 continue
 
             total_in += usage["input_tokens"]
@@ -357,7 +383,8 @@ def main() -> None:
 
     final_rows, _ = _load_existing(args.out)
     print(
-        f"\ndone. processed {n_processed} questions ({n_skipped} skipped/blank). "
+        f"\ndone. attempted {n_attempted}, succeeded {n_processed} "
+        f"({n_attempted - n_processed} failed, {n_skipped} skipped/blank). "
         f"file now has {len(final_rows)} rows ({sum(1 for r in final_rows if r['label']==0)} human / "
         f"{sum(1 for r in final_rows if r['label']==1)} llm).",
         file=sys.stderr,
