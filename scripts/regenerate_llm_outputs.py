@@ -93,12 +93,18 @@ def _load_existing(out_path: Path) -> tuple[list[dict], set[str]]:
 def _generate_anthropic(question: str, api_key: str, model: str, max_tokens: int) -> tuple[str, dict]:
     import anthropic  # type: ignore
     client = anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": question}],
-    )
+    kwargs: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "system": _SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": question}],
+    }
+    # Sonnet/Opus 4.x can do extended thinking; explicitly disable so we
+    # capture clean answer output (and don't pay for hidden reasoning).
+    # Haiku doesn't support the thinking parameter and would 400.
+    if any(t in model for t in ("sonnet-4", "opus-4")):
+        kwargs["thinking"] = {"type": "disabled"}
+    msg = client.messages.create(**kwargs)
     text = "".join(block.text for block in msg.content if getattr(block, "type", None) == "text")
     usage = {
         "input_tokens": getattr(msg.usage, "input_tokens", 0),
@@ -107,9 +113,51 @@ def _generate_anthropic(question: str, api_key: str, model: str, max_tokens: int
     return text, usage
 
 
-def _generate_openai(question: str, api_key: str, model: str, max_tokens: int) -> tuple[str, dict]:
+def _generate_openai(
+    question: str, api_key: str, model: str, max_tokens: int,
+    prompt_id: str | None = None,
+    prompt_version: str = "1",
+    template_variable: str | None = None,
+) -> tuple[str, dict]:
+    """Two modes:
+
+    * `prompt_id` set  → use the OpenAI Responses API with a saved
+      prompt template (the one you built in platform.openai.com →
+      Prompts). The HC3 question is passed either as `input` or
+      assigned to a named variable on the template, depending on
+      `template_variable`.
+    * `prompt_id` None → fall back to chat.completions with the
+      minimal "you are a helpful assistant" system prompt baked in.
+    """
     from openai import OpenAI  # type: ignore
     client = OpenAI(api_key=api_key)
+
+    if prompt_id is not None:
+        prompt_arg: dict = {"id": prompt_id, "version": prompt_version}
+        kwargs: dict = {"prompt": prompt_arg, "max_output_tokens": max_tokens}
+        if template_variable:
+            prompt_arg["variables"] = {template_variable: question}
+        else:
+            kwargs["input"] = question
+        resp = client.responses.create(**kwargs)
+        # Responses API exposes a convenience `output_text` that joins all
+        # text segments; fall back to walking `output` if that's missing.
+        text = getattr(resp, "output_text", None)
+        if text is None:
+            parts: list[str] = []
+            for item in getattr(resp, "output", []) or []:
+                for c in getattr(item, "content", []) or []:
+                    t = getattr(c, "text", None)
+                    if isinstance(t, str):
+                        parts.append(t)
+            text = "".join(parts)
+        u = getattr(resp, "usage", None)
+        usage = {
+            "input_tokens": getattr(u, "input_tokens", 0) if u else 0,
+            "output_tokens": getattr(u, "output_tokens", 0) if u else 0,
+        }
+        return text or "", usage
+
     resp = client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,
@@ -128,12 +176,21 @@ def _generate_openai(question: str, api_key: str, model: str, max_tokens: int) -
 
 
 def _generate(provider: str, question: str, api_key: str, model: str, max_tokens: int,
+              prompt_id: str | None = None,
+              prompt_version: str = "1",
+              template_variable: str | None = None,
               max_retries: int = 3) -> tuple[str, dict]:
-    fn = _generate_anthropic if provider == "anthropic" else _generate_openai
     last_err: Exception | None = None
     for attempt in range(max_retries):
         try:
-            return fn(question, api_key, model, max_tokens)
+            if provider == "anthropic":
+                return _generate_anthropic(question, api_key, model, max_tokens)
+            return _generate_openai(
+                question, api_key, model, max_tokens,
+                prompt_id=prompt_id,
+                prompt_version=prompt_version,
+                template_variable=template_variable,
+            )
         except Exception as e:
             last_err = e
             backoff = 2 ** attempt
@@ -154,8 +211,22 @@ def main() -> None:
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--max-questions", type=int, default=10,
                     help="cap questions processed (default: 10 dry-run; set higher for production)")
+    ap.add_argument("--start-question", type=int, default=0,
+                    help="skip the first N HC3 rows before processing — use with multi-provider runs to "
+                         "carve non-overlapping slices (e.g. provider A: --start-question 0 --max-questions 500, "
+                         "provider B: --start-question 500 --max-questions 500). IDs use absolute row index, "
+                         "so non-overlapping slices never collide.")
     ap.add_argument("--max-tokens", type=int, default=600,
                     help="max output tokens per generation (default: 600 ~= 450 words)")
+    ap.add_argument("--openai-prompt-id", type=str, default=None,
+                    help="when set, switches the OpenAI provider to the Responses API and uses the "
+                         "saved prompt template with this ID (e.g. pmpt_abc123…). Ignored for Anthropic.")
+    ap.add_argument("--openai-prompt-version", type=str, default="1",
+                    help="version of the saved OpenAI prompt template (default: 1)")
+    ap.add_argument("--openai-template-variable", type=str, default=None,
+                    help="if your OpenAI prompt template uses {{name}} variable substitution, pass the "
+                         "variable name here (e.g. 'question'). The HC3 question is bound to it. "
+                         "If unset, the question is passed via the Responses API `input` parameter.")
     args = ap.parse_args()
 
     try:
@@ -189,6 +260,8 @@ def main() -> None:
             line = line.strip()
             if not line:
                 continue
+            if i < args.start_question:
+                continue
             if n_processed >= args.max_questions:
                 break
             row = json.loads(line)
@@ -209,7 +282,10 @@ def main() -> None:
 
             try:
                 llm_text, usage = _generate(
-                    args.provider, question, api_key, args.model, args.max_tokens
+                    args.provider, question, api_key, args.model, args.max_tokens,
+                    prompt_id=args.openai_prompt_id,
+                    prompt_version=args.openai_prompt_version,
+                    template_variable=args.openai_template_variable,
                 )
             except Exception as e:
                 print(f"FAILED q{i}: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr)

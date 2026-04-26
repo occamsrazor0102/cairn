@@ -140,21 +140,79 @@ The script is **resumable** — it appends to `--out` and skips
 questions already generated. A crash, rate-limit, or Ctrl-C doesn't
 waste credits.
 
-For multi-model robustness (the strongest version), regenerate
-against several models and concatenate:
+### Multi-provider runs
+
+For cross-family robustness, point each provider at a *different
+slice* of HC3 questions via `--start-question`. Each question is
+processed by exactly one model — no human-side duplication, no ID
+collisions:
 
 ```bash
-python scripts/regenerate_llm_outputs.py --provider anthropic --model claude-haiku-4-5-20251001 --max-questions 500 --out data/regen_haiku.jsonl
-python scripts/regenerate_llm_outputs.py --provider anthropic --model claude-sonnet-4-6      --max-questions 500 --out data/regen_sonnet.jsonl
-python scripts/regenerate_llm_outputs.py --provider openai    --model gpt-4o-mini             --max-questions 500 --out data/regen_gpt4o.jsonl
+# Anthropic handles questions 0-499
+python scripts/regenerate_llm_outputs.py \
+  --subset all --start-question 0 --max-questions 500 \
+  --provider anthropic --model claude-sonnet-4-6 \
+  --out data/regen_anthropic.jsonl
 
-cat data/regen_*.jsonl > data/regen_mixed.jsonl
+# OpenAI handles questions 500-999
+python scripts/regenerate_llm_outputs.py \
+  --subset all --start-question 500 --max-questions 500 \
+  --provider openai --model gpt-4o-mini \
+  --out data/regen_openai.jsonl
+
+# Concatenate, split, calibrate as usual
+cat data/regen_anthropic.jsonl data/regen_openai.jsonl > data/regen_mixed.jsonl
 python scripts/split_dataset.py --in data/regen_mixed.jsonl --out-dir data --prefix regen_mixed
-# ...then the usual calibrate/train/conformal/benchmark recipe.
 ```
 
-A mixed-model corpus teaches the detector "LLM-ness" rather than
-"Claude-ness" or "GPT-ness", which is what you want in the wild.
+The detector learns "LLM-ness" rather than "Claude-ness" or
+"GPT-ness". Scale up to N providers by extending the slice math.
+
+### Anthropic notes
+
+Default is Haiku 4.5 (cheapest, ~$0.0015/question). Pass
+`--model claude-sonnet-4-6` for stronger output (~$0.008/question)
+or `--model claude-opus-4-7` (~$0.025/question). For Sonnet/Opus the
+script automatically passes `thinking={"type": "disabled"}` so we
+get clean answer text without spending tokens on hidden reasoning.
+
+### Using a saved OpenAI prompt template (Responses API)
+
+If you've built a Prompt template in
+[platform.openai.com → Prompts](https://platform.openai.com/playground/prompts),
+the script can call it via the Responses API instead of raw
+`chat.completions`:
+
+```bash
+# Template uses `input` for the question (most common)
+python scripts/regenerate_llm_outputs.py \
+  --provider openai \
+  --openai-prompt-id pmpt_abc123... \
+  --openai-prompt-version 1 \
+  --max-questions 10 \
+  --out data/hc3_finance_regen_via_template.jsonl
+
+# Template uses {{question}} variable substitution
+python scripts/regenerate_llm_outputs.py \
+  --provider openai \
+  --openai-prompt-id pmpt_abc123... \
+  --openai-template-variable question \
+  --max-questions 10 \
+  --out data/hc3_finance_regen_via_template.jsonl
+```
+
+When `--openai-prompt-id` is set, `--model` is ignored (the template
+specifies its own model). To check which input mode your template
+uses, open it in the Prompts playground — variables show up as a
+side panel.
+
+**Calibration warning when using a custom template:** anything in
+the template beyond a minimal "answer the question" instruction
+(style guides, length caps, persona constraints, output formats)
+will bake into the LLM samples. The detector then learns to spot
+*your prompting choices* on top of native LLM patterns. This is
+fine if every deployment will use that same template; less useful
+as a general LLM detector.
 
 ## Wiring the artifacts into a profile
 
