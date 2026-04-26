@@ -60,13 +60,43 @@ _SUBSET_FILES = {
 _SYSTEM_PROMPT = "You are a helpful assistant. Answer the user's question accurately and helpfully."
 
 
+def _load_dotenv() -> None:
+    """Load KEY=VALUE pairs from `.env` at the repo root into os.environ.
+
+    Existing env vars take precedence (an explicit `export` wins over
+    .env). No-op if .env doesn't exist. Hand-rolled to avoid a hard
+    dependency on python-dotenv.
+
+    Format:
+      # comments and blank lines OK
+      KEY=value
+      KEY="value with spaces"
+      KEY='value'
+    """
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key = key.strip()
+        val = val.strip()
+        if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+            val = val[1:-1]
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
 def _resolve_api_key(provider: str) -> str:
     env_var = f"{provider.upper()}_API_KEY"
     key = os.environ.get(env_var)
     if not key:
         raise SystemExit(
             f"missing {env_var} in environment. "
-            f"export {env_var}=... before running."
+            f"either `export {env_var}=...` in your shell, "
+            f"or copy .env.example -> .env and put the key there."
         )
     return key
 
@@ -228,6 +258,8 @@ def main() -> None:
                          "variable name here (e.g. 'question'). The HC3 question is bound to it. "
                          "If unset, the question is passed via the Responses API `input` parameter.")
     args = ap.parse_args()
+
+    _load_dotenv()
 
     try:
         from huggingface_hub import hf_hub_download  # type: ignore
