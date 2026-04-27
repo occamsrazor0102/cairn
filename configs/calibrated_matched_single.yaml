@@ -1,0 +1,20 @@
+_profile: calibrated_matched_single
+_extends: default
+_description: >
+  Experimental profile — trained on the matched-single arm of the
+  same-prompts-multiple-providers experiment (q1500-1999 of HC3 all,
+  349 questions). Each training question gets exactly one LLM-side
+  output from a SINGLE provider (Anthropic Sonnet 4.6 by default;
+  see scripts/build_matched_experiment.py --single-provider).
+
+  Same questions and same sample count as calibrated_matched_mixed
+  (the comparison arm), so any test-set difference between the two
+  reflects training-side composition (single-provider vs
+  multi-provider) rather than prompt diversity.
+
+  See docs/benchmarks/README.md for the experimental result.
+
+fusion:
+  model_path: models/fusion/matched_single_ebm.pkl
+  conformal_path: models/conformal/matched_single.json
+  detector_calibration_path: models/calibrators/matched_single.json

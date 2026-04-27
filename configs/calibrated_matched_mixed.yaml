@@ -1,0 +1,20 @@
+_profile: calibrated_matched_mixed
+_extends: default
+_description: >
+  Experimental profile — trained on the matched-mixed arm of the
+  same-prompts-multiple-providers experiment (q1500-1999 of HC3 all,
+  349 questions). Each training question gets exactly one LLM-side
+  output, with the provider rotated across Anthropic / OpenAI /
+  Gemini in a repeating sequence.
+
+  Same questions and same sample count as calibrated_matched_single
+  (the comparison arm), so any test-set difference between the two
+  reflects training-side composition (multi-provider vs
+  single-provider) rather than prompt diversity.
+
+  See docs/benchmarks/README.md for the experimental result.
+
+fusion:
+  model_path: models/fusion/matched_mixed_ebm.pkl
+  conformal_path: models/conformal/matched_mixed.json
+  detector_calibration_path: models/calibrators/matched_mixed.json

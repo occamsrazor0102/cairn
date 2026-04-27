@@ -194,6 +194,79 @@ Pick `calibrated_full` for maximum provider coverage (recommended
 default); pick `calibrated_union` if you don't deploy against Gemini
 output.
 
+### Per-provider detection difficulty (matched-comparison eval)
+
+Generated a controlled per-provider corpus by regenerating the same
+500 HC3 questions (q1500-1999) with each of the three frontier labs:
+identical prompts, identical human-side rows, only the LLM-side
+differs. Evaluated each provider's slice through `calibrated_full`:
+
+| provider                                 | n   | AUROC  | ECE    | TPR@1%FPR | F1@0.5 | recall |
+|------------------------------------------|-----|--------|--------|-----------|--------|--------|
+| Anthropic Sonnet 4.6                     | 1000 | 0.9672 | 0.0819 | 0.7760    | 0.8945 | 0.9580 |
+| OpenAI Responses + saved template v3     | 1000 | **0.9358** | 0.0871 | **0.6520** | **0.8485** | **0.8740** |
+| Gemini 3 Flash + GoogleSearch            | 998  | 0.9961 | 0.1197 | 0.9419    | 0.9138 | 0.9980 |
+
+**Headlines:**
+* **Gemini is nearly trivial to detect** (AUROC 0.996, recall 0.998)
+  — GoogleSearch grounding's citation patterns and verbose markdown
+  structure are giveaways.
+* **OpenAI's reasoning template is the stealthiest** (AUROC 0.936) —
+  hidden reasoning produces more naturalistic surface output. ~6 AUROC
+  points behind Gemini, and at 1% FPR the detector catches only 65% of
+  OpenAI samples vs 94% of Gemini.
+* **Sonnet sits in the middle** at AUROC 0.967.
+
+Read: a single calibrated detector is heterogeneously good across
+modern LLMs; if you face a known target distribution, calibrate
+specifically against it. The matched corpus is reusable for future
+provider releases.
+
+### Mixed-vs-single training experiment
+
+Tested whether training on the SAME prompts answered by multiple
+providers generalizes better than training on more diverse prompts
+from a single provider. Both arms use:
+* Same 349 train + 74 calib questions (q1500-1999)
+* Same total sample count (698 train rows = 349 humans + 349 LLMs)
+* Same model architecture (EBM + split-conformal)
+* Same identical 304-row held-out test set (76 questions × 1 human
+  + 3 LLMs each)
+
+Only difference: LLM-side composition.
+* `calibrated_matched_mixed` — LLM rotated across Anthropic / OpenAI /
+  Gemini per training question (~117 from each)
+* `calibrated_matched_single` — all 349 LLM samples from Anthropic
+  Sonnet 4.6
+
+Result on the identical held-out test:
+
+| metric                 | matched_mixed | matched_single | Δ                          |
+|------------------------|---------------|----------------|----------------------------|
+| AUROC                  | **0.9804**    | 0.9722         | +0.008                     |
+| ECE                    | **0.0394**    | 0.0875         | **-0.048 (cuts in half)**  |
+| Brier                  | **0.0497**    | 0.0671         | -0.017                     |
+| TPR@1%FPR              | **0.7061**    | 0.4868         | **+0.219 (22 pp gain)**    |
+| F1@0.5                 | **0.9483**    | 0.9379         | +0.010                     |
+
+The biggest wins for the multi-provider arm are **ECE (cut in half:
+0.0875 → 0.0394) and TPR@1%FPR (+22 percentage points)** — calibration
+quality and strict-FP-budget recall. AUROC and F1 are close because
+both profiles already discriminate well at typical thresholds.
+
+**Read: multi-provider exposure beats single-provider specialization
+for cross-provider generalization, holding sample count constant.**
+Adding a third LLM family to training data delivered a meaningful
+production-relevant gain — at 1% false-positive budget, the
+multi-provider profile catches 71% of held-out LLM samples vs only
+49% for the single-provider profile, despite both being trained on
+identical question pools.
+
+Practical implication: when adding new model coverage, you don't
+need proportionally more training data — substituting some single-
+provider samples for multi-provider samples improves coverage at no
+sample-count cost. Diversity is doing real work.
+
 ## Reproducing the calibrated benchmark
 
 ```bash
