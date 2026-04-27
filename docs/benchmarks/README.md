@@ -151,6 +151,49 @@ keep `calibrated` if your inputs are exclusively finance prose, and
 `calibrated_regen` only if you need maximum sharpness on modern LLM
 output and don't care about legacy.
 
+### Super-union (`calibrated_full`): all 3 frontier labs + legacy
+
+Fifth calibrated profile landed (`configs/calibrated_full.yaml`),
+trained on the union of HC3 all (2000 question-pairs of 2023
+ChatGPT) plus regenerated outputs from all three frontier labs:
+* Anthropic Claude Sonnet 4.6 (q0-499, 499 pairs)
+* OpenAI Responses + saved template v3 (q500-999, 500 pairs)
+* Google Gemini 3 Flash + GoogleSearch (q1000-1499, 500 pairs)
+
+Total 3499 question-pairs — the most provider-diverse calibration
+corpus in this project.
+
+Quad-eval:
+
+| slice                                     | AUROC  | ECE    | Brier  | TPR@1%FPR | F1@0.5 |
+|-------------------------------------------|--------|--------|--------|-----------|--------|
+| superunion test (in-dist, n=1052)         | 0.9720 | 0.0230 | 0.0688 | **0.7186** | 0.9040 |
+| regen test via full (n=302)               | 0.9875 | 0.0607 | 0.0570 | 0.8278    | 0.9216 |
+| hc3_finance test via full (n=150)         | 0.9035 | 0.0864 | 0.1341 | 0.4800    | 0.8199 |
+| hc3_medicine via full (n=1000)            | 0.9107 | 0.0739 | 0.1027 | 0.5280    | 0.8716 |
+
+Head-to-head with the 2-provider union profile:
+
+| metric (in-dist test)  | calibrated_union | calibrated_full |
+|------------------------|------------------|-----------------|
+| AUROC                  | 0.9667           | **0.9720**      |
+| ECE                    | **0.0209**       | 0.0230          |
+| F1@0.5                 | 0.8985           | **0.9040**      |
+| TPR@1%FPR              | 0.6364           | **0.7186**      |
+
+The biggest win from adding Gemini is **TPR@1%FPR** — at a strict
+false-positive budget, the super-union catches significantly more
+LLM samples. AUROC only nudges up because both profiles already
+near-saturate ranking quality. The slight regression on the modern
+regen-test slice (0.9914 → 0.9875) is the expected cost of dilution:
+training spreads across more provider distributions, so any single
+distribution gets slightly less specialized capacity.
+
+Both `calibrated_union` and `calibrated_full` are production-ready.
+Pick `calibrated_full` for maximum provider coverage (recommended
+default); pick `calibrated_union` if you don't deploy against Gemini
+output.
+
 ## Reproducing the calibrated benchmark
 
 ```bash
