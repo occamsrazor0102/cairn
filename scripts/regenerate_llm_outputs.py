@@ -324,8 +324,14 @@ def main() -> None:
 
     # Phase 1: collect work items sequentially. Cheap (just file scan + dict
     # lookups), so no benefit from parallelizing this part.
+    #
+    # The slice is strictly [start_question, start_question + max_questions).
+    # We bound on the absolute row index so a partially-resumed run stays
+    # within the same slice — never extends past max_questions to "fill the
+    # cap". Already-done questions inside the slice are skipped silently.
     work_items: list[tuple[str, int, str, str]] = []  # (qid, i, question, human_text)
     n_skipped = 0
+    slice_end = args.start_question + args.max_questions
     with open(raw_path, encoding="utf-8") as f:
         for i, line in enumerate(f):
             line = line.strip()
@@ -333,7 +339,7 @@ def main() -> None:
                 continue
             if i < args.start_question:
                 continue
-            if len(work_items) >= args.max_questions:
+            if i >= slice_end:
                 break
             row = json.loads(line)
             question = (row.get("question") or "").strip()
