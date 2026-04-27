@@ -8,7 +8,13 @@
       "Bash(cmd.exe /c \"claude plugin install superpowers@claude-plugins-official\")",
       "Bash(powershell.exe -Command \"claude plugin install superpowers@claude-plugins-official\")",
       "Bash(python -m pytest tests/:*)",
-      "Bash(grep -r \"class.*Detector\" beet/detectors/*.py)"
+      "Bash(grep -r \"class.*Detector\" beet/detectors/*.py)",
+      "Bash(python -m pytest -q tests/test_rpc_sidecar.py tests/test_http_api.py)",
+      "Bash(claude agents *)",
+      "Bash(git *)",
+      "Bash(python -m ruff check beet/detectors/ beet/cascade.py beet/pipeline.py beet/monitoring/drift.py)",
+      "Bash(python -m mypy beet/detectors/ beet/cascade.py beet/pipeline.py beet/monitoring/drift.py --ignore-missing-imports)",
+      "Bash(python -m pytest -q)"
     ],
     "deny": [
       "Bash(rm -rf /:*)",

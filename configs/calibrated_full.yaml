@@ -1,0 +1,21 @@
+_profile: calibrated_full
+_extends: default
+_description: >
+  Calibrated against the SUPER-UNION of HC3 all (2023 ChatGPT, 2000
+  question-pairs) and the regenerated HC3 corpus from all three
+  frontier labs:
+    * Anthropic Claude Sonnet 4.6      (q0-499,    499 pairs)
+    * OpenAI Responses + saved template (q500-999, 500 pairs)
+    * Google Gemini 3 Flash + GoogleSearch (q1000-1499, 500 pairs)
+
+  Total 3499 question-pairs covering legacy ChatGPT plus current
+  outputs from Claude, GPT, and Gemini. The most distribution-
+  diverse calibration corpus available for this project.
+
+  Use this profile in production when you need the broadest
+  coverage of LLM writing patterns.
+
+fusion:
+  model_path: models/fusion/superunion_ebm.pkl
+  conformal_path: models/conformal/superunion.json
+  detector_calibration_path: models/calibrators/superunion.json
