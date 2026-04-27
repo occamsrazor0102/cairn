@@ -18,6 +18,12 @@ from beet.evaluation.dataset import load_dataset
 from beet.fusion.conformal import ConformalWrapper
 from beet.pipeline import BeetPipeline
 
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover - tqdm is optional
+    def tqdm(it, **_kw):
+        return it
+
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -32,7 +38,7 @@ def main() -> None:
 
     scores: list[float] = []
     labels: list[int] = []
-    for s in samples:
+    for s in tqdm(samples, desc="scoring", unit="sample"):
         det = pipeline.analyze(s.text)
         scores.append(float(det.p_llm))
         labels.append(int(s.label))

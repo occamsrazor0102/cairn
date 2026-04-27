@@ -64,6 +64,54 @@ sharper on the broad mix and holds up well on medicine (a domain
 present in training but only ~20% of samples). Pick the profile that
 matches your deployment's input distribution.
 
+### Regen calibration: modern LLM outputs
+
+Third calibrated profile landed (`configs/calibrated_regen.yaml`),
+trained on a regenerated HC3 corpus — same questions and same human
+answers as HC3 all, but with the LLM-side answers freshly produced
+by current models (Claude Sonnet 4.6 for q0–499; an OpenAI saved
+Prompt template at v3 for q500–999). 999 question-pairs total.
+
+The point is to test whether modern-LLM patterns differ enough from
+HC3's 2023 ChatGPT that a detector calibrated against modern
+outputs generalizes back to legacy ChatGPT-2023 — and they do.
+
+| slice                                  | AUROC  | ECE    | Brier  | TPR@1%FPR | F1@0.5 |
+|----------------------------------------|--------|--------|--------|-----------|--------|
+| regen_mixed test (in-dist, n=302)      | **0.9879** | 0.0369 | 0.0423 | **0.8146** | **0.9536** |
+| hc3_finance test via regen (n=150)     | 0.7363 | 0.2812 | 0.2992 | 0.0267    | 0.4528 |
+| hc3_medicine via regen (n=1000)        | 0.9001 | 0.3171 | 0.2951 | 0.1900    | 0.4299 |
+
+In-distribution numbers are the strongest of any profile shipped so
+far (AUROC 0.99, F1 0.95). But generalization to 2023 ChatGPT
+collapses: recall drops to 0.28-0.32 at threshold 0.5, meaning the
+detector misses 2/3 of legacy ChatGPT samples. Precision stays high
+(0.77-0.90) — when the regen profile DOES predict LLM, it's right;
+it just misses too many.
+
+**Read:** modern-LLM writing patterns are meaningfully different
+from 2023 ChatGPT. Detectors should be calibrated against the
+distribution they'll actually face. For maximum coverage, train on
+the union of regen and HC3-all (concatenate before splitting) — see
+docs/byo_dataset.md (Path 4 + multi-provider section) for the
+recipe.
+
+### Three-profile comparison on a stable test set
+
+Using the 150-sample finance test set as a single yardstick:
+
+| profile          | AUROC  | ECE    | F1@0.5 |
+|------------------|--------|--------|--------|
+| `calibrated`     | 0.9165 | 0.0498 | 0.8369 |
+| `calibrated_all` | 0.9009 | 0.1132 | 0.8072 |
+| `calibrated_regen` | 0.7363 | 0.2812 | 0.4528 |
+
+`calibrated` and `calibrated_all` were both trained on HC3 (2023
+ChatGPT) and do well on this 2023-ChatGPT test set. `calibrated_regen`
+trained on modern LLM output and is poor at catching old-ChatGPT
+text. None of these profiles is universally best — they reflect
+their training distributions.
+
 ## Reproducing the calibrated benchmark
 
 ```bash

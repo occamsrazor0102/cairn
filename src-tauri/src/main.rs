@@ -32,6 +32,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::analyze,
             commands::analyze_batch,
+            commands::analyze_batch_async,
+            commands::get_job,
+            commands::cancel_job,
             commands::feedback,
             commands::health,
             commands::history_list,

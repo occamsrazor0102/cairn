@@ -39,6 +39,40 @@ pub async fn analyze_batch(
 }
 
 #[tauri::command]
+pub async fn analyze_batch_async(
+    items: Value,
+    batch_id: Option<String>,
+    manager: State<'_, Arc<SidecarManager>>,
+) -> Result<Value, SidecarError> {
+    manager
+        .send_request(
+            "analyze_batch_async",
+            json!({ "items": items, "batch_id": batch_id }),
+        )
+        .await
+}
+
+#[tauri::command]
+pub async fn get_job(
+    job_id: String,
+    manager: State<'_, Arc<SidecarManager>>,
+) -> Result<Value, SidecarError> {
+    manager
+        .send_request("get_job", json!({ "job_id": job_id }))
+        .await
+}
+
+#[tauri::command]
+pub async fn cancel_job(
+    job_id: String,
+    manager: State<'_, Arc<SidecarManager>>,
+) -> Result<Value, SidecarError> {
+    manager
+        .send_request("cancel_job", json!({ "job_id": job_id }))
+        .await
+}
+
+#[tauri::command]
 pub async fn feedback(
     text: String,
     confirmed_label: i32,

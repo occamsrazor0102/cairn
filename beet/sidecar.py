@@ -32,6 +32,10 @@ import json
 import logging
 import os
 import sys
+import threading
+import traceback
+import uuid
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +43,7 @@ from beet.config import list_profiles, load_config
 from beet.history import HistoryStore, mint_submission_id
 from beet.monitoring.drift import DriftMonitor
 from beet.monitoring.meta_detector import MetaDetector
-from beet.pipeline import BeetPipeline
+from beet.pipeline import BatchCancelled, BeetPipeline
 from beet.report import build_json_report
 from beet.runtime import RuntimeContext
 
@@ -161,6 +165,165 @@ class SidecarError(Exception):
         self.message = message
 
 
+@dataclass
+class JobState:
+    """In-memory state for a long-running RPC job (e.g. async batch).
+
+    Clients poll via ``get_job(job_id)`` and may abort via ``cancel_job``.
+    ``result`` is populated only on successful completion; ``error`` only on
+    a non-cancellation failure.
+    """
+    job_id: str
+    kind: str
+    total: int
+    done: int = 0
+    current: str | None = None
+    status: str = "running"  # running | completed | cancelled | error
+    error: str | None = None
+    result: dict | None = None
+    started_at: str = ""
+    updated_at: str = ""
+
+    def to_public(self) -> dict:
+        return asdict(self)
+
+
+class JobRegistry:
+    """Thread-safe registry of running and recently-completed jobs.
+
+    Worker threads update progress via ``update``; the main RPC loop reads
+    snapshots via ``get`` and signals cancellation via ``cancel`` (which
+    flips the threading.Event the worker is polling). Completed jobs are
+    pruned best-effort on each new ``create`` so polling clients can still
+    fetch the final result for ~max_age_seconds.
+    """
+
+    def __init__(self, *, max_age_seconds: float = 3600.0, max_jobs: int = 50):
+        self._lock = threading.Lock()
+        self._jobs: dict[str, JobState] = {}
+        self._cancels: dict[str, threading.Event] = {}
+        self._max_age_seconds = max_age_seconds
+        self._max_jobs = max_jobs
+
+    @staticmethod
+    def _now() -> str:
+        return (
+            datetime.datetime.now(datetime.timezone.utc)
+            .replace(tzinfo=None)
+            .isoformat()
+            + "Z"
+        )
+
+    def create(self, kind: str, total: int) -> tuple[str, threading.Event]:
+        job_id = uuid.uuid4().hex
+        now = self._now()
+        ev = threading.Event()
+        with self._lock:
+            self._prune_locked()
+            self._jobs[job_id] = JobState(
+                job_id=job_id,
+                kind=kind,
+                total=int(total),
+                started_at=now,
+                updated_at=now,
+            )
+            self._cancels[job_id] = ev
+        return job_id, ev
+
+    def get(self, job_id: str) -> JobState | None:
+        with self._lock:
+            return self._jobs.get(job_id)
+
+    def cancel(self, job_id: str) -> bool:
+        with self._lock:
+            ev = self._cancels.get(job_id)
+            job = self._jobs.get(job_id)
+        if ev is None:
+            return False
+        ev.set()
+        # Flip status immediately so a poll between cancel and worker exit
+        # surfaces the user's intent. Worker's ``finish`` respects this.
+        with self._lock:
+            if job and job.status == "running":
+                job.status = "cancelled"
+                job.updated_at = self._now()
+        return True
+
+    def update(
+        self,
+        job_id: str,
+        *,
+        done: int | None = None,
+        current: str | None = None,
+    ) -> None:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return
+            if done is not None:
+                job.done = int(done)
+            job.current = current
+            job.updated_at = self._now()
+
+    def finish(
+        self,
+        job_id: str,
+        *,
+        result: dict | None = None,
+        error: str | None = None,
+    ) -> None:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return
+            now = self._now()
+            if error is not None:
+                # Cancellation wins over error reporting — if the user already
+                # asked to stop, don't surface the BatchCancelled traceback.
+                if job.status != "cancelled":
+                    job.status = "error"
+                    job.error = error
+            elif job.status != "cancelled":
+                job.status = "completed"
+                job.done = job.total
+            if result is not None:
+                job.result = result
+            job.updated_at = now
+
+    def _prune_locked(self) -> None:
+        """Drop old terminal jobs and trim back to max_jobs."""
+        terminal = {"completed", "cancelled", "error"}
+        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            seconds=self._max_age_seconds
+        )
+        for jid in list(self._jobs.keys()):
+            j = self._jobs[jid]
+            if j.status not in terminal:
+                continue
+            try:
+                ts = datetime.datetime.fromisoformat(
+                    j.updated_at.rstrip("Z")
+                ).replace(tzinfo=datetime.timezone.utc)
+            except Exception:
+                continue
+            if ts < cutoff:
+                self._jobs.pop(jid, None)
+                self._cancels.pop(jid, None)
+        if len(self._jobs) > self._max_jobs:
+            terminals = sorted(
+                (
+                    (jid, j)
+                    for jid, j in self._jobs.items()
+                    if j.status in terminal
+                ),
+                key=lambda kv: kv[1].updated_at,
+            )
+            overflow = len(self._jobs) - self._max_jobs
+            for jid, _ in terminals[:overflow]:
+                self._jobs.pop(jid, None)
+                self._cancels.pop(jid, None)
+
+
 def record_feedback(
     pipeline: BeetPipeline,
     meta: MetaDetector,
@@ -237,6 +400,7 @@ class Sidecar:
         self._history = history
         self._drift = drift
         self._meta = MetaDetector()
+        self._jobs = JobRegistry()
         self._running = True
 
     @property
@@ -252,6 +416,12 @@ class Sidecar:
             return self._analyze(params)
         if method == "analyze_batch":
             return self._analyze_batch(params)
+        if method == "analyze_batch_async":
+            return self._analyze_batch_async(params)
+        if method == "get_job":
+            return self._get_job(params)
+        if method == "cancel_job":
+            return self._cancel_job(params)
         if method == "feedback":
             return self._feedback(params)
         if method == "health":
@@ -306,13 +476,25 @@ class Sidecar:
         self._record(report, source="analyze", text=text)
         return report
 
-    def _analyze_batch(self, params: dict) -> dict:
+    def _parse_batch_items(
+        self, params: dict
+    ) -> tuple[dict[str, str], list[tuple[int, str]], list[int], str]:
+        """Validate and normalize batch RPC params.
+
+        Returns (texts, order, skipped, batch_id). Raises SidecarError with
+        ERR_BAD_PARAMS for any structural issue. Shared by the sync and async
+        entry points so they enforce the same rules and produce the same
+        skip/order semantics.
+        """
         items = params.get("items") or []
         if not isinstance(items, list) or not items:
             raise SidecarError("ERR_BAD_PARAMS", "items required (non-empty list)")
         if len(items) > 500:
             raise SidecarError("ERR_BAD_PARAMS", "batch exceeds 500-item cap")
-        batch_id = str(params.get("batch_id") or mint_submission_id().replace("sub_", "batch_"))
+        batch_id = str(
+            params.get("batch_id")
+            or mint_submission_id().replace("sub_", "batch_")
+        )
         texts: dict[str, str] = {}
         order: list[tuple[int, str]] = []
         skipped: list[int] = []
@@ -334,19 +516,106 @@ class Sidecar:
             order.append((idx, sid))
         if not texts:
             raise SidecarError("ERR_BAD_PARAMS", "no valid items in batch")
-        try:
-            dets = self._pipeline.analyze_batch(texts)
-        except Exception as e:
-            raise SidecarError("ERR_PIPELINE", f"analyze_batch failed: {e}") from e
+        return texts, order, skipped, batch_id
+
+    def _collect_batch_results(
+        self,
+        dets: dict,
+        order: list[tuple[int, str]],
+        texts: dict[str, str],
+        skipped: list[int],
+        batch_id: str,
+    ) -> dict:
+        """Build the response dict that both sync and async paths return."""
         results = []
         for _idx, sid in order:
             det = dets.get(sid)
             if det is None:
                 continue
             report = build_json_report(det, submission_id=sid)
-            self._record(report, source="batch", text=texts[sid], batch_id=batch_id)
+            try:
+                self._record(report, source="batch", text=texts[sid], batch_id=batch_id)
+            except Exception as e:
+                log.warning("history record failed for %s: %s", sid, e)
             results.append(report)
         return {"results": results, "skipped": skipped, "batch_id": batch_id}
+
+    def _analyze_batch(self, params: dict) -> dict:
+        texts, order, skipped, batch_id = self._parse_batch_items(params)
+        try:
+            dets = self._pipeline.analyze_batch(texts)
+        except Exception as e:
+            raise SidecarError("ERR_PIPELINE", f"analyze_batch failed: {e}") from e
+        return self._collect_batch_results(dets, order, texts, skipped, batch_id)
+
+    def _analyze_batch_async(self, params: dict) -> dict:
+        """Kick off a batch analysis in a worker thread, return a job_id.
+
+        The worker reports progress via the JobRegistry; clients poll
+        ``get_job`` and may abort via ``cancel_job``. Validation errors
+        (bad shape, duplicate IDs, empty batch) still raise synchronously
+        — only successful kick-off returns a job_id.
+        """
+        texts, order, skipped, batch_id = self._parse_batch_items(params)
+        job_id, cancel_event = self._jobs.create(kind="batch", total=len(texts))
+
+        # Capture refs so the worker doesn't depend on `self` mutation.
+        pipeline = self._pipeline
+        jobs = self._jobs
+        collect = self._collect_batch_results
+
+        def _progress(done: int, total: int, current: str | None) -> None:
+            jobs.update(job_id, done=done, current=current)
+
+        def _cancelled() -> bool:
+            return cancel_event.is_set()
+
+        def worker() -> None:
+            try:
+                dets = pipeline.analyze_batch(
+                    texts, progress_cb=_progress, cancel_check=_cancelled
+                )
+                payload = collect(dets, order, texts, skipped, batch_id)
+                jobs.finish(job_id, result=payload)
+            except BatchCancelled:
+                jobs.finish(job_id)  # cancel() already flipped status
+            except Exception as e:
+                log.warning(
+                    "async batch %s failed: %s\n%s",
+                    job_id,
+                    e,
+                    traceback.format_exc(),
+                )
+                jobs.finish(job_id, error=str(e) or type(e).__name__)
+
+        threading.Thread(
+            target=worker, name=f"beet-batch-{job_id[:8]}", daemon=True
+        ).start()
+        return {
+            "job_id": job_id,
+            "kind": "batch",
+            "total": len(texts),
+            "batch_id": batch_id,
+            "skipped": skipped,
+        }
+
+    def _get_job(self, params: dict) -> dict:
+        job_id = str(params.get("job_id") or "")
+        if not job_id:
+            raise SidecarError("ERR_BAD_PARAMS", "job_id required")
+        job = self._jobs.get(job_id)
+        if job is None:
+            raise SidecarError("ERR_NOT_FOUND", f"job '{job_id}' not found")
+        return job.to_public()
+
+    def _cancel_job(self, params: dict) -> dict:
+        job_id = str(params.get("job_id") or "")
+        if not job_id:
+            raise SidecarError("ERR_BAD_PARAMS", "job_id required")
+        ok = self._jobs.cancel(job_id)
+        if not ok:
+            raise SidecarError("ERR_NOT_FOUND", f"job '{job_id}' not found")
+        return {"ok": True, "job_id": job_id}
 
     def _feedback(self, params: dict) -> dict:
         return record_feedback(

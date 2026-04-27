@@ -2,6 +2,7 @@ import importlib
 import logging
 import os
 from pathlib import Path
+from typing import Callable
 from beet.config import load_config
 from beet.contracts import Determination, LayerResult, RouterDecision
 from beet.normalizer import normalize_text
@@ -13,6 +14,12 @@ from beet.decision import DecisionEngine
 import beet.detectors as detector_registry
 
 logger = logging.getLogger("beet")
+
+
+class BatchCancelled(Exception):
+    """Raised by ``BeetPipeline.analyze_batch`` when its ``cancel_check`` callable
+    returns truthy mid-iteration. Lets the sidecar tell a worker thread to abort
+    cleanly without leaving the JobRegistry in a half-completed state."""
 
 
 # Detectors that can't do meaningful work in the single-submission analyze
@@ -212,6 +219,9 @@ class BeetPipeline:
         self,
         texts: dict[str, str],
         task_metadata: dict | None = None,
+        *,
+        progress_cb: Callable[[int, int, str | None], None] | None = None,
+        cancel_check: Callable[[], bool] | None = None,
     ) -> dict[str, Determination]:
         """Run per-submission analysis enriched with cross-submission signals.
 
@@ -219,15 +229,36 @@ class BeetPipeline:
         `cross_similarity` layer result computed across the whole batch,
         re-runs fusion + decision. Contributor-graph batch detector is
         invoked separately via `analyze_contributors` (periodic, not per-call).
+
+        ``progress_cb(done, total, current_id)`` is invoked once before the
+        first item (``done=0``), once after each item completes (``done=i+1``),
+        and once before the cross-similarity post-pass (``current_id="__cross__"``).
+        Total counts only the per-submission phase; the post-pass adds at most
+        a constant amount of additional work.
+
+        If ``cancel_check`` is supplied and returns truthy, ``BatchCancelled``
+        is raised — partially-completed work is discarded.
         """
+        total = len(texts)
+        if progress_cb is not None:
+            progress_cb(0, total, None)
+
         per_sub: dict[str, tuple[Determination, list[LayerResult], RouterDecision]] = {}
-        for sid, text in texts.items():
+        for i, (sid, text) in enumerate(texts.items()):
+            if cancel_check is not None and cancel_check():
+                raise BatchCancelled()
             det, results, rd = self.analyze_detailed(text, task_metadata)
             per_sub[sid] = (det, list(results), rd)
+            if progress_cb is not None:
+                progress_cb(i + 1, total, sid)
 
         cross = self._detectors.get("cross_similarity")
         cross_cfg = self._config.get("detectors", {}).get("cross_similarity", {})
         if cross is not None and cross_cfg.get("enabled", False) and len(texts) > 1:
+            if cancel_check is not None and cancel_check():
+                raise BatchCancelled()
+            if progress_cb is not None:
+                progress_cb(total, total, "__cross__")
             batch_results = cross.analyze_batch(texts, cross_cfg)
             for sid, layer_result in batch_results.items():
                 if sid not in per_sub:

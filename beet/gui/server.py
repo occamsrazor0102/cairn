@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 import traceback
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -16,11 +17,12 @@ from beet.config import list_profiles
 from beet.history import HistoryStore, mint_submission_id
 from beet.monitoring.drift import DriftMonitor
 from beet.monitoring.meta_detector import MetaDetector
-from beet.pipeline import BeetPipeline
+from beet.pipeline import BatchCancelled, BeetPipeline
 from beet.report import build_json_report
 from beet.runtime import RuntimeContext
 from beet.sidecar import (
     DEFAULT_FEEDBACK_PATH,
+    JobRegistry,
     SidecarError,
     _curated_config_view,
     drift_baseline_from_history,
@@ -61,6 +63,7 @@ def _make_handler(
         ctx = RuntimeContext(pipeline, profile, {})
     meta = meta or MetaDetector()
     feedback_path = feedback_path or DEFAULT_FEEDBACK_PATH
+    jobs = JobRegistry()  # in-memory async-batch job tracking; mirrors sidecar
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
@@ -151,6 +154,12 @@ def _make_handler(
                 self._handle_analyze(body)
             elif path == "/batch":
                 self._handle_batch(body)
+            elif path == "/batch/async":
+                self._handle_batch_async(body)
+            elif path == "/jobs/get":
+                self._handle_job_get(body)
+            elif path == "/jobs/cancel":
+                self._handle_job_cancel(body)
             elif path == "/feedback":
                 self._handle_feedback(body)
             elif path == "/history/list":
@@ -221,6 +230,121 @@ def _make_handler(
                     skipped.append(idx)
                     sys.stderr.write(f"[gui] batch item {idx} failed: {e}\n")
             self._send_json(200, {"results": results, "skipped": skipped, "batch_id": batch_id})
+
+        def _handle_batch_async(self, body: dict) -> None:
+            items = body.get("items") or []
+            if not isinstance(items, list) or not items:
+                self._send_json(400, {"error": "items required"})
+                return
+            if len(items) > 500:
+                self._send_json(400, {"error": "batch exceeds 500-item cap"})
+                return
+            batch_id = str(
+                body.get("batch_id")
+                or mint_submission_id().replace("sub_", "batch_")
+            )
+            texts: dict[str, str] = {}
+            order: list[tuple[int, str]] = []
+            skipped: list[int] = []
+            for idx, it in enumerate(items):
+                if not isinstance(it, dict):
+                    skipped.append(idx)
+                    continue
+                sid = str(it.get("id") or f"{batch_id}_{idx:04d}")
+                txt = it.get("text", "")
+                if not isinstance(txt, str) or not txt.strip():
+                    skipped.append(idx)
+                    continue
+                if sid in texts:
+                    self._send_json(
+                        400,
+                        {"error": f"duplicate submission_id '{sid}' at index {idx}"},
+                    )
+                    return
+                texts[sid] = txt
+                order.append((idx, sid))
+            if not texts:
+                self._send_json(400, {"error": "no valid items in batch"})
+                return
+
+            job_id, cancel_event = jobs.create(kind="batch", total=len(texts))
+            pipeline = ctx.pipeline
+            record_history = self._record_history
+
+            def _progress(done: int, total: int, current: str | None) -> None:
+                jobs.update(job_id, done=done, current=current)
+
+            def _cancelled() -> bool:
+                return cancel_event.is_set()
+
+            def worker() -> None:
+                try:
+                    dets = pipeline.analyze_batch(
+                        texts, progress_cb=_progress, cancel_check=_cancelled
+                    )
+                    results = []
+                    for _idx, sid in order:
+                        det = dets.get(sid)
+                        if det is None:
+                            continue
+                        report = build_json_report(det, submission_id=sid)
+                        try:
+                            record_history(
+                                report, source="batch", text=texts[sid], batch_id=batch_id
+                            )
+                        except Exception as e:
+                            sys.stderr.write(
+                                f"[gui] history record failed for {sid}: {e}\n"
+                            )
+                        results.append(report)
+                    jobs.finish(
+                        job_id,
+                        result={
+                            "results": results,
+                            "skipped": skipped,
+                            "batch_id": batch_id,
+                        },
+                    )
+                except BatchCancelled:
+                    jobs.finish(job_id)
+                except Exception as e:
+                    sys.stderr.write(f"[gui] async batch {job_id} failed: {e}\n")
+                    jobs.finish(job_id, error=str(e) or type(e).__name__)
+
+            threading.Thread(
+                target=worker, name=f"beet-batch-{job_id[:8]}", daemon=True
+            ).start()
+            self._send_json(
+                200,
+                {
+                    "job_id": job_id,
+                    "kind": "batch",
+                    "total": len(texts),
+                    "batch_id": batch_id,
+                    "skipped": skipped,
+                },
+            )
+
+        def _handle_job_get(self, body: dict) -> None:
+            job_id = str(body.get("job_id") or "")
+            if not job_id:
+                self._send_json(400, {"error": "job_id required"})
+                return
+            job = jobs.get(job_id)
+            if job is None:
+                self._send_json(404, {"error": f"job '{job_id}' not found"})
+                return
+            self._send_json(200, job.to_public())
+
+        def _handle_job_cancel(self, body: dict) -> None:
+            job_id = str(body.get("job_id") or "")
+            if not job_id:
+                self._send_json(400, {"error": "job_id required"})
+                return
+            if not jobs.cancel(job_id):
+                self._send_json(404, {"error": f"job '{job_id}' not found"})
+                return
+            self._send_json(200, {"ok": True, "job_id": job_id})
 
         def _handle_feedback(self, body: dict) -> None:
             try:

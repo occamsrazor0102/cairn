@@ -394,10 +394,20 @@
       </div>
       <div class="actions">
         <button id="batchGo">Run batch</button>
+        <button class="ghost" id="batchCancel" hidden>Cancel</button>
         <button class="ghost" id="batchExportJson" hidden>Export JSON</button>
         <button class="ghost" id="batchExportCsv" hidden>Export CSV</button>
       </div>
       <div id="batchErr" class="err" hidden></div>
+      <div id="batchProgress" hidden style="margin-top:12px;font-size:12px;color:var(--muted);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span id="batchProgressText">Starting…</span>
+          <span id="batchProgressEta"></span>
+        </div>
+        <div style="height:6px;background:rgba(127,127,127,0.18);border-radius:3px;overflow:hidden;">
+          <div id="batchProgressBar" style="height:100%;width:0%;background:var(--accent,#4ea1f3);transition:width 0.25s ease;"></div>
+        </div>
+      </div>
       <div class="batch-summary" id="batchSummary" hidden></div>
       <table class="data" id="batchTable" hidden>
         <thead><tr>
@@ -610,6 +620,9 @@ const beetApi = (() => {
       mode: "tauri",
       analyze: (text, submission_id) => invoke("analyze", { text, submissionId: submission_id || null }),
       analyzeBatch: (items, batch_id) => invoke("analyze_batch", { items, batchId: batch_id || null }),
+      analyzeBatchAsync: (items, batch_id) => invoke("analyze_batch_async", { items, batchId: batch_id || null }),
+      getJob: (job_id) => invoke("get_job", { jobId: job_id }),
+      cancelJob: (job_id) => invoke("cancel_job", { jobId: job_id }),
       feedback: (p) => invoke("feedback", {
         text: p.text, confirmedLabel: p.confirmed_label,
         submissionId: p.submission_id || null, reviewerNotes: p.reviewer_notes || null,
@@ -644,6 +657,9 @@ const beetApi = (() => {
     mode: "http",
     analyze: (text, submission_id) => post("/analyze", { text, submission_id }),
     analyzeBatch: (items, batch_id) => post("/batch", { items, batch_id }),
+    analyzeBatchAsync: (items, batch_id) => post("/batch/async", { items, batch_id }),
+    getJob: (job_id) => post("/jobs/get", { job_id }),
+    cancelJob: (job_id) => post("/jobs/cancel", { job_id }),
     feedback: (p) => post("/feedback", p),
     health: () => fetch("/health").then(r => r.json()),
     historyList: (params) => post("/history/list", params),
@@ -1019,6 +1035,79 @@ $("batchDrop").addEventListener("drop", e => {
   if (f) { $("batchFile").files = e.dataTransfer.files; $("batchFile").dispatchEvent(new Event("change")); }
 });
 
+let _batchJobId = null;
+let _batchPollTimer = null;
+let _batchStartedAt = 0;
+
+function _setBatchProgress(done, total, current) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  $("batchProgressBar").style.width = pct + "%";
+  let label = "queued";
+  if (current === "__cross__") label = "cross-similarity post-pass";
+  else if (current) label = "current: " + current;
+  else if (done >= total && total > 0) label = "finalizing…";
+  $("batchProgressText").textContent = `${done}/${total} — ${label}`;
+  if (done > 0 && done < total && _batchStartedAt) {
+    const elapsed = (performance.now() - _batchStartedAt) / 1000;
+    const remaining = (elapsed / done) * (total - done);
+    $("batchProgressEta").textContent = `~${Math.ceil(remaining)}s remaining`;
+  } else {
+    $("batchProgressEta").textContent = "";
+  }
+}
+
+function _stopBatchPolling() {
+  if (_batchPollTimer) { clearTimeout(_batchPollTimer); _batchPollTimer = null; }
+  _batchJobId = null;
+  $("batchGo").disabled = false;
+  $("batchGo").textContent = "Run batch";
+  $("batchCancel").hidden = true;
+  $("batchProgress").hidden = true;
+}
+
+async function _pollBatchJob() {
+  if (!_batchJobId) return;
+  try {
+    const job = await beetApi.getJob(_batchJobId);
+    _setBatchProgress(job.done || 0, job.total || 0, job.current);
+    if (job.status === "running") {
+      _batchPollTimer = setTimeout(_pollBatchJob, 500);
+      return;
+    }
+    _stopBatchPolling();
+    const err = $("batchErr");
+    if (job.status === "completed") {
+      const r = job.result || {};
+      _batchResults = r.results || [];
+      _batchId = r.batch_id || null;
+      const total = (r.results || []).length + (r.skipped || []).length;
+      renderBatchResults(_batchResults, r.skipped || [], total);
+      $("batchExportJson").hidden = false;
+      $("batchExportCsv").hidden = false;
+    } else if (job.status === "cancelled") {
+      err.textContent = "Batch cancelled.";
+      err.hidden = false;
+    } else {
+      err.textContent = "Batch failed: " + (job.error || "unknown error");
+      err.hidden = false;
+    }
+  } catch (e) {
+    _stopBatchPolling();
+    const err = $("batchErr");
+    err.textContent = "Polling failed: " + (e.message || e);
+    err.hidden = false;
+  }
+}
+
+async function _runBatchSync(items) {
+  const res = await beetApi.analyzeBatch(items);
+  _batchResults = res.results || [];
+  _batchId = res.batch_id || null;
+  renderBatchResults(_batchResults, res.skipped || [], items.length);
+  $("batchExportJson").hidden = false;
+  $("batchExportCsv").hidden = false;
+}
+
 $("batchGo").addEventListener("click", async () => {
   const err = $("batchErr");
   err.hidden = true;
@@ -1031,16 +1120,46 @@ $("batchGo").addEventListener("click", async () => {
   } catch (e) { err.textContent = e.message; err.hidden = false; return; }
   if (!items.length) { err.textContent = "No items to process."; err.hidden = false; return; }
   if (items.length > 500) { err.textContent = `Too many items (${items.length}); cap is 500.`; err.hidden = false; return; }
+
   const btn = $("batchGo");
   btn.disabled = true; btn.textContent = `Running (${items.length})…`;
+  $("batchProgress").hidden = false;
+  $("batchCancel").hidden = false;
+  _batchStartedAt = performance.now();
+  _setBatchProgress(0, items.length, null);
+
+  let asyncStarted = false;
   try {
-    const res = await beetApi.analyzeBatch(items);
-    _batchResults = res.results || [];
-    _batchId = res.batch_id || null;
-    renderBatchResults(_batchResults, res.skipped || [], items.length);
-    $("batchExportJson").hidden = false; $("batchExportCsv").hidden = false;
-  } catch (e) { err.textContent = e.message || String(e); err.hidden = false; }
-  finally { btn.disabled = false; btn.textContent = "Run batch"; }
+    try {
+      const started = await beetApi.analyzeBatchAsync(items);
+      _batchJobId = started.job_id;
+      asyncStarted = true;
+      _pollBatchJob();
+    } catch (e) {
+      // Fall back to sync if backend lacks async — older sidecar / older HTTP server.
+      const msg = (e && e.message) || String(e);
+      if (/method_not_found|not.?found|404|unknown method/i.test(msg)) {
+        await _runBatchSync(items);
+      } else {
+        throw e;
+      }
+    }
+  } catch (e) {
+    err.textContent = e.message || String(e); err.hidden = false;
+  } finally {
+    if (!asyncStarted) {
+      btn.disabled = false; btn.textContent = "Run batch";
+      $("batchProgress").hidden = true;
+      $("batchCancel").hidden = true;
+    }
+    // Async path: _stopBatchPolling() resets UI when the job reaches a terminal state.
+  }
+});
+
+$("batchCancel").addEventListener("click", async () => {
+  if (!_batchJobId) return;
+  try { await beetApi.cancelJob(_batchJobId); }
+  catch (_) { /* poll loop will pick up the terminal state regardless */ }
 });
 
 function renderBatchResults(results, skipped, total) {

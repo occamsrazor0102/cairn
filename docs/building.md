@@ -18,7 +18,7 @@ The `index.html` auto-detects the host (`window.__TAURI_INTERNALS__`) and routes
 - **Rust** (stable toolchain) — https://rustup.rs
 - **Tauri CLI** — `cargo install tauri-cli --version "^2.0"`
 - **Node.js** 18+ — Tauri requires it even for vanilla-HTML frontends
-- **PyInstaller** — `pip install pyinstaller` (only needed for bundled builds, not dev)
+- **PyInstaller** — install via the `dist` extra: `pip install -e ".[dist]"` (only needed for bundled builds, not dev)
 - Platform-native build toolchains:
   - macOS: Xcode Command Line Tools (`xcode-select --install`)
   - Windows: Microsoft C++ Build Tools + WebView2 runtime (pre-installed on Win11)
@@ -104,45 +104,42 @@ First run compiles the Rust dependencies (~2–5 min). Subsequent runs are incre
 
 Builds are **per-platform** — you build on macOS to get `.dmg`, on Windows to get `.msi`, on Linux to get `.AppImage`. Cross-compilation is painful; use CI runners or separate machines.
 
-**Step 1 — build the Python sidecar binary:**
+**Recommended path — wrapper scripts:**
+
 ```bash
-pyinstaller \
-  --onefile \
-  --name beet-sidecar \
-  --distpath src-tauri/binaries \
-  --paths . \
-  beet/sidecar.py
+# macOS / Linux
+./scripts/build_release.sh
+
+# Windows (PowerShell)
+./scripts/build_release.ps1
 ```
 
-On Windows, PyInstaller emits `beet-sidecar.exe`; on macOS / Linux, `beet-sidecar`. Tauri's bundler rewrites the name to `beet-sidecar-<target-triple>` for platform-specific lookup — see [Tauri's sidecar docs](https://tauri.app/v1/guides/building/sidecar) for the exact convention your Tauri version expects. (If the bundler errors on the name, rename the PyInstaller output to match the target triple, e.g. `beet-sidecar-x86_64-apple-darwin`.)
+Each wrapper does two things:
 
-Sanity check the binary works:
-```bash
-echo '{"id":"1","method":"health"}' | src-tauri/binaries/beet-sidecar
-# Expect: ready event, then a result line
-```
+1. Calls `python scripts/build_sidecar.py`, which runs PyInstaller, renames the output to `src-tauri/binaries/beet-sidecar-<rust-target-triple>(.exe)` (the form Tauri 2 expects when resolving the `externalBin` declaration), and pipes a `health` JSON-RPC call into the binary as a smoke test.
+2. Runs `cargo tauri build` from `src-tauri/`, producing the platform installer under `src-tauri/target/release/bundle/`.
 
-**Step 2 — unset the dev override** so Rust uses the bundled binary:
-```bash
-unset BEET_SIDECAR_CMD   # or Remove-Item Env:BEET_SIDECAR_CMD on PowerShell
-```
+Useful flags: `--no-smoke` / `-SkipSmoke` skips the sidecar smoke; `--sidecar-only` / `-SidecarOnly` stops after step 1.
 
-**Step 3 — build the Tauri app:**
-```bash
-cd src-tauri
-cargo tauri build
-```
-
-Output:
+**Output paths:**
 - macOS: `src-tauri/target/release/bundle/dmg/BEET_2.0.0_aarch64.dmg` (or `x86_64`)
 - Windows: `src-tauri/target/release/bundle/msi/BEET_2.0.0_x64_en-US.msi`
 - Linux: `src-tauri/target/release/bundle/appimage/beet_2.0.0_amd64.AppImage`
 
-**Step 4 — smoke test the bundle:**
+**Smoke test the bundle:**
 1. Launch the installed app.
 2. Paste text, click Analyze. Verdict should render within ~1–2 seconds.
 3. Submit Human/LLM feedback. Check that `data/reviewer_feedback.jsonl` gets written — the path is relative to the app's working directory, which Tauri sets per-OS.
 4. Close the window. Verify the Python subprocess exits (no orphaned `beet-sidecar` process in Task Manager / `ps`).
+
+**Manual fallback** (drive PyInstaller and Tauri yourself):
+
+```bash
+pip install -e ".[dist]"
+python scripts/build_sidecar.py        # writes src-tauri/binaries/beet-sidecar-<triple>(.exe)
+unset BEET_SIDECAR_CMD                 # or Remove-Item Env:BEET_SIDECAR_CMD on PowerShell
+cd src-tauri && cargo tauri build
+```
 
 ---
 
@@ -162,36 +159,18 @@ To sign later:
 
 ## CI-friendly build
 
-A three-OS GitHub Actions matrix looks like:
+The repo ships a three-OS GitHub Actions matrix at [`.github/workflows/release.yml`](../.github/workflows/release.yml). It triggers on `v*` tag pushes and on manual `workflow_dispatch`; each platform job runs the same wrapper script you'd run locally and uploads the resulting installers to a draft GitHub Release.
 
-```yaml
-jobs:
-  build:
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-node@v4
-      - name: Install Linux deps
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
-      - run: pip install -e . pyinstaller
-      - name: Build sidecar
-        run: pyinstaller --onefile --name beet-sidecar --distpath src-tauri/binaries beet/sidecar.py
-      - run: cargo install tauri-cli --version "^2.0"
-      - run: cd src-tauri && cargo tauri build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: beet-${{ matrix.os }}
-          path: src-tauri/target/release/bundle/**/*
+To cut a release:
+
+```bash
+git tag v2.0.1
+git push origin v2.0.1
 ```
+
+Watch the run in the Actions tab. When all three jobs finish, head to the **Releases** page — there will be a draft pre-populated with the installers. Edit the notes, click Publish.
+
+For an unattended build without cutting a tag, trigger the workflow manually (Actions → Release → Run workflow); artifacts upload via `actions/upload-artifact` in that path.
 
 ---
 

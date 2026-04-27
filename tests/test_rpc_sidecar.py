@@ -203,3 +203,76 @@ def test_disabled_history_raises(tmp_path):
     with pytest.raises(SidecarError) as ex:
         sc.handle("history_list", {})
     assert ex.value.code == "ERR_DISABLED"
+
+
+# --- async batch + job registry --------------------------------------------
+
+def test_analyze_batch_async_completes(sidecar):
+    """Happy path: kick off, poll until terminal, verify results match sync shape."""
+    import time
+
+    sc, hist = sidecar
+    started = sc.handle(
+        "analyze_batch_async",
+        {"items": [
+            {"id": "a", "text": "first text sample"},
+            {"id": "b", "text": "second text sample"},
+        ]},
+    )
+    assert "job_id" in started
+    assert started["kind"] == "batch"
+    assert started["total"] == 2
+
+    deadline = time.time() + 10.0
+    job = None
+    while time.time() < deadline:
+        job = sc.handle("get_job", {"job_id": started["job_id"]})
+        if job["status"] != "running":
+            break
+        time.sleep(0.05)
+    assert job is not None and job["status"] == "completed", f"unexpected: {job}"
+    assert job["done"] == 2
+    assert len(job["result"]["results"]) == 2
+    assert hist.list(batch_id=job["result"]["batch_id"])["total"] == 2
+
+
+def test_get_job_unknown_raises(sidecar):
+    sc, _ = sidecar
+    with pytest.raises(SidecarError) as ex:
+        sc.handle("get_job", {"job_id": "does-not-exist"})
+    assert ex.value.code == "ERR_NOT_FOUND"
+
+
+def test_cancel_job_unknown_raises(sidecar):
+    sc, _ = sidecar
+    with pytest.raises(SidecarError) as ex:
+        sc.handle("cancel_job", {"job_id": "does-not-exist"})
+    assert ex.value.code == "ERR_NOT_FOUND"
+
+
+def test_jobregistry_cancel_is_sticky():
+    """Cancellation wins even if finish() is called afterwards — guards
+    against the worker thread overwriting the user's intent on a race."""
+    from beet.sidecar import JobRegistry
+
+    reg = JobRegistry()
+    job_id, ev = reg.create("batch", total=10)
+    assert reg.get(job_id).status == "running"
+    assert reg.cancel(job_id) is True
+    assert ev.is_set()
+    assert reg.get(job_id).status == "cancelled"
+    reg.finish(job_id, result={"ok": True})
+    assert reg.get(job_id).status == "cancelled"
+
+
+def test_jobregistry_finish_completes():
+    from beet.sidecar import JobRegistry
+
+    reg = JobRegistry()
+    job_id, _ = reg.create("batch", total=3)
+    reg.update(job_id, done=3, current=None)
+    reg.finish(job_id, result={"ok": True})
+    job = reg.get(job_id)
+    assert job.status == "completed"
+    assert job.done == 3
+    assert job.result == {"ok": True}

@@ -20,6 +20,12 @@ from beet.calibration import DetectorCalibrator
 from beet.evaluation.dataset import load_dataset
 from beet.pipeline import BeetPipeline
 
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover - tqdm is optional
+    def tqdm(it, **_kw):
+        return it
+
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -33,7 +39,7 @@ def main() -> None:
 
     scores: dict[str, list[float]] = defaultdict(list)
     labels: dict[str, list[int]] = defaultdict(list)
-    for s in samples:
+    for s in tqdm(samples, desc="analyzing", unit="sample"):
         _, results, _ = pipeline.analyze_detailed(s.text)
         for r in results:
             if r.determination == "SKIP":

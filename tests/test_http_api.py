@@ -303,3 +303,44 @@ def test_feedback_records_in_history(server):
     got = hist.get(sid)
     assert len(got["feedback"]) == 1
     assert got["feedback"][0]["confirmed_label"] == 1
+
+
+# --- async batch over HTTP -------------------------------------------------
+
+def test_batch_async_completes(server):
+    """Async kick-off + polling produces results equivalent to the sync /batch path."""
+    import time
+
+    url, hist = server
+    status, started = _post(url, "/batch/async", {"items": [
+        {"id": "a", "text": "first submission text"},
+        {"id": "b", "text": "second submission text"},
+    ]})
+    assert status == 200, f"unexpected start: {started}"
+    assert started["job_id"]
+    assert started["total"] == 2
+
+    deadline = time.time() + 10.0
+    job = None
+    while time.time() < deadline:
+        s, job = _post(url, "/jobs/get", {"job_id": started["job_id"]})
+        assert s == 200
+        if job["status"] != "running":
+            break
+        time.sleep(0.05)
+    assert job is not None and job["status"] == "completed", f"unexpected: {job}"
+    assert len(job["result"]["results"]) == 2
+    assert hist.list(batch_id=job["result"]["batch_id"])["total"] == 2
+
+
+def test_jobs_get_unknown_returns_404(server):
+    url, _ = server
+    status, body = _post(url, "/jobs/get", {"job_id": "no-such-job"})
+    assert status == 404
+    assert "not found" in body["error"].lower()
+
+
+def test_jobs_cancel_unknown_returns_404(server):
+    url, _ = server
+    status, _ = _post(url, "/jobs/cancel", {"job_id": "no-such-job"})
+    assert status == 404
