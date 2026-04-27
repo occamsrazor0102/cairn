@@ -18,6 +18,7 @@ import random
 import time
 from pathlib import Path
 
+from beet.dotenv import load_dotenv
 from beet.evaluation import load_dataset, run_eval
 from beet.evaluation.runner import eval_report_to_dict
 from beet.pipeline import BeetPipeline
@@ -30,6 +31,7 @@ def _fmt(v: float | None) -> str:
 
 
 def main() -> None:
+    load_dotenv()
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, type=Path)
     ap.add_argument("--config", required=True, type=Path)

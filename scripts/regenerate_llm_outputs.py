@@ -45,6 +45,7 @@ import sys
 import time
 from pathlib import Path
 
+from beet.dotenv import load_dotenv
 from beet.evaluation.dataset import EvalSample
 
 
@@ -60,35 +61,6 @@ _SUBSET_FILES = {
 _SYSTEM_PROMPT = "You are a helpful assistant. Answer the user's question accurately and helpfully."
 
 
-def _load_dotenv() -> None:
-    """Load KEY=VALUE pairs from `.env` at the repo root into os.environ.
-
-    Existing env vars take precedence (an explicit `export` wins over
-    .env). No-op if .env doesn't exist. Hand-rolled to avoid a hard
-    dependency on python-dotenv.
-
-    Format:
-      # comments and blank lines OK
-      KEY=value
-      KEY="value with spaces"
-      KEY='value'
-    """
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if not env_path.exists():
-        return
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, val = line.split("=", 1)
-        key = key.strip()
-        val = val.strip()
-        if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-            val = val[1:-1]
-        if key and key not in os.environ:
-            os.environ[key] = val
-
-
 def _resolve_api_key(provider: str) -> str:
     env_var = f"{provider.upper()}_API_KEY"
     key = os.environ.get(env_var)
@@ -99,6 +71,51 @@ def _resolve_api_key(provider: str) -> str:
             f"or copy .env.example -> .env and put the key there."
         )
     return key
+
+
+def _generate_gemini(question: str, api_key: str, model: str, max_tokens: int) -> tuple[str, dict]:
+    """Generate via Google's google-genai SDK.
+
+    Mirrors the user-supplied configuration exactly: thinking_level=HIGH
+    (extended reasoning before answering) and the GoogleSearch grounding
+    tool enabled (lets the model cite live web sources). Note that
+    GoogleSearch grounding produces qualitatively different output than
+    the no-tool Anthropic / OpenAI runs — it's a deliberate choice to
+    capture how Gemini is actually deployed.
+    """
+    from google import genai  # type: ignore
+    from google.genai import types  # type: ignore
+    client = genai.Client(api_key=api_key)
+    contents = [
+        types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=question)],
+        )
+    ]
+    config = types.GenerateContentConfig(
+        thinking_config=types.ThinkingConfig(thinking_level="HIGH"),
+        tools=[types.Tool(googleSearch=types.GoogleSearch())],
+        max_output_tokens=max_tokens,
+        system_instruction=_SYSTEM_PROMPT,
+    )
+    resp = client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=config,
+    )
+    text = getattr(resp, "text", None) or ""
+    u = getattr(resp, "usage_metadata", None)
+    usage = {
+        "input_tokens": getattr(u, "prompt_token_count", 0) if u else 0,
+        # Gemini reports candidates_token_count (final answer tokens) and
+        # thoughts_token_count (reasoning); we sum both because billing
+        # treats them together and we want the running total to be honest.
+        "output_tokens": (
+            (getattr(u, "candidates_token_count", 0) or 0) +
+            (getattr(u, "thoughts_token_count", 0) or 0)
+        ) if u else 0,
+    }
+    return text, usage
 
 
 def _load_existing(out_path: Path) -> tuple[list[dict], set[str]]:
@@ -215,6 +232,8 @@ def _generate(provider: str, question: str, api_key: str, model: str, max_tokens
         try:
             if provider == "anthropic":
                 return _generate_anthropic(question, api_key, model, max_tokens)
+            if provider == "gemini":
+                return _generate_gemini(question, api_key, model, max_tokens)
             return _generate_openai(
                 question, api_key, model, max_tokens,
                 prompt_id=prompt_id,
@@ -235,9 +254,11 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--subset", default="finance", choices=sorted(_SUBSET_FILES.keys()))
-    ap.add_argument("--provider", choices=["anthropic", "openai"], default="anthropic")
+    ap.add_argument("--provider", choices=["anthropic", "openai", "gemini"], default="anthropic")
     ap.add_argument("--model", default="claude-haiku-4-5-20251001",
-                    help="model id (anthropic: e.g. claude-haiku-4-5-20251001; openai: e.g. gpt-4o-mini)")
+                    help="model id. anthropic: e.g. claude-haiku-4-5-20251001 / claude-sonnet-4-6; "
+                         "openai: e.g. gpt-4o-mini (or use --openai-prompt-id with a saved template); "
+                         "gemini: e.g. gemini-3-flash-preview")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--max-questions", type=int, default=10,
                     help="cap questions processed (default: 10 dry-run; set higher for production)")
@@ -262,7 +283,7 @@ def main() -> None:
                          "If unset, the question is passed via the Responses API `input` parameter.")
     args = ap.parse_args()
 
-    _load_dotenv()
+    load_dotenv()
 
     try:
         from huggingface_hub import hf_hub_download  # type: ignore

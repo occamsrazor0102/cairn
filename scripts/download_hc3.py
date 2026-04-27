@@ -16,6 +16,7 @@ import argparse
 import json
 from pathlib import Path
 
+from beet.dotenv import load_dotenv
 from beet.evaluation.dataset import EvalSample, save_dataset
 
 
@@ -30,6 +31,7 @@ _SUBSET_FILES = {
 
 
 def main() -> None:
+    load_dotenv()
     ap = argparse.ArgumentParser()
     ap.add_argument("--subset", default="finance",
                     choices=sorted(_SUBSET_FILES.keys()),

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from beet.dotenv import load_dotenv
 from beet.evaluation.dataset import load_dataset
 from beet.fusion.conformal import ConformalWrapper
 from beet.pipeline import BeetPipeline
@@ -26,6 +27,7 @@ except ImportError:  # pragma: no cover - tqdm is optional
 
 
 def main() -> None:
+    load_dotenv()
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, type=Path)
     ap.add_argument("--config", required=True, type=Path)
