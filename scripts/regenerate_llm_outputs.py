@@ -39,9 +39,12 @@ Usage (full ~2000-question regeneration, ~$1.50 on Haiku):
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import os
+import random
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -242,8 +245,11 @@ def _generate(provider: str, question: str, api_key: str, model: str, max_tokens
             )
         except Exception as e:
             last_err = e
-            backoff = 2 ** attempt
-            print(f"  retry {attempt + 1}/{max_retries} after {backoff}s: {type(e).__name__}: {str(e)[:120]}",
+            # Jitter spreads concurrent-thread retries so a transient rate-
+            # limit doesn't dogpile. Without it, all N workers retry in
+            # lockstep and re-trigger the same 429.
+            backoff = (2 ** attempt) + random.uniform(0, 1.5)
+            print(f"  retry {attempt + 1}/{max_retries} after {backoff:.1f}s: {type(e).__name__}: {str(e)[:120]}",
                   file=sys.stderr)
             time.sleep(backoff)
     raise RuntimeError(f"all retries failed: {last_err}")
@@ -281,6 +287,10 @@ def main() -> None:
                     help="if your OpenAI prompt template uses {{name}} variable substitution, pass the "
                          "variable name here (e.g. 'question'). The HC3 question is bound to it. "
                          "If unset, the question is passed via the Responses API `input` parameter.")
+    ap.add_argument("--concurrency", type=int, default=8,
+                    help="parallel API workers (default: 8). Bump higher if your provider tier "
+                         "allows more RPM (e.g. 32 for tier-2 OpenAI, 64+ for higher tiers). Drop "
+                         "to 1 for strictly sequential execution / debugging.")
     args = ap.parse_args()
 
     load_dotenv()
@@ -311,12 +321,11 @@ def main() -> None:
         source_tag = f"hc3_{args.subset}_regen_openai_{args.openai_prompt_id[:20]}"
     else:
         source_tag = f"hc3_{args.subset}_regen_{args.model}"
-    total_in = 0
-    total_out = 0
-    n_processed = 0
-    n_attempted = 0
-    n_skipped = 0
 
+    # Phase 1: collect work items sequentially. Cheap (just file scan + dict
+    # lookups), so no benefit from parallelizing this part.
+    work_items: list[tuple[str, int, str, str]] = []  # (qid, i, question, human_text)
+    n_skipped = 0
     with open(raw_path, encoding="utf-8") as f:
         for i, line in enumerate(f):
             line = line.strip()
@@ -324,9 +333,7 @@ def main() -> None:
                 continue
             if i < args.start_question:
                 continue
-            # Count attempts (success + failure) toward the cap. Otherwise an
-            # all-failing run loops indefinitely, retrying every question.
-            if n_attempted >= args.max_questions:
+            if len(work_items) >= args.max_questions:
                 break
             row = json.loads(line)
             question = (row.get("question") or "").strip()
@@ -334,73 +341,106 @@ def main() -> None:
             if not question or not human_answers:
                 n_skipped += 1
                 continue
-
             qid = f"hc3_{args.subset}_q{i:06d}"
             if qid in done:
                 continue
-
-            human_text = next((a.strip() for a in human_answers if isinstance(a, str) and a.strip()), None)
+            human_text = next(
+                (a.strip() for a in human_answers if isinstance(a, str) and a.strip()),
+                None,
+            )
             if not human_text:
                 n_skipped += 1
                 continue
+            work_items.append((qid, i, question, human_text))
 
-            n_attempted += 1
-            try:
-                llm_text, usage = _generate(
-                    args.provider, question, api_key, args.model, args.max_tokens,
-                    prompt_id=args.openai_prompt_id,
-                    prompt_version=args.openai_prompt_version,
-                    template_variable=args.openai_template_variable,
-                )
-            except Exception as e:
-                print(f"FAILED q{i}: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr)
+    if not work_items:
+        print(
+            f"nothing to do (resumed: {len(done)} done; skipped {n_skipped} blank/empty).",
+            file=sys.stderr,
+        )
+        return
+
+    # Phase 2: submit to a worker pool. Each task is one API call; result is
+    # either two rows (human + llm) to append, or a status that gets logged
+    # but not written. Output ordering is by completion, not submission —
+    # downstream calibration reads by id, so order doesn't matter.
+    write_lock = threading.Lock()
+    counters_lock = threading.Lock()
+    counters = {"in": 0, "out": 0, "ok": 0, "failed": 0, "empty": 0}
+
+    def _process(qid: str, i: int, question: str, human_text: str) -> tuple[str, list[EvalSample], dict, str]:
+        try:
+            llm_text, usage = _generate(
+                args.provider, question, api_key, args.model, args.max_tokens,
+                prompt_id=args.openai_prompt_id,
+                prompt_version=args.openai_prompt_version,
+                template_variable=args.openai_template_variable,
+            )
+        except Exception as e:
+            return ("failed", [], {"input_tokens": 0, "output_tokens": 0},
+                    f"{type(e).__name__}: {str(e)[:200]}")
+        if not llm_text or not llm_text.strip():
+            return ("empty", [], usage, "model returned no text")
+        rows = [
+            EvalSample(id=f"{qid}_h", text=human_text, label=0, tier="human",
+                       source=source_tag, source_id=qid),
+            EvalSample(id=f"{qid}_l", text=llm_text.strip(), label=1, tier="A0",
+                       source=source_tag, source_id=qid),
+        ]
+        return ("ok", rows, usage, "")
+
+    print(
+        f"submitting {len(work_items)} questions across {args.concurrency} workers "
+        f"(resumed: {len(done)} done; skipped {n_skipped} blank/empty)",
+        file=sys.stderr,
+    )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as ex:
+        future_to_qi = {
+            ex.submit(_process, qid, i, q, h): (qid, i)
+            for qid, i, q, h in work_items
+        }
+        for fut in concurrent.futures.as_completed(future_to_qi):
+            qid, i = future_to_qi[fut]
+            status, rows, usage, msg = fut.result()
+            with counters_lock:
+                counters["in"] += usage.get("input_tokens", 0)
+                counters["out"] += usage.get("output_tokens", 0)
+                if status == "ok":
+                    counters["ok"] += 1
+                elif status == "failed":
+                    counters["failed"] += 1
+                elif status == "empty":
+                    counters["empty"] += 1
+                snap = dict(counters)
+            if status == "failed":
+                print(f"FAILED q{i:06d}: {msg}", file=sys.stderr)
                 continue
-
-            if not llm_text or not llm_text.strip():
-                # Empty answer = budget exhausted on reasoning, refusal, or
-                # tool-only response. Don't write a corrupt row that would
-                # poison calibration. Bump --max-tokens or check the template.
+            if status == "empty":
                 print(
-                    f"EMPTY q{i}: model returned no text "
-                    f"(in={usage['input_tokens']} out={usage['output_tokens']}). "
+                    f"EMPTY q{i:06d}: in={usage['input_tokens']} out={usage['output_tokens']} ({msg}). "
                     f"Try a higher --max-tokens or check the prompt template.",
                     file=sys.stderr,
                 )
-                total_in += usage["input_tokens"]
-                total_out += usage["output_tokens"]
                 continue
-
-            total_in += usage["input_tokens"]
-            total_out += usage["output_tokens"]
-            n_processed += 1
-
-            human_row = EvalSample(
-                id=f"{qid}_h",
-                text=human_text,
-                label=0,
-                tier="human",
-                source=source_tag,
-                source_id=qid,
-            )
-            llm_row = EvalSample(
-                id=f"{qid}_l",
-                text=llm_text.strip(),
-                label=1,
-                tier="A0",
-                source=source_tag,
-                source_id=qid,
-            )
-
+            # status == "ok"
+            with write_lock:
+                with open(args.out, "a", encoding="utf-8") as out_f:
+                    for r in rows:
+                        out_f.write(
+                            json.dumps({k: v for k, v in r.__dict__.items() if v is not None}) + "\n"
+                        )
             print(
                 f"q{i:06d} ok  in={usage['input_tokens']:>5} out={usage['output_tokens']:>5} "
-                f"running_total in={total_in} out={total_out}",
+                f"({snap['ok']}/{snap['ok'] + snap['failed'] + snap['empty']} done, "
+                f"running_total in={snap['in']} out={snap['out']})",
                 file=sys.stderr,
             )
 
-            # Append incrementally so a crash doesn't waste credits.
-            with open(args.out, "a", encoding="utf-8") as out_f:
-                for r in (human_row, llm_row):
-                    out_f.write(json.dumps({k: v for k, v in r.__dict__.items() if v is not None}) + "\n")
+    n_processed = counters["ok"]
+    n_attempted = counters["ok"] + counters["failed"] + counters["empty"]
+    total_in = counters["in"]
+    total_out = counters["out"]
 
     final_rows, _ = _load_existing(args.out)
     print(
