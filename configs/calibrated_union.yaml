@@ -1,0 +1,20 @@
+_profile: calibrated_union
+_extends: default
+_description: >
+  Calibrated against the UNION of HC3 all (2023 ChatGPT outputs) and
+  the regenerated HC3 corpus (modern Claude Sonnet 4.6 + an OpenAI
+  saved Prompt template at v3). 5998-sample corpus covering both
+  legacy and modern LLM writing patterns.
+
+  Use this profile for production deployments that need to catch
+  both old and new LLM outputs without choosing one or the other.
+  Trade-off versus single-distribution profiles: slightly worse on
+  any one distribution, much better generalization across them.
+
+  See docs/byo_dataset.md for the BYO recipe to extend further
+  (more model families, your own corpus).
+
+fusion:
+  model_path: models/fusion/union_ebm.pkl
+  conformal_path: models/conformal/union.json
+  detector_calibration_path: models/calibrators/union.json

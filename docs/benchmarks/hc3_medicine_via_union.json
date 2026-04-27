@@ -1,0 +1,42 @@
+{
+  "n_samples": 1000,
+  "n_failed": 0,
+  "config_hash": "86436b5688e0",
+  "metrics": {
+    "auroc": 0.9162,
+    "ece": 0.0803,
+    "brier": 0.0982,
+    "tpr_at_fpr_01": 0.7
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.1514,
+      "brier": 0.0785,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.1767,
+      "brier": 0.1179,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 425,
+    "fp": 46,
+    "tn": 454,
+    "fn": 75,
+    "precision": 0.9023,
+    "recall": 0.85,
+    "f1": 0.8754,
+    "accuracy": 0.879
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\hc3_medicine.jsonl",
+  "config": "configs\\calibrated_union.yaml",
+  "duration_seconds": 362.66
+}

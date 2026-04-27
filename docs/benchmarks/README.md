@@ -112,6 +112,45 @@ trained on modern LLM output and is poor at catching old-ChatGPT
 text. None of these profiles is universally best — they reflect
 their training distributions.
 
+### Union calibration: legacy + modern combined
+
+Fourth calibrated profile landed (`configs/calibrated_union.yaml`),
+trained on the union of HC3 all (2023 ChatGPT, 4000 samples) and
+the regenerated HC3 corpus (Sonnet 4.6 + OpenAI template v3, 1998
+samples) — 5998 samples total. The point is to test whether
+training on both distributions restores the cross-distribution
+coverage the regen-only profile lost.
+
+It does:
+
+| slice                                   | AUROC  | ECE    | Brier  | TPR@1%FPR | F1@0.5 |
+|-----------------------------------------|--------|--------|--------|-----------|--------|
+| union test (in-dist, n=902)             | 0.9667 | **0.0209** | 0.0745 | 0.6364 | 0.8985 |
+| regen test via union (n=302)            | **0.9914** | 0.0647 | 0.0515 | **0.8609** | 0.9333 |
+| hc3_finance test via union (n=150)      | 0.9031 | 0.0877 | 0.1385 | 0.4800 | 0.8344 |
+| hc3_medicine via union (n=1000)         | 0.9162 | 0.0803 | 0.0982 | 0.7000 | 0.8754 |
+
+**Recall on legacy ChatGPT slices jumped from 0.28-0.32 (regen-only)
+to 0.85-0.91 (union)** — the cross-distribution gap closes without
+sacrificing modern-LLM performance (regen test AUROC stays at
+0.99). This is the strongest production-ready profile so far.
+
+### Four-profile comparison on the finance test set
+
+| profile          | AUROC  | ECE    | F1@0.5 |
+|------------------|--------|--------|--------|
+| `calibrated`     | 0.9165 | 0.0498 | 0.8369 |
+| `calibrated_all` | 0.9009 | 0.1132 | 0.8072 |
+| `calibrated_regen` | 0.7363 | 0.2812 | 0.4528 |
+| `calibrated_union` | 0.9031 | 0.0877 | 0.8344 |
+
+The union profile matches `calibrated_all` on legacy ChatGPT (its
+home-distribution-overlap weight) AND beats every other profile on
+the modern-LLM slice. Recommended default for general deployments;
+keep `calibrated` if your inputs are exclusively finance prose, and
+`calibrated_regen` only if you need maximum sharpness on modern LLM
+output and don't care about legacy.
+
 ## Reproducing the calibrated benchmark
 
 ```bash
