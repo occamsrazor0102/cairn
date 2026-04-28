@@ -1,7 +1,7 @@
 import pytest
-from beet.contracts import Determination
-from beet.evaluation.dataset import EvalSample
-from beet.evaluation.runner import run_eval, EvalReport
+from cairn.contracts import Determination
+from cairn.evaluation.dataset import EvalSample
+from cairn.evaluation.runner import run_eval, EvalReport
 
 
 def _make_det(p_llm: float, label: str = "RED") -> Determination:

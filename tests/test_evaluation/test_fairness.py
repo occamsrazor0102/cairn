@@ -1,9 +1,9 @@
 """Fairness evaluation tests using a synthetic pipeline."""
 import pytest
 
-from beet.contracts import Determination
-from beet.evaluation.dataset import EvalSample
-from beet.evaluation.fairness import run_fairness_eval
+from cairn.contracts import Determination
+from cairn.evaluation.dataset import EvalSample
+from cairn.evaluation.fairness import run_fairness_eval
 
 
 class BiasedPipeline:

@@ -1,11 +1,11 @@
 """Config-redaction scope tests — not a FastAPI integration test, just the
-pure helper so they run regardless of whether `beet[api]` extras are
+pure helper so they run regardless of whether `cairn[api]` extras are
 installed."""
 import pytest
 
 pytest.importorskip("fastapi", reason="api helper imports fastapi-dependent types")
 
-from beet.api import _redact
+from cairn.api import _redact
 
 
 def test_redact_scrubs_top_level_sensitive_keys():

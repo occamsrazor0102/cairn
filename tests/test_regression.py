@@ -1,11 +1,11 @@
 import pytest
 from pathlib import Path
-from beet.pipeline import BeetPipeline
+from cairn.pipeline import CairnPipeline
 
 @pytest.fixture(scope="module")
 def pipeline():
     config = Path(__file__).parent.parent / "configs" / "screening.yaml"
-    return BeetPipeline.from_config_file(config)
+    return CairnPipeline.from_config_file(config)
 
 CASES = [
     ("a0_preamble_critical", ["smoke", "tier_a0"],

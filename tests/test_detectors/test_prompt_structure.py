@@ -1,5 +1,5 @@
 import pytest
-from beet.detectors.prompt_structure import PromptStructureDetector
+from cairn.detectors.prompt_structure import PromptStructureDetector
 from tests.fixtures.llm_samples import A0_CLINICAL_TASK, A0_PREAMBLE
 from tests.fixtures.human_samples import CASUAL_SHORT, NURSE_EDUCATOR, FORMAL_SOP
 

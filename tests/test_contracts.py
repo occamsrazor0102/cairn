@@ -1,5 +1,5 @@
 # tests/test_contracts.py
-from beet.contracts import LayerResult, FusionResult, Determination, RouterDecision
+from cairn.contracts import LayerResult, FusionResult, Determination, RouterDecision
 
 def test_layer_result_defaults():
     r = LayerResult(

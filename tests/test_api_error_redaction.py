@@ -3,8 +3,8 @@ import pytest
 fastapi = pytest.importorskip("fastapi", reason="FastAPI not installed")
 from fastapi.testclient import TestClient  # noqa: E402
 from pathlib import Path  # noqa: E402
-from beet.api import create_app  # noqa: E402
-from beet.pipeline import BeetPipeline  # noqa: E402
+from cairn.api import create_app  # noqa: E402
+from cairn.pipeline import CairnPipeline  # noqa: E402
 
 
 @pytest.fixture
@@ -12,7 +12,7 @@ def client(monkeypatch):
     def _boom(self, text, **kwargs):
         raise RuntimeError("secret token=sk-proj-abcdef1234567890 in traceback")
 
-    monkeypatch.setattr(BeetPipeline, "analyze", _boom)
+    monkeypatch.setattr(CairnPipeline, "analyze", _boom)
     app = create_app(Path(__file__).parent.parent / "configs" / "screening.yaml")
     return TestClient(app, raise_server_exceptions=False)
 

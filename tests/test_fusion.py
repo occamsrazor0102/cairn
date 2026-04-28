@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
-from beet.fusion.ebm import FeatureAssembler, EBMFusion
-from beet.fusion.conformal import ConformalWrapper
-from beet.contracts import LayerResult, FusionResult
+from cairn.fusion.ebm import FeatureAssembler, EBMFusion
+from cairn.fusion.conformal import ConformalWrapper
+from cairn.contracts import LayerResult, FusionResult
 
 
 def _make_layer_result(layer_id: str, p_llm: float, signals: dict = None) -> LayerResult:
@@ -48,7 +48,7 @@ def test_ebm_fusion_untrained_falls_back_to_naive():
 
 def test_ebm_fusion_trained_produces_result():
     pytest.importorskip("interpret", reason="interpret not installed — skip EBM training test")
-    from beet.fusion.training import train_ebm
+    from cairn.fusion.training import train_ebm
     # Toy training data: 10 clear LLM + 10 clear human
     X = []
     y = []

@@ -2,7 +2,7 @@ import pytest
 
 pytest.importorskip("transformers", reason="transformers not installed")
 
-from beet.detectors.contrastive_lm import ContrastiveLMDetector
+from cairn.detectors.contrastive_lm import ContrastiveLMDetector
 
 def test_result_has_required_fields():
     d = ContrastiveLMDetector()

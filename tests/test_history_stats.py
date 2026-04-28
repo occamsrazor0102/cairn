@@ -1,6 +1,6 @@
 import pytest
 
-from beet.history import HistoryStore
+from cairn.history import HistoryStore
 
 
 def _report(det="AMBER", p=0.62, sid="", layers=None):

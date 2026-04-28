@@ -1,5 +1,5 @@
 import pytest
-from beet.adversarial.transforms import (
+from cairn.adversarial.transforms import (
     strip_preamble,
     inject_typos,
     casualize,
@@ -8,7 +8,7 @@ from beet.adversarial.transforms import (
     coached_casual,
     paraphrase_launder,
 )
-from beet.adversarial.registry import get_attack, list_attacks
+from cairn.adversarial.registry import get_attack, list_attacks
 
 
 class TestStripPreamble:

@@ -1,6 +1,6 @@
 import math
 import pytest
-from beet.evaluation.metrics import (
+from cairn.evaluation.metrics import (
     auroc,
     ece,
     brier,

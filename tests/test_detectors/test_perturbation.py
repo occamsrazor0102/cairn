@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from beet.detectors.perturbation import (
+from cairn.detectors.perturbation import (
     PerturbationDetector,
     _HEURISTIC_Z_TO_P_LLM,
     _interpolate,
@@ -22,12 +22,12 @@ def detector():
 
 
 def test_perturbation_registered():
-    import beet.detectors as registry
+    import cairn.detectors as registry
     assert "perturbation" in registry.get_all_detectors()
 
 
 def test_perturbation_placed_in_phase3():
-    from beet.cascade import PHASE3_DETECTORS
+    from cairn.cascade import PHASE3_DETECTORS
     assert "perturbation" in PHASE3_DETECTORS
 
 
@@ -41,7 +41,7 @@ def test_perturbation_skip_signals_when_torch_unavailable(detector):
     """With torch absent, the detector must skip cleanly with a helpful hint."""
     long_text = " ".join(["word"] * 200)
     # Simulate torch absent by flipping the module flag.
-    import beet.detectors.perturbation as mod
+    import cairn.detectors.perturbation as mod
     with patch.object(mod, "_HAS_TORCH", False):
         r = detector.analyze(long_text, {})
     assert r.determination == "SKIP"
@@ -88,7 +88,7 @@ def test_perturbation_with_stub_scorer_produces_layer_result(detector):
     signals shape is right, determination respects the mapping."""
     long_text = " ".join(["token"] * 200)
 
-    import beet.detectors.perturbation as mod
+    import cairn.detectors.perturbation as mod
 
     with patch.object(mod, "_HAS_TORCH", True):
         with patch.object(detector, "_ensure_loaded", return_value=None), \
@@ -110,7 +110,7 @@ def test_perturbation_skips_on_degenerate_variance(detector):
     ill-defined — abstain rather than emit a pegged-RED on noise."""
     long_text = " ".join(["token"] * 200)
 
-    import beet.detectors.perturbation as mod
+    import cairn.detectors.perturbation as mod
 
     with patch.object(mod, "_HAS_TORCH", True):
         with patch.object(detector, "_ensure_loaded", return_value=None), \
@@ -128,7 +128,7 @@ def test_perturbation_negative_z_maps_below_prior(detector):
     evidence of human authorship — p_llm should land below the default 0.10."""
     long_text = " ".join(["token"] * 200)
 
-    import beet.detectors.perturbation as mod
+    import cairn.detectors.perturbation as mod
 
     with patch.object(mod, "_HAS_TORCH", True):
         with patch.object(detector, "_ensure_loaded", return_value=None), \

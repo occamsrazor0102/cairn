@@ -1,5 +1,5 @@
 import pytest
-from beet.detectors.preamble import PreambleDetector
+from cairn.detectors.preamble import PreambleDetector
 from tests.fixtures.llm_samples import A0_PREAMBLE
 from tests.fixtures.human_samples import CASUAL_SHORT, FORMAL_SOP
 

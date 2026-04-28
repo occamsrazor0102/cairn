@@ -1,5 +1,5 @@
-from beet.adversarial import list_attacks, get_attack, Attack
-import beet.adversarial  # triggers registration
+from cairn.adversarial import list_attacks, get_attack, Attack
+import cairn.adversarial  # triggers registration
 
 
 class TestRegistry:

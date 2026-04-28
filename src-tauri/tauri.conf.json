@@ -1,17 +1,17 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "BEET",
+  "productName": "CAIRN",
   "version": "2.0.0",
   "identifier": "com.beet.app",
   "build": {
-    "frontendDist": "../beet/gui/static",
+    "frontendDist": "../cairn/gui/static",
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
   "app": {
     "windows": [
       {
-        "title": "BEET 2.0 — LLM Authorship Detection",
+        "title": "CAIRN — LLM Authorship Detection",
         "width": 1280,
         "height": 800,
         "minWidth": 900,
@@ -36,10 +36,10 @@
       "icons/icon.ico"
     ],
     "resources": [],
-    "externalBin": ["binaries/beet-sidecar"],
+    "externalBin": ["binaries/cairn-sidecar"],
     "copyright": "",
     "category": "DeveloperTool",
     "shortDescription": "LLM authorship detection",
-    "longDescription": "BEET 2.0 — detect LLM authorship via multi-detector pipeline fusion."
+    "longDescription": "CAIRN — detect LLM authorship via multi-detector pipeline fusion."
   }
 }

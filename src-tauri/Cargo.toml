@@ -1,12 +1,12 @@
 [package]
-name = "beet"
+name = "cairn"
 version = "2.0.0"
 edition = "2021"
-description = "BEET 2.0 — LLM authorship detection desktop shell"
-authors = ["BEET contributors"]
+description = "CAIRN — LLM authorship detection desktop shell"
+authors = ["CAIRN contributors"]
 license = "MIT"
 repository = "https://github.com/occamsrazor0102/LLM-Detector-Reboot"
-default-run = "beet"
+default-run = "cairn"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

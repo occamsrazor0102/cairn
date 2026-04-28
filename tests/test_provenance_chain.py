@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from beet.provenance.chain import AuditChain, GENESIS
+from cairn.provenance.chain import AuditChain, GENESIS
 
 
 def test_first_entry_genesis(tmp_path):

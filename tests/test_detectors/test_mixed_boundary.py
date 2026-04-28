@@ -1,4 +1,4 @@
-from beet.detectors.mixed_boundary import MixedBoundaryDetector
+from cairn.detectors.mixed_boundary import MixedBoundaryDetector
 
 MIXED_TEXT = (
     # Human opening

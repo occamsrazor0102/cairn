@@ -2,7 +2,7 @@ import pytest
 
 from unittest.mock import patch
 
-from beet.detectors.dna_gpt import DNAGPTDetector
+from cairn.detectors.dna_gpt import DNAGPTDetector
 
 
 @pytest.fixture

@@ -3,19 +3,19 @@ from pathlib import Path
 
 import pytest
 
-from beet.config import load_config
-from beet.history import HistoryStore
-from beet.monitoring.drift import DriftMonitor
-from beet.pipeline import BeetPipeline
-from beet.runtime import RuntimeContext
-from beet.sidecar import Sidecar, SidecarError
+from cairn.config import load_config
+from cairn.history import HistoryStore
+from cairn.monitoring.drift import DriftMonitor
+from cairn.pipeline import CairnPipeline
+from cairn.runtime import RuntimeContext
+from cairn.sidecar import Sidecar, SidecarError
 
 
 @pytest.fixture
 def sidecar(tmp_path):
     config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
     cfg = load_config(config_path)
-    ctx = RuntimeContext(BeetPipeline(cfg), "screening", cfg)
+    ctx = RuntimeContext(CairnPipeline(cfg), "screening", cfg)
     history = HistoryStore(tmp_path / "h.sqlite3")
     drift = DriftMonitor(tmp_path / "drift", cfg)
     return Sidecar(
@@ -198,7 +198,7 @@ def test_run_eval_cap_enforced(sidecar):
 def test_disabled_history_raises(tmp_path):
     config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
     cfg = load_config(config_path)
-    ctx = RuntimeContext(BeetPipeline(cfg), "screening", cfg)
+    ctx = RuntimeContext(CairnPipeline(cfg), "screening", cfg)
     sc = Sidecar(ctx=ctx, feedback_path=tmp_path / "fb.jsonl", history=None)
     with pytest.raises(SidecarError) as ex:
         sc.handle("history_list", {})
@@ -253,7 +253,7 @@ def test_cancel_job_unknown_raises(sidecar):
 def test_jobregistry_cancel_is_sticky():
     """Cancellation wins even if finish() is called afterwards — guards
     against the worker thread overwriting the user's intent on a race."""
-    from beet.sidecar import JobRegistry
+    from cairn.sidecar import JobRegistry
 
     reg = JobRegistry()
     job_id, ev = reg.create("batch", total=10)
@@ -266,7 +266,7 @@ def test_jobregistry_cancel_is_sticky():
 
 
 def test_jobregistry_finish_completes():
-    from beet.sidecar import JobRegistry
+    from cairn.sidecar import JobRegistry
 
     reg = JobRegistry()
     job_id, _ = reg.create("batch", total=3)

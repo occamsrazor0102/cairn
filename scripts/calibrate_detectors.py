@@ -16,10 +16,10 @@ import argparse
 from collections import defaultdict
 from pathlib import Path
 
-from beet.calibration import DetectorCalibrator
-from beet.dotenv import load_dotenv
-from beet.evaluation.dataset import load_dataset
-from beet.pipeline import BeetPipeline
+from cairn.calibration import DetectorCalibrator
+from cairn.dotenv import load_dotenv
+from cairn.evaluation.dataset import load_dataset
+from cairn.pipeline import CairnPipeline
 
 try:
     from tqdm import tqdm
@@ -36,7 +36,7 @@ def main() -> None:
     ap.add_argument("--out", required=True, type=Path)
     args = ap.parse_args()
 
-    pipeline = BeetPipeline.from_config_file(args.config)
+    pipeline = CairnPipeline.from_config_file(args.config)
     samples = load_dataset(args.dataset)
 
     scores: dict[str, list[float]] = defaultdict(list)

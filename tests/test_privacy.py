@@ -1,5 +1,5 @@
-from beet.privacy.hashing import hash_text, normalize_for_hash
-from beet.privacy.store import PrivacyStore
+from cairn.privacy.hashing import hash_text, normalize_for_hash
+from cairn.privacy.store import PrivacyStore
 
 def test_hash_is_deterministic():
     assert hash_text("hello world") == hash_text("hello world")

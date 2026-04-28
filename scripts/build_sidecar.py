@@ -2,7 +2,7 @@
 
 Runs PyInstaller against `beet/sidecar.py` and renames the output to the
 target-triple suffix Tauri 2 expects when resolving an `externalBin`
-declared as `binaries/beet-sidecar` in `tauri.conf.json`.
+declared as `binaries/cairn-sidecar` in `tauri.conf.json`.
 
 Usage:
     python scripts/build_sidecar.py            # build for the host triple
@@ -22,17 +22,17 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SIDECAR_SRC = REPO_ROOT / "beet" / "sidecar.py"
+SIDECAR_SRC = REPO_ROOT / "cairn" / "sidecar.py"
 DIST_DIR = REPO_ROOT / "src-tauri" / "binaries"
-SPEC_FILE = REPO_ROOT / "beet-sidecar.spec"
+SPEC_FILE = REPO_ROOT / "cairn-sidecar.spec"
 BUILD_DIR = REPO_ROOT / "build"
 
 
 def detect_target_triple() -> str:
     """Return the Rust host target triple via `rustc -vV`.
 
-    Tauri 2 resolves `externalBin: ["binaries/beet-sidecar"]` to a file
-    named `beet-sidecar-<target-triple>(.exe)` at bundle time.
+    Tauri 2 resolves `externalBin: ["binaries/cairn-sidecar"]` to a file
+    named `cairn-sidecar-<target-triple>(.exe)` at bundle time.
     """
     try:
         out = subprocess.check_output(
@@ -61,7 +61,7 @@ def run_pyinstaller(*, target: str, clean: bool) -> Path:
         "PyInstaller",
         "--onefile",
         "--name",
-        "beet-sidecar",
+        "cairn-sidecar",
         "--distpath",
         str(DIST_DIR),
         "--workpath",
@@ -71,7 +71,7 @@ def run_pyinstaller(*, target: str, clean: bool) -> Path:
         "--noconfirm",
         # Pull in lazy/optional submodules we only import inside functions.
         "--collect-submodules",
-        "beet",
+        "cairn",
         str(SIDECAR_SRC),
     ]
     if clean:
@@ -81,13 +81,13 @@ def run_pyinstaller(*, target: str, clean: bool) -> Path:
     subprocess.check_call(cmd, cwd=REPO_ROOT)
 
     is_windows = sys.platform.startswith("win") or "windows" in target
-    raw_name = "beet-sidecar.exe" if is_windows else "beet-sidecar"
+    raw_name = "cairn-sidecar.exe" if is_windows else "cairn-sidecar"
     raw_path = DIST_DIR / raw_name
     if not raw_path.exists():
         raise SystemExit(f"PyInstaller output missing: {raw_path}")
 
     final_name = (
-        f"beet-sidecar-{target}.exe" if is_windows else f"beet-sidecar-{target}"
+        f"cairn-sidecar-{target}.exe" if is_windows else f"cairn-sidecar-{target}"
     )
     final_path = DIST_DIR / final_name
     if final_path.exists():

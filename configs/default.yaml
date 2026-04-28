@@ -102,7 +102,7 @@ router:
 gui:
   history:
     enabled: true
-    db_path: data/beet_history.sqlite3
+    db_path: data/cairn_history.sqlite3
     # Default to hash-only (text is NOT persisted in the queryable log).
     # Set retain_text: true to store the submission text alongside the
     # hash. Opt-in because the history DB lives on local disk with no

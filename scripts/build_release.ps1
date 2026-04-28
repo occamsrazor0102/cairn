@@ -1,9 +1,9 @@
 #!/usr/bin/env pwsh
-# Build a release bundle of the BEET Tauri desktop shell on Windows.
+# Build a release bundle of the CAIRN Tauri desktop shell on Windows.
 #
 # Steps:
 #   1. Build the Python sidecar binary via scripts/build_sidecar.py
-#      (renames to beet-sidecar-<target-triple>.exe under src-tauri/binaries/).
+#      (renames to cairn-sidecar-<target-triple>.exe under src-tauri/binaries/).
 #   2. Run `cargo tauri build` to produce an unsigned .msi / .exe installer
 #      under src-tauri/target/release/bundle/.
 #

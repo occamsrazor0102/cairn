@@ -1,6 +1,6 @@
 # tests/test_config.py
 import pytest
-from beet.config import load_config, get_pattern_list, ConfigError
+from cairn.config import load_config, get_pattern_list, ConfigError
 
 def test_load_default_config(default_config_path):
     cfg = load_config(default_config_path)

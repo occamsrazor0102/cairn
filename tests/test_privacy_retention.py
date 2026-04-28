@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from beet.privacy.retention import RetentionManager
+from cairn.privacy.retention import RetentionManager
 
 
 def _write_record(vault, sid, stored_at_iso):

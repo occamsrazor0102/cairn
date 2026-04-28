@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from beet.config import load_config
-from beet.history import HistoryStore
-from beet.monitoring.drift import DriftMonitor
-from beet.pipeline import BeetPipeline
-from beet.runtime import RuntimeContext
-from beet.sidecar import (
+from cairn.config import load_config
+from cairn.history import HistoryStore
+from cairn.monitoring.drift import DriftMonitor
+from cairn.pipeline import CairnPipeline
+from cairn.runtime import RuntimeContext
+from cairn.sidecar import (
     Sidecar,
     SidecarError,
     drift_baseline_from_history,
@@ -20,7 +20,7 @@ from beet.sidecar import (
 def env(tmp_path):
     config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
     cfg = load_config(config_path)
-    ctx = RuntimeContext(BeetPipeline(cfg), "screening", cfg)
+    ctx = RuntimeContext(CairnPipeline(cfg), "screening", cfg)
     history = HistoryStore(tmp_path / "h.sqlite3")
     drift = DriftMonitor(tmp_path / "drift", cfg)
     sc = Sidecar(
@@ -146,7 +146,7 @@ def test_population_drift_alert_on_strong_skew(env):
 def test_disabled_drift_raises(tmp_path):
     config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
     cfg = load_config(config_path)
-    ctx = RuntimeContext(BeetPipeline(cfg), "screening", cfg)
+    ctx = RuntimeContext(CairnPipeline(cfg), "screening", cfg)
     sc = Sidecar(ctx=ctx, feedback_path=tmp_path / "fb.jsonl", history=None, drift=None)
     with pytest.raises(SidecarError) as ex:
         sc.handle("monitoring_drift", {})

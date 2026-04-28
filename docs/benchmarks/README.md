@@ -344,7 +344,7 @@ RAID isn't included in `scripts/download_*`; convert manually:
 
 ```python
 from datasets import load_dataset
-from beet.evaluation.dataset import EvalSample, save_dataset
+from cairn.evaluation.dataset import EvalSample, save_dataset
 
 raid = load_dataset("liamdugan/raid", split="train[:1000]")
 samples = [

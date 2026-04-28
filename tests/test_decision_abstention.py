@@ -1,6 +1,6 @@
 import pytest
-from beet.decision import DecisionEngine
-from beet.contracts import FusionResult
+from cairn.decision import DecisionEngine
+from cairn.contracts import FusionResult
 
 
 def _engine(max_set=2):

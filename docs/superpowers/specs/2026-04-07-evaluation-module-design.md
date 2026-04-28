@@ -1,12 +1,12 @@
-# BEET 2.0 — Evaluation Module + Ablation Harness
+# CAIRN — Evaluation Module + Ablation Harness
 
 **Status:** Approved design, ready for implementation planning
 **Date:** 2026-04-07
-**Scope:** A new `beet/evaluation/` package providing dataset loading, metrics, an evaluation runner, and a leave-one-out ablation harness, plus two new CLI commands.
+**Scope:** A new `cairn/evaluation/` package providing dataset loading, metrics, an evaluation runner, and a leave-one-out ablation harness, plus two new CLI commands.
 
 ## Goal
 
-BEET 2.0 has 91 passing tests and 12 working detectors, but no way to measure how well the pipeline actually performs on labeled data, and no way to know which detectors are pulling weight. This module fills both gaps.
+CAIRN has 91 passing tests and 12 working detectors, but no way to measure how well the pipeline actually performs on labeled data, and no way to know which detectors are pulling weight. This module fills both gaps.
 
 ## Non-goals
 
@@ -155,7 +155,7 @@ Verdict thresholds (tunable): `load-bearing` ≥ 0.05, `helpful` ≥ 0.02, `marg
 
 ## CLI
 
-Two new commands in `beet/cli.py`:
+Two new commands in `cairn/cli.py`:
 
 ```bash
 beet eval <dataset.jsonl> [--config <path>] [--profile <name>] [--output <json|text>] [--out <file>]

@@ -1,7 +1,7 @@
 import json
 import pytest
 from pathlib import Path
-from beet.evaluation.dataset import EvalSample, load_dataset, save_dataset, build_dataset
+from cairn.evaluation.dataset import EvalSample, load_dataset, save_dataset, build_dataset
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 

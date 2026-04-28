@@ -1,4 +1,4 @@
-from beet.detectors.nssi import NSSIDetector
+from cairn.detectors.nssi import NSSIDetector
 from tests.fixtures.llm_samples import A0_PREAMBLE
 
 def test_nssi_returns_layer_result():

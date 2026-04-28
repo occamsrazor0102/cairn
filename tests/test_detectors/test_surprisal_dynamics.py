@@ -3,7 +3,7 @@ import pytest
 pytest.importorskip("transformers", reason="transformers not installed — skip Tier 2 tests")
 pytest.importorskip("torch", reason="torch not installed — skip Tier 2 tests")
 
-from beet.detectors.surprisal_dynamics import SurprisalDynamicsDetector
+from cairn.detectors.surprisal_dynamics import SurprisalDynamicsDetector
 from tests.fixtures.llm_samples import A0_CLINICAL_TASK
 from tests.fixtures.human_samples import FORMAL_SOP
 

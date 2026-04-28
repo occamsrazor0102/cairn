@@ -1,4 +1,4 @@
-from beet.normalizer import normalize_text
+from cairn.normalizer import normalize_text
 
 def test_removes_invisible_characters():
     text = "hello\u200bworld"

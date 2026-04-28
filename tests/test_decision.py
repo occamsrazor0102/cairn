@@ -1,6 +1,6 @@
 import pytest
-from beet.decision import DecisionEngine
-from beet.contracts import FusionResult, LayerResult
+from cairn.decision import DecisionEngine
+from cairn.contracts import FusionResult, LayerResult
 
 @pytest.fixture
 def engine(minimal_config):

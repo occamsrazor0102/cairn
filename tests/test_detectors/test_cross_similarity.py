@@ -1,9 +1,9 @@
 """Cross-submission similarity detector tests."""
-from beet.detectors.cross_similarity import DETECTOR
+from cairn.detectors.cross_similarity import DETECTOR
 
 
 def test_registered_in_registry():
-    import beet.detectors as registry
+    import cairn.detectors as registry
     assert "cross_similarity" in registry.get_all_detectors()
 
 

@@ -1,13 +1,13 @@
-# BEET 2.0 — Evaluation, Adversarial Testing & Benchmarks
+# CAIRN — Evaluation, Adversarial Testing & Benchmarks
 
 **Status:** Approved design, ready for implementation planning
 **Date:** 2026-04-14
 **Supersedes:** `2026-04-07-evaluation-module-design.md` (folded in with revisions)
-**Scope:** Three independent modules — `beet/evaluation/`, `beet/adversarial/`, `beet/benchmarks/` — that share a data format (JSONL + `EvalReport`) but have no cross-imports.
+**Scope:** Three independent modules — `cairn/evaluation/`, `cairn/adversarial/`, `cairn/benchmarks/` — that share a data format (JSONL + `EvalReport`) but have no cross-imports.
 
 ## Goal
 
-BEET 2.0 has 91 passing tests and 12 working detectors, but no way to:
+CAIRN has 91 passing tests and 12 working detectors, but no way to:
 
 1. **Measure** how well the pipeline performs on labeled data
 2. **Stress-test** the pipeline against real-world evasion attacks
@@ -48,7 +48,7 @@ No module imports from another. They communicate through JSONL files and the `Ev
 
 ---
 
-## Module 1: Evaluation — `beet/evaluation/`
+## Module 1: Evaluation — `cairn/evaluation/`
 
 ### Package structure
 
@@ -140,7 +140,7 @@ def summarize(y_true, y_score) -> dict  # convenience: returns all of the above
 
 ```python
 def run_eval(
-    pipeline: BeetPipeline,
+    pipeline: CairnPipeline,
     dataset: list[EvalSample],
     *,
     progress: bool = False,
@@ -171,11 +171,11 @@ def run_ablation(
 
 **Algorithm:**
 
-1. Build baseline `BeetPipeline` from `base_config`, run `run_eval` -> `baseline: EvalReport`.
+1. Build baseline `CairnPipeline` from `base_config`, run `run_eval` -> `baseline: EvalReport`.
 2. Determine which detectors to ablate (default: every detector with `enabled: true` in `base_config`).
 3. For each detector `d`:
    - Deep-copy `base_config`, set `detectors.{d}.enabled = false`.
-   - Build a fresh `BeetPipeline`, run `run_eval` -> `ablated: EvalReport`.
+   - Build a fresh `CairnPipeline`, run `run_eval` -> `ablated: EvalReport`.
    - Compute deltas: `delta_auroc = baseline.metrics["auroc"] - ablated.metrics["auroc"]` (positive = detector helped).
 4. Rank detectors by `abs(delta_auroc)` descending -> `ranked`.
 5. Return `AblationReport`.
@@ -223,7 +223,7 @@ Both print a human-readable summary by default and write structured JSON when `-
 
 ---
 
-## Module 2: Adversarial Testing — `beet/adversarial/`
+## Module 2: Adversarial Testing — `cairn/adversarial/`
 
 ### Package structure
 
@@ -290,7 +290,7 @@ def get_attack(name: str) -> Attack | None: ...
 def list_attacks(category: str | None = None) -> list[Attack]: ...
 ```
 
-All attacks in `transforms.py` and `prompts.py` register themselves at import time via the `@register` decorator pattern (same approach as `beet/detectors/__init__.py` auto-discovery).
+All attacks in `transforms.py` and `prompts.py` register themselves at import time via the `@register` decorator pattern (same approach as `cairn/detectors/__init__.py` auto-discovery).
 
 ### Generator — `generator.py`
 
@@ -340,7 +340,7 @@ beet attack --list
 
 ---
 
-## Module 3: Benchmarks — `beet/benchmarks/`
+## Module 3: Benchmarks — `cairn/benchmarks/`
 
 ### Package structure
 
@@ -412,16 +412,16 @@ def run_benchmark(
 
 **Behavior:**
 
-1. If `include_beet` is True, build a `BeetPipeline` from `beet_config` (or default config) and run it through `run_eval` from `beet/evaluation/`. This is the only place where benchmarks imports from evaluation — a single function call.
+1. If `include_beet` is True, build a `CairnPipeline` from `beet_config` (or default config) and run it through `run_eval` from `cairn/evaluation/`. This is the only place where benchmarks imports from evaluation — a single function call.
 2. For each adapter where `is_available()` returns True:
    - For each sample, call `adapter.score(sample.text)` to get `p_llm`.
-   - Collect predictions, compute metrics using `beet.evaluation.metrics.summarize`.
+   - Collect predictions, compute metrics using `cairn.evaluation.metrics.summarize`.
    - Package as an `EvalReport`.
-3. Return dict keyed by adapter name (and "BEET" if included).
+3. Return dict keyed by adapter name (and "CAIRN" if included).
 
 **Error handling:** if `adapter.score()` raises on a sample, log it and continue. Same pattern as `run_eval`.
 
-**Note on evaluation import:** The benchmark runner imports `EvalReport`, `EvalSample`, and `metrics.summarize` from `beet.evaluation`. This is a read-only dependency on data contracts and pure functions — not a coupling between systems. The evaluation module does not know benchmarks exist.
+**Note on evaluation import:** The benchmark runner imports `EvalReport`, `EvalSample`, and `metrics.summarize` from `cairn.evaluation`. This is a read-only dependency on data contracts and pure functions — not a coupling between systems. The evaluation module does not know benchmarks exist.
 
 ### Comparison output
 

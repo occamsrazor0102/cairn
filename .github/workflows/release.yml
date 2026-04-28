@@ -1,6 +1,6 @@
 name: Release
 
-# Builds an unsigned BEET desktop bundle on Linux, macOS, and Windows when
+# Builds an unsigned CAIRN desktop bundle on Linux, macOS, and Windows when
 # a `v*` tag is pushed (or via manual workflow dispatch). Each platform job
 # builds the Python sidecar via PyInstaller, then runs `cargo tauri build`,
 # then uploads its installers to a draft GitHub release.
@@ -108,6 +108,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
         with:
-          name: beet-${{ matrix.target }}
+          name: cairn-${{ matrix.target }}
           path: ${{ matrix.artifact_glob }}
           if-no-files-found: warn

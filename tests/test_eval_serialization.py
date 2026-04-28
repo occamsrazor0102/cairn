@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from beet.evaluation.runner import EvalReport, eval_report_to_dict
+from cairn.evaluation.runner import EvalReport, eval_report_to_dict
 
 
 def _mk_report(predictions):

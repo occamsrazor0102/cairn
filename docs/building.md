@@ -1,11 +1,11 @@
-# Building BEET 2.0
+# Building CAIRN
 
-Three shells are supported and share one frontend (`beet/gui/static/index.html`):
+Three shells are supported and share one frontend (`cairn/gui/static/index.html`):
 
 | Shell | Backend | Frontend transport | Dist format |
 |-------|---------|-------------------|-------------|
-| `beet gui` | local HTTP server (`beet/gui/server.py`) | `fetch()` | Python package |
-| `beet serve` | FastAPI (requires `beet[api]` extras) | `fetch()` | Python package |
+| `cairn gui` | local HTTP server (`cairn/gui/server.py`) | `fetch()` | Python package |
+| `cairn serve` | FastAPI (requires `cairn[api]` extras) | `fetch()` | Python package |
 | Tauri desktop | Python sidecar subprocess over stdio JSON-RPC | `invoke()` | `.dmg` / `.msi` / `.AppImage` |
 
 The `index.html` auto-detects the host (`window.__TAURI_INTERNALS__`) and routes calls through `beetApi`. The same file works in all three.
@@ -74,12 +74,12 @@ This generates `src-tauri/icons/*.{png,icns,ico}` in all required sizes.
 
 macOS / Linux:
 ```bash
-export BEET_SIDECAR_CMD="python -m beet.sidecar --profile default"
+export CAIRN_SIDECAR_CMD="python -m cairn.sidecar --profile default"
 ```
 
 Windows (PowerShell):
 ```powershell
-$env:BEET_SIDECAR_CMD = "python -m beet.sidecar --profile default"
+$env:CAIRN_SIDECAR_CMD = "python -m cairn.sidecar --profile default"
 ```
 
 The Rust sidecar manager checks this env var first; if set, it uses it verbatim instead of looking for a bundled binary. (Whitespace-split — don't put paths with spaces in the command.)
@@ -94,7 +94,7 @@ First run compiles the Rust dependencies (~2–5 min). Subsequent runs are incre
 
 **Debugging tips:**
 - Sidecar stderr (Python warnings, logs) is inherited into the Tauri process stderr. Watch the terminal.
-- Add `--log-level DEBUG` to `BEET_SIDECAR_CMD` for verbose logs.
+- Add `--log-level DEBUG` to `CAIRN_SIDECAR_CMD` for verbose logs.
 - Frontend DevTools: right-click in the window (dev builds only) → Inspect Element.
 - Rust logs: `RUST_LOG=beet=debug cargo tauri dev`.
 
@@ -116,7 +116,7 @@ Builds are **per-platform** — you build on macOS to get `.dmg`, on Windows to 
 
 Each wrapper does two things:
 
-1. Calls `python scripts/build_sidecar.py`, which runs PyInstaller, renames the output to `src-tauri/binaries/beet-sidecar-<rust-target-triple>(.exe)` (the form Tauri 2 expects when resolving the `externalBin` declaration), and pipes a `health` JSON-RPC call into the binary as a smoke test.
+1. Calls `python scripts/build_sidecar.py`, which runs PyInstaller, renames the output to `src-tauri/binaries/cairn-sidecar-<rust-target-triple>(.exe)` (the form Tauri 2 expects when resolving the `externalBin` declaration), and pipes a `health` JSON-RPC call into the binary as a smoke test.
 2. Runs `cargo tauri build` from `src-tauri/`, producing the platform installer under `src-tauri/target/release/bundle/`.
 
 Useful flags: `--no-smoke` / `-SkipSmoke` skips the sidecar smoke; `--sidecar-only` / `-SidecarOnly` stops after step 1.
@@ -130,14 +130,14 @@ Useful flags: `--no-smoke` / `-SkipSmoke` skips the sidecar smoke; `--sidecar-on
 1. Launch the installed app.
 2. Paste text, click Analyze. Verdict should render within ~1–2 seconds.
 3. Submit Human/LLM feedback. Check that `data/reviewer_feedback.jsonl` gets written — the path is relative to the app's working directory, which Tauri sets per-OS.
-4. Close the window. Verify the Python subprocess exits (no orphaned `beet-sidecar` process in Task Manager / `ps`).
+4. Close the window. Verify the Python subprocess exits (no orphaned `cairn-sidecar` process in Task Manager / `ps`).
 
 **Manual fallback** (drive PyInstaller and Tauri yourself):
 
 ```bash
 pip install -e ".[dist]"
-python scripts/build_sidecar.py        # writes src-tauri/binaries/beet-sidecar-<triple>(.exe)
-unset BEET_SIDECAR_CMD                 # or Remove-Item Env:BEET_SIDECAR_CMD on PowerShell
+python scripts/build_sidecar.py        # writes src-tauri/binaries/cairn-sidecar-<triple>(.exe)
+unset CAIRN_SIDECAR_CMD                 # or Remove-Item Env:CAIRN_SIDECAR_CMD on PowerShell
 cd src-tauri && cargo tauri build
 ```
 
@@ -186,8 +186,8 @@ For an unattended build without cutting a tag, trigger the workflow manually (Ac
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `sidecar binary not found at ... and BEET_SIDECAR_CMD not set` | Dev without env var, or production without PyInstaller output | Set `BEET_SIDECAR_CMD` or build the sidecar binary into `src-tauri/binaries/` |
+| `sidecar binary not found at ... and CAIRN_SIDECAR_CMD not set` | Dev without env var, or production without PyInstaller output | Set `CAIRN_SIDECAR_CMD` or build the sidecar binary into `src-tauri/binaries/` |
 | White window, no content | `frontendDist` path wrong | Check `tauri.conf.json`: should be `../beet/gui/static` (relative to `src-tauri/`) |
-| `invoke is not defined` in browser mode | Someone opened `index.html` directly as `file://` | Always serve via `beet gui` (HTTP) or Tauri (invoke) |
-| `ERR_SIDECAR_GONE` on every call | Python subprocess died at startup | Run `BEET_SIDECAR_CMD` manually in a shell; check the error |
+| `invoke is not defined` in browser mode | Someone opened `index.html` directly as `file://` | Always serve via `cairn gui` (HTTP) or Tauri (invoke) |
+| `ERR_SIDECAR_GONE` on every call | Python subprocess died at startup | Run `CAIRN_SIDECAR_CMD` manually in a shell; check the error |
 | `cargo tauri icon` fails | Source image is not square | Crop to square before running |

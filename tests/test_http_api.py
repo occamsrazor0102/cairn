@@ -8,20 +8,20 @@ from pathlib import Path
 
 import pytest
 
-from beet.config import load_config
-from beet.gui.server import _make_handler
-from beet.history import HistoryStore
-from beet.monitoring.drift import DriftMonitor
-from beet.monitoring.meta_detector import MetaDetector
-from beet.pipeline import BeetPipeline
-from beet.runtime import RuntimeContext
+from cairn.config import load_config
+from cairn.gui.server import _make_handler
+from cairn.history import HistoryStore
+from cairn.monitoring.drift import DriftMonitor
+from cairn.monitoring.meta_detector import MetaDetector
+from cairn.pipeline import CairnPipeline
+from cairn.runtime import RuntimeContext
 
 
 @pytest.fixture
 def server(tmp_path):
     config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
     cfg = load_config(config_path)
-    ctx = RuntimeContext(BeetPipeline(cfg), "screening", cfg)
+    ctx = RuntimeContext(CairnPipeline(cfg), "screening", cfg)
     meta = MetaDetector()
     feedback_path = tmp_path / "feedback.jsonl"
     history = HistoryStore(tmp_path / "history.sqlite3")
@@ -80,7 +80,7 @@ def test_index_served(server):
     status, data, _ = _get(url, "/")
     assert status == 200
     text = data.decode("utf-8").lower()
-    assert "<html" in text and "beet" in text
+    assert "<html" in text and "cairn" in text
 
 
 def test_analyze_writes_history(server):

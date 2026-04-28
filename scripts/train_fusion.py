@@ -13,11 +13,11 @@ from pathlib import Path
 
 from sklearn.model_selection import train_test_split
 
-from beet.dotenv import load_dotenv
-from beet.evaluation.dataset import load_dataset
-from beet.fusion.ebm import FeatureAssembler
-from beet.fusion.training import save_model, train_ebm
-from beet.pipeline import BeetPipeline
+from cairn.dotenv import load_dotenv
+from cairn.evaluation.dataset import load_dataset
+from cairn.fusion.ebm import FeatureAssembler
+from cairn.fusion.training import save_model, train_ebm
+from cairn.pipeline import CairnPipeline
 
 
 def main() -> None:
@@ -29,7 +29,7 @@ def main() -> None:
     ap.add_argument("--test-size", type=float, default=0.2)
     args = ap.parse_args()
 
-    pipeline = BeetPipeline.from_config_file(args.config)
+    pipeline = CairnPipeline.from_config_file(args.config)
     samples = load_dataset(args.dataset)
     assembler = FeatureAssembler()
 

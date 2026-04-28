@@ -1,11 +1,11 @@
 //! Manages the Python sidecar subprocess.
 //!
-//! The sidecar is a long-running `python -m beet.sidecar` (or the PyInstaller
+//! The sidecar is a long-running `python -m cairn.sidecar` (or the PyInstaller
 //! binary in bundled builds) that speaks line-delimited JSON-RPC over
 //! stdin/stdout. This module spawns it, routes requests, and matches responses
 //! to callers via request IDs.
 //!
-//! Dev override: set `BEET_SIDECAR_CMD` (e.g. `python -m beet.sidecar
+//! Dev override: set `CAIRN_SIDECAR_CMD` (e.g. `python -m cairn.sidecar
 //! --profile default`) to run the Python source directly instead of the
 //! bundled binary. Whitespace-split; do not use paths with spaces.
 
@@ -74,7 +74,7 @@ impl SidecarManager {
         let reader_pending = Arc::clone(&pending);
 
         thread::Builder::new()
-            .name("beet-sidecar-reader".into())
+            .name("cairn-sidecar-reader".into())
             .spawn(move || reader_loop(stdout, reader_pending))
             .context("failed to spawn sidecar reader thread")?;
 
@@ -198,10 +198,10 @@ fn reader_loop(
 }
 
 fn resolve_sidecar_command(resource_dir: &Path) -> Result<(String, Vec<String>)> {
-    if let Ok(cmd) = std::env::var("BEET_SIDECAR_CMD") {
+    if let Ok(cmd) = std::env::var("CAIRN_SIDECAR_CMD") {
         let parts: Vec<String> = cmd.split_whitespace().map(String::from).collect();
         if parts.is_empty() {
-            anyhow::bail!("BEET_SIDECAR_CMD is empty");
+            anyhow::bail!("CAIRN_SIDECAR_CMD is empty");
         }
         let program = parts[0].clone();
         let args = parts[1..].to_vec();
@@ -211,8 +211,8 @@ fn resolve_sidecar_command(resource_dir: &Path) -> Result<(String, Vec<String>)>
     let path = sidecar_binary_path(resource_dir);
     if !path.exists() {
         anyhow::bail!(
-            "sidecar binary not found at {} and BEET_SIDECAR_CMD not set. \
-             For dev, export BEET_SIDECAR_CMD=\"python -m beet.sidecar\". \
+            "sidecar binary not found at {} and CAIRN_SIDECAR_CMD not set. \
+             For dev, export CAIRN_SIDECAR_CMD=\"python -m cairn.sidecar\". \
              For bundled builds, ensure PyInstaller output is at src-tauri/binaries/.",
             path.display()
         );
@@ -221,6 +221,6 @@ fn resolve_sidecar_command(resource_dir: &Path) -> Result<(String, Vec<String>)>
 }
 
 fn sidecar_binary_path(resource_dir: &Path) -> PathBuf {
-    let name = if cfg!(windows) { "beet-sidecar.exe" } else { "beet-sidecar" };
+    let name = if cfg!(windows) { "cairn-sidecar.exe" } else { "cairn-sidecar" };
     resource_dir.join("binaries").join(name)
 }

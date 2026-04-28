@@ -1,4 +1,4 @@
-from beet.detectors.instruction_density import InstructionDensityDetector
+from cairn.detectors.instruction_density import InstructionDensityDetector
 from tests.fixtures.llm_samples import A0_CLINICAL_TASK
 
 def test_high_idi_for_llm_task():

@@ -1,7 +1,7 @@
 # tests/test_router.py
 import pytest
-from beet.router import TextRouter
-from beet.contracts import RouterDecision
+from cairn.router import TextRouter
+from cairn.contracts import RouterDecision
 from tests.fixtures.human_samples import NURSE_EDUCATOR, FORMAL_SOP, CASUAL_SHORT
 from tests.fixtures.llm_samples import A0_CLINICAL_TASK
 

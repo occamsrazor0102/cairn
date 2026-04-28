@@ -16,8 +16,8 @@ import argparse
 import json
 from pathlib import Path
 
-from beet.dotenv import load_dotenv
-from beet.evaluation.dataset import EvalSample, save_dataset
+from cairn.dotenv import load_dotenv
+from cairn.evaluation.dataset import EvalSample, save_dataset
 
 
 _SUBSET_FILES = {

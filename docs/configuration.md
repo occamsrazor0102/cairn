@@ -1,4 +1,4 @@
-# BEET 2.0 — Configuration Guide
+# CAIRN — Configuration Guide
 
 All pipeline behavior is driven by YAML config files in `configs/`.
 This doc covers the profile system, the config schema, and how to
@@ -32,7 +32,7 @@ detectors:
     enabled: false
 ```
 
-`beet.config.load_config` deep-merges the child into the parent:
+`cairn.config.load_config` deep-merges the child into the parent:
 scalars overwrite, dicts merge recursively, lists replace. Keys
 starting with `_` (like `_profile`, `_extends`) are metadata only and
 don't survive the merge into the active config dict.
@@ -117,7 +117,7 @@ decision:
 gui:
   history:
     enabled: true
-    db_path: data/beet_history.sqlite3
+    db_path: data/cairn_history.sqlite3
     retain_text: true           # store full text in the SQLite submission log
   drift:
     enabled: true
@@ -160,8 +160,8 @@ privacy:
     log_all_api_calls: true
 ```
 
-Consumed by `beet.privacy.retention` (purge CLI) and
-`beet.privacy.store.PrivacyStore` (access log).
+Consumed by `cairn.privacy.retention` (purge CLI) and
+`cairn.privacy.store.PrivacyStore` (access log).
 
 ## Runtime profile switching
 
@@ -172,7 +172,7 @@ calls `RuntimeContext.switch_profile(name)`, which:
    `^[A-Za-z0-9][A-Za-z0-9_-]*$` to block path traversal).
 2. Calls `load_config` — if the file is missing or malformed, the old
    pipeline stays in place and the UI surfaces `ERR_BAD_PROFILE`.
-3. Constructs a fresh `BeetPipeline` outside the lock.
+3. Constructs a fresh `CairnPipeline` outside the lock.
 4. Atomically swaps the pipeline, profile name, and config under the
    lock.
 
@@ -195,11 +195,11 @@ decision:
   red_threshold: 0.70  # be more willing to flag RED
 EOF
 
-beet gui --profile my-profile
+cairn gui --profile my-profile
 ```
 
 The profile appears automatically in the Settings-tab dropdown via
-`beet.config.list_profiles`, which scans `configs/*.yaml`.
+`cairn.config.list_profiles`, which scans `configs/*.yaml`.
 
 ## Pattern files
 

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from beet.detectors.contrastive_gen import ContrastiveGenDetector
+from cairn.detectors.contrastive_gen import ContrastiveGenDetector
 
 
 @pytest.fixture
@@ -12,12 +12,12 @@ def detector():
 
 
 def test_contrastive_gen_registered():
-    import beet.detectors as registry
+    import cairn.detectors as registry
     assert "contrastive_gen" in registry.get_all_detectors()
 
 
 def test_contrastive_gen_placed_in_phase3():
-    from beet.cascade import PHASE3_DETECTORS
+    from cairn.cascade import PHASE3_DETECTORS
     assert "contrastive_gen" in PHASE3_DETECTORS
 
 

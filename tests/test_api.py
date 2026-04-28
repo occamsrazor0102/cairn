@@ -10,7 +10,7 @@ import pytest
 fastapi = pytest.importorskip("fastapi", reason="FastAPI not installed")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from beet.api import create_app  # noqa: E402
+from cairn.api import create_app  # noqa: E402
 
 
 @pytest.fixture

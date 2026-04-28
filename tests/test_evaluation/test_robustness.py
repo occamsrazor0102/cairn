@@ -1,9 +1,9 @@
 """Robustness evaluation tests using a synthetic pipeline."""
 import pytest
 
-from beet.contracts import Determination
-from beet.evaluation.dataset import EvalSample
-from beet.evaluation.robustness import run_robustness_eval
+from cairn.contracts import Determination
+from cairn.evaluation.dataset import EvalSample
+from cairn.evaluation.robustness import run_robustness_eval
 
 
 class FakePipeline:

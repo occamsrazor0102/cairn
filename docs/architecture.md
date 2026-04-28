@@ -1,4 +1,4 @@
-# BEET 2.0 — Architecture
+# CAIRN — Architecture
 
 This doc describes the runtime pipeline, the detector contract, and how
 cascade / fusion / decision compose to produce a verdict.
@@ -40,12 +40,12 @@ cascade / fusion / decision compose to produce a verdict.
                               Determination
 ```
 
-`beet/pipeline.py::BeetPipeline.analyze(text)` wires these together and
-returns a `Determination` object (defined in `beet/contracts.py`).
+`cairn/pipeline.py::CairnPipeline.analyze(text)` wires these together and
+returns a `Determination` object (defined in `cairn/contracts.py`).
 
 ## Core contracts
 
-`beet/contracts.py` defines three dataclasses plus a detector protocol:
+`cairn/contracts.py` defines three dataclasses plus a detector protocol:
 
 ### `LayerResult`
 One detector's output.
@@ -102,7 +102,7 @@ class Detector(Protocol):
 
 ## Router
 
-`beet/router.py` classifies incoming text into one of four domains:
+`cairn/router.py` classifies incoming text into one of four domains:
 `prompt`, `prose`, `mixed`, `insufficient`. The result decides which
 detectors are *recommended* versus *skipped* — e.g. prompt-shaped
 detectors (`instruction_density`, `voice_spec`, `prompt_structure`) are
@@ -112,7 +112,7 @@ Routing is conservative: when confidence is low, all detectors run.
 
 ## Cascade
 
-`beet/cascade.py::CascadeScheduler` orchestrates four phases with
+`cairn/cascade.py::CascadeScheduler` orchestrates four phases with
 short-circuit logic driven by configurable thresholds
 (`cascade.phase1_short_circuit_{high,low}`, etc.):
 
@@ -128,7 +128,7 @@ intermediate confidence — useful for evaluation.
 
 ## Fusion
 
-`beet/fusion/ebm.py::EBMFusion` has two modes:
+`cairn/fusion/ebm.py::EBMFusion` has two modes:
 
 - **Naive weighted mean (default).** If no trained model artifact is
   loaded (controlled by `fusion.model_path` in the active config), the
@@ -146,7 +146,7 @@ intermediate confidence — useful for evaluation.
   `fusion.conformal_path` is also loaded.
 
 The prediction set / confidence-interval path in
-`beet/fusion/conformal.py::ConformalWrapper` maps fusion scores to
+`cairn/fusion/conformal.py::ConformalWrapper` maps fusion scores to
 four severity bands via a midpoint heuristic. This is NOT a coverage-
 guaranteeing conformal prediction — replacing it with a genuine split-
 conformal implementation (binary, with a documented post-hoc band
@@ -155,12 +155,12 @@ mapping) is a known follow-up.
 Per-detector `p_llm` values themselves are also heuristic out of the
 box — each detector's `analyze()` runs a hand-picked piecewise-linear
 mapping (`_HEURISTIC_*` constants) from its raw score to a p(LLM).
-Replace with isotonic calibration via `beet.calibration.DetectorCalibrator`
+Replace with isotonic calibration via `cairn.calibration.DetectorCalibrator`
 once a labeled dataset exists.
 
 ## Decision engine
 
-`beet/decision.py::DecisionEngine` maps `FusionResult` → `Determination`:
+`cairn/decision.py::DecisionEngine` maps `FusionResult` → `Determination`:
 
 1. **Override rules** — if a detector returned a `CRITICAL` severity
    signal (today: `preamble` only), short-circuit to RED with
@@ -173,7 +173,7 @@ once a labeled dataset exists.
 
 ## Evaluation
 
-`beet/evaluation/` is separable from the live pipeline:
+`cairn/evaluation/` is separable from the live pipeline:
 
 - `dataset.py` — JSONL loader / saver / builder for `EvalSample` lists
 - `metrics.py` — pure functions for AUROC, ECE, Brier, TPR@FPR,
@@ -186,11 +186,11 @@ once a labeled dataset exists.
 
 ## Monitoring
 
-`beet/monitoring/drift.py::DriftMonitor` tracks feature histograms,
+`cairn/monitoring/drift.py::DriftMonitor` tracks feature histograms,
 population p(LLM), and (if reviewer labels are recorded) calibration
 via ECE. Baselines are rebuilt from the history store on demand.
 
-`beet/monitoring/meta_detector.py::MetaDetector` records per-detector
+`cairn/monitoring/meta_detector.py::MetaDetector` records per-detector
 agreement with reviewer feedback to flag degradation over time.
 
 ## Runtime shells
@@ -200,14 +200,14 @@ surface:
 
 | Shell | Backend | Transport |
 |-------|---------|-----------|
-| `beet gui` | stdlib HTTP in `beet/gui/server.py` | `fetch()` |
-| `beet serve` | FastAPI in `beet.api.create_app` | `fetch()` |
-| Tauri desktop | `beet.sidecar` subprocess | stdio JSON-RPC + `invoke()` |
+| `cairn gui` | stdlib HTTP in `cairn/gui/server.py` | `fetch()` |
+| `cairn serve` | FastAPI in `cairn.api.create_app` | `fetch()` |
+| Tauri desktop | `cairn.sidecar` subprocess | stdio JSON-RPC + `invoke()` |
 
 The frontend picks `fetch` vs `invoke` via `window.__TAURI_INTERNALS__`
 detection, so one `index.html` works everywhere.
 
-`beet/runtime.py::RuntimeContext` holds `{pipeline, profile, config}`
+`cairn/runtime.py::RuntimeContext` holds `{pipeline, profile, config}`
 and provides a thread-safe `switch_profile()` so the UI can hot-swap
 the active config without restarting the process. The new pipeline is
 built outside the lock; the assignment is atomic; a failed switch
@@ -215,20 +215,20 @@ leaves the old context untouched.
 
 ## Privacy and provenance
 
-- `beet/privacy/store.py::PrivacyStore` — feature-vector store with
+- `cairn/privacy/store.py::PrivacyStore` — feature-vector store with
   optional raw-text vault and an access log.
-- `beet/privacy/retention.py` — purge-by-age with a `--confirm` gate.
-- `beet/provenance/chain.py::AuditChain` — hash-chained JSONL where
+- `cairn/privacy/retention.py` — purge-by-age with a `--confirm` gate.
+- `cairn/provenance/chain.py::AuditChain` — hash-chained JSONL where
   each entry's `_hash` incorporates the previous entry's hash. Any
   tamper breaks the chain and `validate()` surfaces it.
 
 ## History store
 
-`beet/history.py::HistoryStore` is a SQLite-backed queryable log that
+`cairn/history.py::HistoryStore` is a SQLite-backed queryable log that
 sits alongside PrivacyStore and AuditChain. Every analyze / batch /
 feedback call writes through it so the History, Batch, Monitoring, and
 Evaluation tabs can filter, sort, paginate, and export across the
 entire submission history without re-running the pipeline.
 
-Schema lives in `beet/history.py::SCHEMA`. Two tables: `submissions`
+Schema lives in `cairn/history.py::SCHEMA`. Two tables: `submissions`
 (one row per analyze) and `feedback_log` (0..N per submission).
