@@ -1,6 +1,9 @@
 # tests/conftest.py
 import pytest
 from pathlib import Path
+from cairn.dotenv import load_dotenv
+
+load_dotenv()
 
 CONFIGS_DIR = Path(__file__).parent.parent / "configs"
 

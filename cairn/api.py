@@ -26,6 +26,21 @@ try:
     from fastapi import FastAPI, HTTPException
     from pydantic import BaseModel, Field
     _HAS_FASTAPI = True
+
+    class AnalyzeRequest(BaseModel):
+        text: str = Field(..., min_length=1)
+        task_metadata: dict | None = None
+        submission_id: str | None = None
+
+    class BatchItem(BaseModel):
+        id: str
+        text: str
+        task_metadata: dict | None = None
+
+    class BatchRequest(BaseModel):
+        items: list[BatchItem]
+        cross_similarity: bool = False
+
 except ImportError:
     _HAS_FASTAPI = False
 
@@ -78,20 +93,6 @@ def create_app(config_path: Path | str | None = None) -> Any:
     pipeline = CairnPipeline.from_config_file(cfg_path)
 
     app = FastAPI(title="CAIRN API", version="2.0.0")
-
-    class AnalyzeRequest(BaseModel):
-        text: str = Field(..., min_length=1)
-        task_metadata: dict | None = None
-        submission_id: str | None = None
-
-    class BatchItem(BaseModel):
-        id: str
-        text: str
-        task_metadata: dict | None = None
-
-    class BatchRequest(BaseModel):
-        items: list[BatchItem]
-        cross_similarity: bool = False
 
     @app.get("/health")
     def health() -> dict:
