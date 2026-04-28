@@ -1,8 +1,11 @@
 # beet/config.py
+import logging
 import re
 from pathlib import Path
 import yaml
 import copy
+
+logger = logging.getLogger("beet.config")
 
 CONFIGS_DIR = Path(__file__).parent.parent / "configs"
 PATTERNS_DIR = CONFIGS_DIR / "patterns"
@@ -75,6 +78,7 @@ def list_profiles() -> list[dict]:
         try:
             raw = _load_yaml(p)
         except Exception:
+            logger.warning("Skipped unparseable profile %s", p.name, exc_info=True)
             continue
         name = raw.get("_profile") or p.stem
         profiles.append({

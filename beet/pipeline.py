@@ -1,5 +1,6 @@
 import importlib
 import logging
+import math
 import os
 from pathlib import Path
 from typing import Callable
@@ -128,6 +129,7 @@ class BeetPipeline:
         self._fusion = self._build_fusion(config)
         self._decision = DecisionEngine(config)
         self._detectors = detector_registry.get_all_detectors()
+        self._detector_calibrator = self._build_detector_calibrator(config)
         # Per-call accumulator for detector failures — initialised here so
         # _run_phase can be invoked through any path without an
         # AttributeError, and reset at the top of analyze_detailed.
@@ -169,6 +171,23 @@ class BeetPipeline:
             return DEFAULT_FUSION
         return EBMFusion(model=model, conformal=conformal)
 
+    @staticmethod
+    def _build_detector_calibrator(config: dict):
+        fusion_cfg = config.get("fusion", {}) or {}
+        cal_path = fusion_cfg.get("detector_calibration_path")
+        if not cal_path or not Path(cal_path).exists():
+            if cal_path:
+                logger.info(f"Detector calibration path '{cal_path}' not found; skipping")
+            return None
+        try:
+            from beet.calibration import DetectorCalibrator
+            cal = DetectorCalibrator()
+            cal.load(Path(cal_path))
+            return cal
+        except Exception as e:
+            logger.warning(f"Failed to load detector calibrator at {cal_path}: {e}")
+            return None
+
     @classmethod
     def from_config_file(cls, path: Path | str) -> "BeetPipeline":
         return cls(load_config(Path(path)))
@@ -187,14 +206,14 @@ class BeetPipeline:
         self._phase_errors = []
         results: list[LayerResult] = []
         phases_run = [1]
-        phase1_results = self._run_phase(1, text, cfg, router_decision.skip_detectors)
+        phase1_results = self._run_phase(1, text, cfg, router_decision.skip_detectors, task_metadata)
         results.extend(phase1_results)
         if self._cascade.should_run_phase2(phase1_results):
-            phase2_results = self._run_phase(2, text, cfg, router_decision.skip_detectors)
+            phase2_results = self._run_phase(2, text, cfg, router_decision.skip_detectors, task_metadata)
             results.extend(phase2_results)
             phases_run.append(2)
             if self._cascade.should_run_phase3(results):
-                phase3_results = self._run_phase(3, text, cfg, router_decision.skip_detectors)
+                phase3_results = self._run_phase(3, text, cfg, router_decision.skip_detectors, task_metadata)
                 results.extend(phase3_results)
                 phases_run.append(3)
         fusion_result = self._fusion.fuse(
@@ -274,14 +293,18 @@ class BeetPipeline:
 
         return {sid: triple[0] for sid, triple in per_sub.items()}
 
-    def _run_phase(self, phase: int, text: str, config: dict, skip: list[str]) -> list[LayerResult]:
+    def _run_phase(self, phase: int, text: str, config: dict, skip: list[str],
+                   task_metadata: dict | None = None) -> list[LayerResult]:
         phase_detector_ids = self._cascade.detectors_for_phase(phase)
         results = []
         detector_cfg = config.get("detectors", {})
         for det_id in phase_detector_ids:
             if det_id in skip: continue
-            det_config = detector_cfg.get(det_id, {})
+            det_config = dict(detector_cfg.get(det_id, {}))
             if not det_config.get("enabled", True): continue
+            if task_metadata:
+                for k, v in task_metadata.items():
+                    det_config.setdefault(k, v)
             detector = self._detectors.get(det_id)
             if detector is None:
                 # Enabled in config but not importable (missing extras). Record
@@ -295,6 +318,11 @@ class BeetPipeline:
                 continue
             try:
                 result = detector.analyze(text, det_config)
+                if (self._detector_calibrator is not None
+                        and self._detector_calibrator.has(det_id)
+                        and math.isfinite(result.raw_score)):
+                    result.p_llm = self._detector_calibrator.transform(det_id, result.raw_score)
+                    result.calibrator_applied = True
                 results.append(result)
             except Exception as exc:
                 logger.warning(

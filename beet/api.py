@@ -12,9 +12,12 @@ that don't hit the API do not pay the cost.
 """
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("beet.api")
 
 from beet.pipeline import BeetPipeline
 from beet.report import build_json_report
@@ -108,8 +111,9 @@ def create_app(config_path: Path | str | None = None) -> Any:
     def analyze(req: AnalyzeRequest) -> dict:
         try:
             det = pipeline.analyze(req.text, task_metadata=req.task_metadata)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        except Exception:
+            logger.exception("analyze failed for submission %s", req.submission_id)
+            raise HTTPException(status_code=500, detail="Internal analysis error")
         return build_json_report(det, submission_id=req.submission_id or "")
 
     @app.post("/batch")
@@ -118,7 +122,8 @@ def create_app(config_path: Path | str | None = None) -> Any:
             raise HTTPException(status_code=400, detail="items list is empty")
         if req.cross_similarity:
             texts = {it.id: it.text for it in req.items}
-            dets = pipeline.analyze_batch(texts)
+            batch_metadata = next((it.task_metadata for it in req.items if it.task_metadata), None)
+            dets = pipeline.analyze_batch(texts, task_metadata=batch_metadata)
             return {
                 "results": [
                     build_json_report(det, submission_id=sid)

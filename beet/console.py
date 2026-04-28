@@ -18,10 +18,10 @@ from pathlib import Path
 
 import click
 
-from beet.config import load_config
+from beet.config import load_config, CONFIGS_DIR
 from beet.pipeline import BeetPipeline
 
-_PROFILE_CHOICES = ["default", "strict", "screening", "no-api", "production"]
+_PROFILE_CHOICES = sorted(p.stem for p in CONFIGS_DIR.glob("*.yaml") if not p.name.startswith("_"))
 
 
 @click.group()

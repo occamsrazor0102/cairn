@@ -1,7 +1,10 @@
 # beet/fusion/ebm.py
+import logging
 import math
 from typing import Any
 from beet.contracts import LayerResult, FusionResult
+
+logger = logging.getLogger("beet.fusion")
 
 
 # --- Feature Assembler ---
@@ -65,12 +68,23 @@ class FeatureAssembler:
             "binoculars_ratio": sig("contrastive_lm", "binoculars_ratio"),
             "tocsin_p_llm": p("token_cohesiveness"),
             "tocsin_mean_deletion_impact": sig("token_cohesiveness", "mean_deletion_impact"),
+            # Tier 3 / advanced
+            "perturbation_p_llm": p("perturbation"),
+            "contrastive_gen_p_llm": p("contrastive_gen"),
+            "dna_gpt_p_llm": p("dna_gpt"),
+            "mixed_boundary_p_llm": p("mixed_boundary"),
+            "cross_similarity_p_llm": p("cross_similarity"),
             # Metadata
             "word_count": float(word_count),
             "domain_prompt": 1.0 if domain == "prompt" else 0.0,
             "domain_prose": 1.0 if domain == "prose" else 0.0,
         }
         return vec
+
+
+ASSEMBLER_FEATURE_NAMES: tuple[str, ...] = tuple(
+    FeatureAssembler().assemble([], word_count=0, domain="prose").keys()
+)
 
 
 # --- EBM Fusion ---
@@ -94,6 +108,14 @@ class EBMFusion:
             names = getattr(model, "_beet_feature_names", None)
             if names:
                 self._feature_names = list(names)
+                artifact_set = set(names)
+                assembler_set = set(ASSEMBLER_FEATURE_NAMES)
+                extra_in_artifact = artifact_set - assembler_set
+                extra_in_assembler = assembler_set - artifact_set
+                if extra_in_artifact:
+                    logger.warning("EBM artifact expects features not in assembler: %s", sorted(extra_in_artifact))
+                if extra_in_assembler:
+                    logger.info("Assembler produces features not in EBM artifact (ignored until retrain): %s", sorted(extra_in_assembler))
 
     def fuse(self, layer_results: list[LayerResult], word_count: int = 0, domain: str = "prose") -> FusionResult:
         if self._model is None:
@@ -122,6 +144,7 @@ class EBMFusion:
             contribs = dict(zip(features, local.data(0)["scores"]))
             top = sorted(contribs.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
         except Exception:
+            logger.warning("EBM explain_local failed; feature attributions unavailable", exc_info=True)
             contribs = {}
             top = []
 

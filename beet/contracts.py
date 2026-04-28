@@ -1,6 +1,6 @@
 # beet/contracts.py
 from dataclasses import dataclass, field
-from typing import Literal, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 DETERMINATION_LABELS = Literal["RED", "AMBER", "YELLOW", "GREEN", "UNCERTAIN", "MIXED", "SKIP"]
 COMPUTE_COSTS = Literal["trivial", "cheap", "moderate", "expensive"]
@@ -19,6 +19,7 @@ class LayerResult:
     compute_cost: COMPUTE_COSTS
     min_text_length: int
     spans: list[dict] = field(default_factory=list)
+    calibrator_applied: bool = False
 
 @dataclass
 class FusionResult:
@@ -59,6 +60,9 @@ class Determination:
     # runtime, or raised during analyze). Propagated so the UI can warn
     # about reduced coverage instead of silently hiding the drop.
     detector_errors: list[dict] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    abstention_reason: Literal["conformal_set", "prediction_set", "mixed_authorship"] | None = None
+    calibration_status: str = "heuristic"
 
 @dataclass
 class RouterDecision:
