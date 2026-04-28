@@ -1,6 +1,6 @@
 import pytest
-from beet.cascade import CascadeScheduler
-from beet.contracts import LayerResult
+from cairn.cascade import CascadeScheduler
+from cairn.contracts import LayerResult
 
 def _make_result(layer_id, p_llm, compute_cost, determination):
     return LayerResult(layer_id=layer_id, domain="universal", raw_score=p_llm, p_llm=p_llm,

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from beet.history import HistoryStore, mint_submission_id
+from cairn.history import HistoryStore, mint_submission_id
 
 
 def _report(det="AMBER", p=0.62, sid=""):

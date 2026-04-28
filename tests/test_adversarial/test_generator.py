@@ -1,7 +1,7 @@
 import pytest
-from beet.evaluation.dataset import EvalSample
-from beet.adversarial.generator import generate
-import beet.adversarial  # registers attacks
+from cairn.evaluation.dataset import EvalSample
+from cairn.adversarial.generator import generate
+import cairn.adversarial  # registers attacks
 
 
 @pytest.fixture

@@ -18,10 +18,10 @@ import random
 import time
 from pathlib import Path
 
-from beet.dotenv import load_dotenv
-from beet.evaluation import load_dataset, run_eval
-from beet.evaluation.runner import eval_report_to_dict
-from beet.pipeline import BeetPipeline
+from cairn.dotenv import load_dotenv
+from cairn.evaluation import load_dataset, run_eval
+from cairn.evaluation.runner import eval_report_to_dict
+from cairn.pipeline import CairnPipeline
 
 
 def _fmt(v: float | None) -> str:
@@ -48,7 +48,7 @@ def main() -> None:
         rng = random.Random(args.seed)
         dataset = rng.sample(dataset, args.limit)
 
-    pipeline = BeetPipeline.from_config_file(args.config)
+    pipeline = CairnPipeline.from_config_file(args.config)
     t0 = time.monotonic()
     report = run_eval(pipeline, dataset, progress=args.progress)
     duration = time.monotonic() - t0

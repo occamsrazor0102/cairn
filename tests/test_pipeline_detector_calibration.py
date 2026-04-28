@@ -1,8 +1,8 @@
 import pytest
 from pathlib import Path
-from beet.pipeline import BeetPipeline
-from beet.config import load_config
-from beet.calibration import DetectorCalibrator
+from cairn.pipeline import CairnPipeline
+from cairn.config import load_config
+from cairn.calibration import DetectorCalibrator
 
 
 def test_detector_calibration_path_loads_when_configured(tmp_path):
@@ -13,7 +13,7 @@ def test_detector_calibration_path_loads_when_configured(tmp_path):
 
     cfg = load_config(Path(__file__).parent.parent / "configs" / "screening.yaml")
     cfg.setdefault("fusion", {})["detector_calibration_path"] = str(cal_file)
-    p = BeetPipeline(cfg)
+    p = CairnPipeline(cfg)
 
     assert p._detector_calibrator is not None, (
         "pipeline must load DetectorCalibrator when detector_calibration_path is set"
@@ -24,7 +24,7 @@ def test_detector_calibration_path_loads_when_configured(tmp_path):
 def test_detector_calibration_path_none_when_not_configured():
     cfg = load_config(Path(__file__).parent.parent / "configs" / "screening.yaml")
     cfg.setdefault("fusion", {}).pop("detector_calibration_path", None)
-    p = BeetPipeline(cfg)
+    p = CairnPipeline(cfg)
     assert p._detector_calibrator is None
 
 
@@ -36,7 +36,7 @@ def test_calibrator_transforms_p_llm_in_layer_results(tmp_path, monkeypatch):
 
     cfg = load_config(Path(__file__).parent.parent / "configs" / "screening.yaml")
     cfg.setdefault("fusion", {})["detector_calibration_path"] = str(cal_file)
-    p = BeetPipeline(cfg)
+    p = CairnPipeline(cfg)
 
     observed = []
     orig_fuse = p._fusion.fuse

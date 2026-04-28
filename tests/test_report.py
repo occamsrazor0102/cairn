@@ -1,7 +1,7 @@
 import json
 import pytest
-from beet.report import build_json_report, build_text_report
-from beet.contracts import Determination
+from cairn.report import build_json_report, build_text_report
+from cairn.contracts import Determination
 
 @pytest.fixture
 def sample_determination():
@@ -26,7 +26,7 @@ def test_json_report_has_required_keys(sample_determination):
         assert key in report
 
 def test_json_report_serializes_layer_results():
-    from beet.contracts import LayerResult
+    from cairn.contracts import LayerResult
     lr = LayerResult(layer_id="preamble", domain="universal", raw_score=0.8,
         p_llm=0.9, confidence=0.7, signals={"severity": "HIGH"},
         determination="RED", attacker_tiers=["A0"], compute_cost="trivial",

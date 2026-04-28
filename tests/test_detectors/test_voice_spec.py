@@ -1,5 +1,5 @@
 import pytest
-from beet.detectors.voice_spec import VoiceSpecDetector
+from cairn.detectors.voice_spec import VoiceSpecDetector
 
 @pytest.fixture
 def detector():

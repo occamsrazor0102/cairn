@@ -1,0 +1,52 @@
+import re
+from cairn.contracts import LayerResult
+from cairn.detectors._utils import interpolate as _interpolate
+
+_IMPERATIVE_RE = re.compile(
+    r"\b(?:calculate|analyze|evaluate|assess|create|design|write|provide|"
+    r"list|identify|describe|outline|specify|ensure|include|incorporate|"
+    r"demonstrate|implement|define|determine|review|compare|explain|"
+    r"justify|document|perform|conduct|apply|use|select|choose)\b", re.IGNORECASE)
+_CONDITIONAL_RE = re.compile(r"\b(?:if|when|where|unless|until|provided that|assuming that|given that)\b", re.IGNORECASE)
+_BINARY_RE = re.compile(r"\b(?:yes or no|true or false|correct or incorrect|pass or fail)\b", re.IGNORECASE)
+# HEURISTIC mapping from IDI score to p(LLM). Hand-picked table — NOT from
+# a labeled dataset. Replace via beet.calibration once a training set exists.
+_IDI_HEURISTIC_P_LLM = [(0.0, 0.05), (3.0, 0.20), (6.0, 0.40), (9.0, 0.60), (12.0, 0.75), (16.0, 0.87), (22.0, 0.93)]
+
+class InstructionDensityDetector:
+    id = "instruction_density"
+    domain = "prompt"
+    compute_cost = "cheap"
+    def analyze(self, text: str, config: dict) -> LayerResult:
+        words = text.split()
+        word_count = max(len(words), 1)
+        spans: list[dict] = []
+        imperatives = 0
+        for m in _IMPERATIVE_RE.finditer(text):
+            imperatives += 1
+            spans.append({"start": m.start(), "end": m.end(), "kind": "instruction",
+                          "note": f"imperative verb '{m.group(0)}'"})
+        conditionals = 0
+        for m in _CONDITIONAL_RE.finditer(text):
+            conditionals += 1
+            spans.append({"start": m.start(), "end": m.end(), "kind": "instruction",
+                          "note": f"conditional '{m.group(0)}'"})
+        binary = 0
+        for m in _BINARY_RE.finditer(text):
+            binary += 1
+            spans.append({"start": m.start(), "end": m.end(), "kind": "instruction",
+                          "note": f"binary spec '{m.group(0)}'"})
+        idi = (imperatives + conditionals * 0.5 + binary * 2.0) / word_count * 100
+        p_llm = _interpolate(idi, _IDI_HEURISTIC_P_LLM)
+        if p_llm >= 0.75: determination = "RED"
+        elif p_llm >= 0.50: determination = "AMBER"
+        elif p_llm >= 0.25: determination = "YELLOW"
+        else: determination = "GREEN"
+        return LayerResult(layer_id=self.id, domain=self.domain, raw_score=idi, p_llm=p_llm,
+            confidence=min(0.4 + word_count / 1000, 0.88),
+            signals={"idi": round(idi, 2), "imperatives": imperatives, "conditionals": conditionals, "binary_specs": binary},
+            determination=determination, attacker_tiers=["A0", "A1", "A2"], compute_cost=self.compute_cost, min_text_length=30,
+            spans=spans)
+    def calibrate(self, labeled_data: list) -> None: pass
+
+DETECTOR = InstructionDensityDetector()

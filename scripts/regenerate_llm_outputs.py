@@ -48,8 +48,8 @@ import threading
 import time
 from pathlib import Path
 
-from beet.dotenv import load_dotenv
-from beet.evaluation.dataset import EvalSample
+from cairn.dotenv import load_dotenv
+from cairn.evaluation.dataset import EvalSample
 
 
 _SUBSET_FILES = {

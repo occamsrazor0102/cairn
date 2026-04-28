@@ -28,7 +28,7 @@ suffices.
 
 ## Architecture
 
-### `beet/runtime.py` (new)
+### `cairn/runtime.py` (new)
 
 ```python
 class RuntimeContext:
@@ -36,7 +36,7 @@ class RuntimeContext:
     def __init__(self, pipeline, profile, config): ...
 
     @property
-    def pipeline(self) -> BeetPipeline: ...
+    def pipeline(self) -> CairnPipeline: ...
     @property
     def profile(self) -> str | None: ...
     @property
@@ -52,7 +52,7 @@ failures don't hold up in-flight RPCs), then lock only long enough to
 reassign the three fields. If pipeline construction raises, nothing
 changes.
 
-### `beet/config.py`
+### `cairn/config.py`
 
 Add `list_profiles() -> list[dict]`: scans `configs/*.yaml` (skipping
 subdirs and files starting with `_`), opens each, extracts `_profile`
@@ -60,7 +60,7 @@ or filename, and returns `[{name, path, extends, description}]`.
 
 ### Sidecar + HTTP server
 
-Both replace the current `pipeline: BeetPipeline` field with a
+Both replace the current `pipeline: CairnPipeline` field with a
 `ctx: RuntimeContext`. Every place that previously read `self._pipeline`
 now reads `self._ctx.pipeline`. No behavior change for existing methods.
 
@@ -93,7 +93,7 @@ raw config dict — so the shape is stable across refactors. Shape:
 
 ### HTTP endpoints
 
-Added to `beet/gui/server.py`:
+Added to `cairn/gui/server.py`:
 
 - `GET  /config/profiles` → profile list + current name
 - `GET  /config/current`  → current config (curated shape above)
@@ -153,7 +153,7 @@ force, even outside the Settings tab.
 
 ## Build Order
 
-1. `beet/runtime.py` + `list_profiles` + unit tests.
+1. `cairn/runtime.py` + `list_profiles` + unit tests.
 2. Refactor Sidecar + HTTP to use `RuntimeContext`. Tests pass unchanged.
 3. Add `list_profiles`/`get_config`/`switch_profile` RPC methods + HTTP
    endpoints. Tests.

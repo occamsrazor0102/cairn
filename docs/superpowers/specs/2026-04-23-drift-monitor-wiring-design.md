@@ -6,7 +6,7 @@
 
 ## Goal
 
-Wire the existing `beet.monitoring.drift.DriftMonitor` into the live
+Wire the existing `cairn.monitoring.drift.DriftMonitor` into the live
 analyze path and surface its baseline status + active alerts on the
 Monitoring tab. Today the monitor is instantiable but nothing feeds it
 observations at runtime.
@@ -27,7 +27,7 @@ observations at runtime.
 `RuntimeContext` gains no new fields — keep its scope to
 pipeline/profile/config. The drift instance lives on `Sidecar` /
 HTTP handler alongside `HistoryStore`. Shared `drift_from_config()`
-helper in `beet/sidecar.py` constructs it from `config["drift_monitoring"]`
+helper in `cairn/sidecar.py` constructs it from `config["drift_monitoring"]`
 (defaults in the DriftMonitor constructor are fine if unset).
 
 ### Wiring analyze

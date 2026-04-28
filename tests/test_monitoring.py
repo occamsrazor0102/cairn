@@ -1,9 +1,9 @@
 """Drift monitor + meta-detector tests."""
 import pytest
 
-from beet.contracts import LayerResult
-from beet.monitoring.drift import DriftMonitor, _kl_symmetric
-from beet.monitoring.meta_detector import MetaDetector
+from cairn.contracts import LayerResult
+from cairn.monitoring.drift import DriftMonitor, _kl_symmetric
+from cairn.monitoring.meta_detector import MetaDetector
 
 
 def _layer(p, det_id="preamble", det="AMBER"):

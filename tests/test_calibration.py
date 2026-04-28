@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from beet.calibration import DetectorCalibrator
-from beet.fusion.conformal import ConformalWrapper
-from beet.fusion.ebm import EBMFusion
-from beet.contracts import LayerResult
+from cairn.calibration import DetectorCalibrator
+from cairn.fusion.conformal import ConformalWrapper
+from cairn.fusion.ebm import EBMFusion
+from cairn.contracts import LayerResult
 
 
 def _layer(p, layer_id="preamble", conf=0.8):
@@ -128,19 +128,19 @@ def test_conformal_rejects_tiny_calibration_set():
 
 
 def test_pipeline_falls_back_to_naive_when_model_path_missing(tmp_path):
-    from beet.config import load_config
-    from beet.pipeline import BeetPipeline
+    from cairn.config import load_config
+    from cairn.pipeline import CairnPipeline
     cfg = load_config(Path("configs/screening.yaml"))
     cfg["fusion"] = {"model_path": str(tmp_path / "does_not_exist.pkl")}
-    pipeline = BeetPipeline(cfg)
+    pipeline = CairnPipeline(cfg)
     # DEFAULT_FUSION is the naive fallback (model is None)
     assert pipeline._fusion._model is None
 
 
 def test_pipeline_analyze_detailed_returns_triple():
-    from beet.pipeline import BeetPipeline
+    from cairn.pipeline import CairnPipeline
     from tests.fixtures.llm_samples import A0_CLINICAL_TASK
-    pipeline = BeetPipeline.from_config_file("configs/screening.yaml")
+    pipeline = CairnPipeline.from_config_file("configs/screening.yaml")
     det, results, rd = pipeline.analyze_detailed(A0_CLINICAL_TASK)
     assert det.p_llm is not None
     assert isinstance(results, list) and len(results) > 0

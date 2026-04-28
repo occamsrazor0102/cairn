@@ -1,5 +1,5 @@
 import pytest
-from beet.pipeline import BeetPipeline
+from cairn.pipeline import CairnPipeline
 from pathlib import Path
 from tests.fixtures.llm_samples import A0_PREAMBLE, A0_CLINICAL_TASK, A1_CLEANED
 from tests.fixtures.human_samples import CASUAL_SHORT, FORMAL_SOP
@@ -7,7 +7,7 @@ from tests.fixtures.human_samples import CASUAL_SHORT, FORMAL_SOP
 @pytest.fixture
 def pipeline():
     config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
-    return BeetPipeline.from_config_file(config_path)
+    return CairnPipeline.from_config_file(config_path)
 
 def test_a0_preamble_gives_red(pipeline):
     det = pipeline.analyze(A0_PREAMBLE)
@@ -84,11 +84,11 @@ def test_fusion_receives_word_count_and_domain(pipeline, monkeypatch):
 
 def test_cascade_phase3_tracked_when_forced():
     """Phase 3 must appear in cascade_phases when forced via config."""
-    from beet.config import load_config
+    from cairn.config import load_config
     config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
     cfg = load_config(config_path)
     cfg.setdefault("cascade", {})["phase3_always_run"] = True
-    pipeline = BeetPipeline(cfg)
+    pipeline = CairnPipeline(cfg)
     det = pipeline.analyze(A0_CLINICAL_TASK)
     assert 1 in det.cascade_phases
     assert 3 in det.cascade_phases
@@ -96,6 +96,6 @@ def test_cascade_phase3_tracked_when_forced():
 
 def test_missing_detectors_api_exists():
     """Registry exposes get_missing_detectors() for diagnostics."""
-    import beet.detectors as registry
+    import cairn.detectors as registry
     missing = registry.get_missing_detectors()
     assert isinstance(missing, dict)

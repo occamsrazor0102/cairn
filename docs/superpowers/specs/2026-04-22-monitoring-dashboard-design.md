@@ -26,7 +26,7 @@ dashboard shows empty-state placeholders.
 
 ## Backend
 
-### `beet/history.py` — new methods
+### `cairn/history.py` — new methods
 
 ```python
 def stats(self, *, since: str | None = None) -> dict:

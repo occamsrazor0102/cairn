@@ -23,7 +23,7 @@ downstream feature (monitoring, eval runner, drift review) will read from.
 
 ### Submission log (new substrate)
 
-A SQLite database at `data/beet_history.sqlite3` (configurable). Schema:
+A SQLite database at `data/cairn_history.sqlite3` (configurable). Schema:
 
 ```sql
 CREATE TABLE IF NOT EXISTS submissions (
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS feedback_log (
 CREATE INDEX IF NOT EXISTS idx_feedback_submission ON feedback_log(submission_id);
 ```
 
-New module `beet/history.py` exposes `HistoryStore`:
+New module `cairn/history.py` exposes `HistoryStore`:
 
 - `record(report: dict, *, source: str, text: str | None, profile: str | None,
   batch_id: str | None) -> None`
@@ -79,7 +79,7 @@ conflict — new row, same id replaces). Otherwise mint a short ULID-style id
 
 ### Wiring analyze / batch / feedback into the store
 
-Both `beet/gui/server.py` and `beet/sidecar.py` construct a `HistoryStore`
+Both `cairn/gui/server.py` and `cairn/sidecar.py` construct a `HistoryStore`
 pointed at the same DB. After every `/analyze`, every item in `/batch`, and
 every `/feedback` call, they write to the store. A new top-level `source`
 and optional `batch_id` parameter is threaded through the RPC envelope (no
@@ -107,7 +107,7 @@ the history store happens server-side.
 gui:
   history:
     enabled: true
-    db_path: data/beet_history.sqlite3
+    db_path: data/cairn_history.sqlite3
     retain_text: true        # if false, text column stays null
 ```
 
@@ -120,7 +120,7 @@ Single `index.html`, vanilla JS + DOM; no SPA framework.
 
 ```
 +---- header ----------+
-|  BEET 2.0            |
+|  CAIRN            |
 +---- tabs ------------+
 | Analyze | Batch | History
 +---- view container --+
@@ -213,8 +213,8 @@ a fresh analyze state.
 
 ## Build Order
 
-1. `beet/history.py` + DB schema + unit tests.
-2. Wire `HistoryStore` into `beet/gui/server.py` and `beet/sidecar.py` (write
+1. `cairn/history.py` + DB schema + unit tests.
+2. Wire `HistoryStore` into `cairn/gui/server.py` and `cairn/sidecar.py` (write
    path only; reads come next). Tests assert rows land.
 3. Add `history_list`, `history_get`, `history_delete`, `history_export` to
    both transports. Tests.

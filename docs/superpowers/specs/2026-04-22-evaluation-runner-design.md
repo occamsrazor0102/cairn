@@ -21,12 +21,12 @@ and per-attack breakdowns — without dropping to the CLI.
 - Streaming progress updates. Single request, single response. The UI
   shows "Running…" while waiting.
 - Dataset builder (composing from source files) — the existing
-  `beet.evaluation.dataset.build_dataset` does this; users edit JSONL
+  `cairn.evaluation.dataset.build_dataset` does this; users edit JSONL
   outside the UI.
 
 ## Backend
 
-### `beet/sidecar.py` — new RPC method
+### `cairn/sidecar.py` — new RPC method
 
 ```
 run_eval({
@@ -46,7 +46,7 @@ run_eval({
 ```
 
 Under the hood: builds a `list[EvalSample]`, calls
-`beet.evaluation.runner.run_eval(pipeline, dataset)`, serializes the
+`cairn.evaluation.runner.run_eval(pipeline, dataset)`, serializes the
 `EvalReport` via a helper `_eval_report_to_dict`, and returns. Any
 sample missing `id` / `text` / `label` is rejected with
 `ERR_BAD_PARAMS`.
@@ -59,11 +59,11 @@ The cap is enforced before running:
 
 `POST /evaluation/run` — same body shape as the RPC.
 
-### `beet/evaluation/dataset.py`
+### `cairn/evaluation/dataset.py`
 
 No change.
 
-### `beet/evaluation/runner.py`
+### `cairn/evaluation/runner.py`
 
 Add a small helper `eval_report_to_dict(report, *, include_predictions=True)`
 that produces the JSON shape above. Kept in the module so the sidecar

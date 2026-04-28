@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for looking at BEET 2.0. This doc covers the development loop,
+Thanks for looking at CAIRN. This doc covers the development loop,
 code conventions, and how to add detectors.
 
 ## Dev setup
@@ -18,16 +18,16 @@ Optional extras:
 - `".[tier3]"` — anthropic + openai (Phase 3 LLM-backed detectors)
 - `".[fusion]"` — interpret + scikit-learn + scipy (trained fusion model)
 - `".[batch]"` — networkx + scikit-learn (contributor_graph, cross_similarity)
-- `".[api]"` — fastapi + uvicorn (`beet serve`)
+- `".[api]"` — fastapi + uvicorn (`cairn serve`)
 - `".[full]"` — everything
 
 ## Running the pieces
 
 ```bash
-beet gui --profile screening            # web UI, default port 8877
-beet sidecar --profile default          # stdio JSON-RPC (for Tauri)
-beet serve --profile production         # FastAPI, needs [api]
-python -m beet.sidecar --help           # same as `beet sidecar`
+cairn gui --profile screening            # web UI, default port 8877
+cairn sidecar --profile default          # stdio JSON-RPC (for Tauri)
+cairn serve --profile production         # FastAPI, needs [api]
+python -m cairn.sidecar --help           # same as `cairn sidecar`
 ```
 
 For the Tauri desktop shell, see `docs/building.md`.
@@ -39,9 +39,9 @@ For the Tauri desktop shell, see `docs/building.md`.
   `sqlite3`, `json`). External deps are OK for algorithms
   (`interpret`, `scikit-learn`, `transformers`).
 - Dataclasses for contracts; `Protocol` for structural typing
-  (see `beet/contracts.py::Detector`).
+  (see `cairn/contracts.py::Detector`).
 - Pipeline side effects go through the runtime context
-  (`beet/runtime.py::RuntimeContext`) so `switch_profile` stays atomic.
+  (`cairn/runtime.py::RuntimeContext`) so `switch_profile` stays atomic.
 - History / drift writes are best-effort — a failed write should log
   and continue, never fail the underlying analyze call.
 
@@ -68,11 +68,11 @@ shape) over tests against internal helpers.
 
 ## Adding a detector
 
-1. Create `beet/detectors/your_detector.py` implementing the protocol
-   from `beet/contracts.py`:
+1. Create `cairn/detectors/your_detector.py` implementing the protocol
+   from `cairn/contracts.py`:
 
    ```python
-   from beet.contracts import LayerResult
+   from cairn.contracts import LayerResult
 
    class YourDetector:
        id = "your_detector"
@@ -100,8 +100,8 @@ shape) over tests against internal helpers.
    DETECTOR = YourDetector()
    ```
 
-2. Register it in `beet/pipeline.py` (detector registry) and a cascade
-   phase in `beet/cascade.py::PHASE{1,2,3,4}_DETECTORS`.
+2. Register it in `cairn/pipeline.py` (detector registry) and a cascade
+   phase in `cairn/cascade.py::PHASE{1,2,3,4}_DETECTORS`.
 
 3. Add a default entry in `configs/default.yaml::detectors`.
 
@@ -110,13 +110,13 @@ shape) over tests against internal helpers.
 
 5. If your detector has positional evidence (regex matches, token
    offsets), populate `spans` — the UI will pick it up automatically.
-   Add a new `.span-<kind>` class in `beet/gui/static/index.html` if
+   Add a new `.span-<kind>` class in `cairn/gui/static/index.html` if
    the existing palette doesn't cover your detector's output.
 
 ## Adding an RPC method
 
-Both the HTTP server (`beet/gui/server.py`) and the sidecar
-(`beet/sidecar.py`) route to the same shared functions. A new method
+Both the HTTP server (`cairn/gui/server.py`) and the sidecar
+(`cairn/sidecar.py`) route to the same shared functions. A new method
 needs four touch points:
 
 1. Method body on `Sidecar` class (or a helper it calls).
@@ -128,7 +128,7 @@ needs four touch points:
 Add a test per transport (`tests/test_rpc_sidecar.py`,
 `tests/test_http_api.py`). If you need to touch the frontend, extend
 `beetApi` in both branches (tauri + http) in
-`beet/gui/static/index.html`.
+`cairn/gui/static/index.html`.
 
 ## Writing design specs
 

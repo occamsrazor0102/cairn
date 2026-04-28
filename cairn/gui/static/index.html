@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CAIRN — LLM Authorship Detection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #161b22;
+      --panel2: #0b0f14;
+      --ink: #e6edf3;
+      --muted: #8b949e;
+      --line: #30363d;
+      --accent: #1f6feb;
+      --red: #d1495b;
+      --amber: #e4a33a;
+      --yellow: #dbcd53;
+      --green: #57a773;
+      --uncertain: #7a7a7a;
+    }
+    html, body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+      font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    header {
+      padding: 12px 24px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 16px;
+    }
+    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    header .sub { color: var(--muted); font-size: 12px; }
+    header .mode { margin-left: auto; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    nav.tabs {
+      display: flex; gap: 2px; padding: 0 24px; border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    nav.tabs button {
+      background: transparent; border: 0; color: var(--muted);
+      padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+      border-bottom: 2px solid transparent; margin: 0;
+    }
+    nav.tabs button:hover { color: var(--ink); }
+    nav.tabs button[aria-selected="true"] {
+      color: var(--ink); border-bottom-color: var(--accent);
+    }
+    main { max-width: 1400px; padding: 16px 24px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .view-analyze { display: grid; grid-template-columns: 1fr 420px; gap: 16px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    textarea {
+      width: 100%; box-sizing: border-box; min-height: 280px; background: var(--panel2);
+      border: 1px solid var(--line); color: var(--ink); border-radius: 4px; padding: 12px;
+      font: 13px/1.45 ui-monospace, Menlo, "Consolas", monospace; resize: vertical;
+    }
+    button {
+      background: var(--accent); color: white; border: 0; padding: 9px 16px; border-radius: 5px;
+      font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: #1a5ac7; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.ghost {
+      background: transparent; border: 1px solid var(--line); color: var(--ink);
+    }
+    button.ghost:hover { border-color: var(--accent); background: var(--panel2); }
+    .actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+
+    .badge {
+      display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: 700;
+      letter-spacing: 0.05em; font-size: 13px;
+    }
+    .RED { background: var(--red); color: white; }
+    .AMBER { background: var(--amber); color: #2a1e00; }
+    .YELLOW { background: var(--yellow); color: #2a2500; }
+    .GREEN { background: var(--green); color: white; }
+    .UNCERTAIN, .MIXED { background: var(--uncertain); color: white; }
+
+    .gauge { position: relative; height: 8px; background: #21262d; border-radius: 4px; margin: 10px 0 6px; }
+    .gauge .fill { position: absolute; top: 0; left: 0; height: 100%; background: #3e8cf8; border-radius: 4px; }
+    .gauge .ci { position: absolute; top: -4px; height: 16px; border-left: 1px solid #8b949e; border-right: 1px solid #8b949e; }
+    .metrics { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin-top: 10px; }
+    .metrics .k { color: var(--muted); }
+    .contribs { margin-top: 12px; }
+    .contribs .row { display: grid; grid-template-columns: 1fr auto; padding: 3px 0; border-bottom: 1px dashed var(--line); font-size: 12px; }
+    .contribs .row:last-child { border-bottom: 0; }
+    .reason { color: var(--muted); font-size: 12px; margin-top: 10px; font-style: italic; }
+    .detectors { margin-top: 8px; font-size: 11px; color: var(--muted); }
+    .pred-set { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .err { color: var(--red); margin-top: 10px; font-size: 13px; }
+    .notice {
+      background: var(--panel2); border: 1px solid var(--line); border-radius: 4px;
+      padding: 8px 12px; font-size: 12px; color: var(--muted); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .notice .ink { color: var(--ink); }
+    .feedback { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .feedback .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .feedback button.fb {
+      background: transparent; border: 1px solid var(--line); color: var(--ink);
+      padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;
+      cursor: pointer; margin-top: 0;
+    }
+    .feedback button.fb:hover { border-color: var(--accent); }
+    .feedback button.fb.human { color: var(--green); }
+    .feedback button.fb.llm { color: var(--red); }
+    .feedback input {
+      flex: 1 1 180px; min-width: 0; background: var(--panel2);
+      border: 1px solid var(--line); color: var(--ink); border-radius: 4px;
+      padding: 6px 8px; font-size: 12px;
+    }
+    .feedback .status { color: var(--muted); font-size: 12px; min-height: 16px; }
+    .feedback .status.ok { color: var(--green); }
+    .feedback .status.err { color: var(--red); }
+
+    details.section { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+    details.section > summary {
+      cursor: pointer; font-size: 12px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em; list-style: none; user-select: none;
+    }
+    details.section > summary::-webkit-details-marker { display: none; }
+    details.section > summary::before { content: "▸ "; display: inline-block; width: 14px; }
+    details.section[open] > summary::before { content: "▾ "; }
+    table.layers, table.data { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    table.layers th, table.data th {
+      text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px;
+      border-bottom: 1px solid var(--line); text-transform: none; letter-spacing: 0;
+      position: sticky; top: 0; background: var(--panel);
+    }
+    table.layers td, table.data td {
+      padding: 6px 8px; border-bottom: 1px dashed var(--line);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    table.layers tr.row, table.data tr.row { cursor: pointer; }
+    table.layers tr.row:hover td, table.data tr.row:hover td { background: var(--panel2); }
+    table.layers tr.sig td {
+      font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px;
+      color: var(--muted); background: var(--panel2); padding: 8px 12px; white-space: pre-wrap;
+      word-break: break-word;
+    }
+    table.layers .badge, table.data .badge { font-size: 11px; padding: 2px 6px; }
+    .contrib-row {
+      display: grid; grid-template-columns: 160px 1fr 56px; gap: 8px; align-items: center;
+      padding: 2px 0; font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .contrib-row .name { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contrib-row .bar { height: 6px; background: #21262d; border-radius: 3px; position: relative; }
+    .contrib-row .bar .fill { position: absolute; top: 0; height: 100%; border-radius: 3px; }
+    .contrib-row .bar .fill.pos { background: #3e8cf8; left: 50%; }
+    .contrib-row .bar .fill.neg { background: var(--red); right: 50%; }
+    .contrib-row .bar .axis { position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: var(--line); }
+    .contrib-row .val { text-align: right; color: var(--muted); }
+    .sort-controls { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+    .sort-controls button {
+      background: transparent; border: 1px solid var(--line); color: var(--muted);
+      padding: 3px 8px; font-size: 11px; border-radius: 3px; cursor: pointer; margin: 0;
+      font-weight: normal;
+    }
+    .sort-controls button.active { color: var(--ink); border-color: var(--accent); }
+
+    .filter-bar {
+      display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+      padding: 12px; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 6px; margin-bottom: 12px;
+    }
+    .filter-bar .group { display: flex; flex-direction: column; gap: 4px; }
+    .filter-bar label { margin: 0; }
+    .filter-bar input[type="date"], .filter-bar input[type="text"], .filter-bar input[type="number"] {
+      background: var(--panel2); border: 1px solid var(--line); color: var(--ink);
+      border-radius: 4px; padding: 6px 8px; font-size: 12px;
+    }
+    .check-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .check-group label {
+      display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
+      color: var(--muted); margin: 0; text-transform: none; letter-spacing: 0;
+      cursor: pointer; padding: 3px 6px; border: 1px solid var(--line); border-radius: 3px;
+    }
+    .check-group label.on { color: var(--ink); border-color: var(--accent); }
+    .check-group input { display: none; }
+
+    .pagination {
+      display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 12px;
+      color: var(--muted);
+    }
+    .pagination button { padding: 4px 10px; font-size: 12px; }
+
+    .batch-tabs { display: flex; gap: 2px; margin-bottom: 8px; }
+    .batch-tabs button {
+      background: transparent; border: 1px solid var(--line); color: var(--muted);
+      padding: 5px 12px; font-size: 12px; border-radius: 4px 4px 0 0; cursor: pointer;
+    }
+    .batch-tabs button.active { color: var(--ink); border-color: var(--accent); border-bottom-color: transparent; }
+    .batch-input { display: none; }
+    .batch-input.active { display: block; }
+    .drop-zone {
+      border: 2px dashed var(--line); border-radius: 6px; padding: 32px;
+      text-align: center; color: var(--muted); cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--panel2); }
+    .batch-summary {
+      display: flex; gap: 16px; font-size: 12px; color: var(--muted);
+      padding: 8px 0; border-bottom: 1px solid var(--line); margin-top: 12px;
+    }
+    .batch-summary strong { color: var(--ink); }
+
+    .empty { padding: 32px; text-align: center; color: var(--muted); }
+
+    .summary-cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+      padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .card .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .card .v { font-size: 20px; font-weight: 600; color: var(--ink); font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .card .s { font-size: 11px; color: var(--muted); }
+
+    .determ-bar {
+      display: flex; width: 100%; height: 28px; border-radius: 4px; overflow: hidden;
+      border: 1px solid var(--line); margin-top: 8px;
+    }
+    .determ-bar > div {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: white; min-width: 0;
+    }
+    .determ-legend {
+      display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;
+      font-size: 12px; color: var(--muted); font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .determ-legend .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+
+    .mini-bar {
+      display: flex; width: 100%; height: 12px; border-radius: 2px; overflow: hidden;
+      border: 1px solid var(--line); background: var(--panel2); min-width: 120px;
+    }
+    .mini-bar > div { min-width: 0; }
+
+    .highlighted-text {
+      background: var(--panel2); border: 1px solid var(--line); border-radius: 4px;
+      padding: 12px; white-space: pre-wrap; word-break: break-word;
+      font: 13px/1.5 ui-monospace, Menlo, "Consolas", monospace; color: var(--ink);
+      max-height: 360px; overflow: auto;
+    }
+    .highlighted-text mark {
+      border-bottom: 1px dotted currentColor; background: transparent;
+      color: inherit; padding: 0;
+    }
+    .highlighted-text mark.span-preamble { background: rgba(209,73,91,0.22); color: var(--ink); }
+    .highlighted-text mark.span-fingerprint { background: rgba(228,163,58,0.22); color: var(--ink); }
+    .highlighted-text mark.span-instruction { background: rgba(63,140,248,0.22); color: var(--ink); }
+    .highlighted-text mark.span-structure { background: rgba(87,167,115,0.20); color: var(--ink); }
+    .highlighted-text mark.span-boilerplate { background: rgba(155,118,211,0.22); color: var(--ink); }
+    .highlighted-text mark.span-voice_informal { background: rgba(219,205,83,0.22); color: var(--ink); }
+    .highlighted-text mark.span-spec { background: rgba(125,175,180,0.22); color: var(--ink); }
+    .highlighted-text mark.span-misc { background: rgba(139,148,158,0.22); color: var(--ink); }
+    .highlighted-text mark:hover { outline: 1px solid currentColor; }
+    .highlight-legend {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px;
+      font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .highlight-legend .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 1px 6px; border-radius: 2px;
+    }
+    .highlight-legend .chip.preamble { background: rgba(209,73,91,0.22); color: var(--ink); }
+    .highlight-legend .chip.fingerprint { background: rgba(228,163,58,0.22); color: var(--ink); }
+    .highlight-legend .chip.instruction { background: rgba(63,140,248,0.22); color: var(--ink); }
+    .highlight-legend .chip.structure { background: rgba(87,167,115,0.20); color: var(--ink); }
+    .highlight-legend .chip.boilerplate { background: rgba(155,118,211,0.22); color: var(--ink); }
+    .highlight-legend .chip.voice_informal { background: rgba(219,205,83,0.22); color: var(--ink); }
+    .highlight-legend .chip.spec { background: rgba(125,175,180,0.22); color: var(--ink); }
+
+    @media (max-width: 900px) {
+      .view-analyze { grid-template-columns: 1fr; }
+      main { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>CAIRN</h1>
+  <span class="sub">LLM Authorship Detection</span>
+  <span class="mode" id="modeIndicator"></span>
+  <span class="mode" id="profileIndicator"></span>
+  <span class="mode" id="calibrationIndicator" style="margin-left:auto;"></span>
+</header>
+<div id="heuristicBanner" hidden style="background:rgba(228,163,58,0.15);border-bottom:1px solid rgba(228,163,58,0.4);color:var(--ink);padding:8px 24px;font-size:12px;">
+  <strong>Heuristic mode</strong> — no trained fusion model or conformal calibrator loaded.
+  P(LLM) values and confidence intervals come from hand-picked thresholds, not from a labeled dataset.
+  Treat verdicts as directional, not calibrated probabilities.
+</div>
+<nav class="tabs" role="tablist">
+  <button data-tab="analyze" aria-selected="true">Analyze</button>
+  <button data-tab="batch">Batch</button>
+  <button data-tab="history">History</button>
+  <button data-tab="monitoring">Monitoring</button>
+  <button data-tab="evaluation">Evaluation</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+<main>
+
+  <section class="view active" id="view-analyze">
+    <div class="view-analyze">
+      <section class="panel">
+        <div class="notice" id="historyBanner" hidden>
+          Viewing submission <span class="ink" id="historyBannerId"></span> from history.
+          <button class="ghost" id="historyBannerClear" style="margin-left:auto;padding:4px 10px;font-size:12px;">New analysis</button>
+        </div>
+        <label for="text">Submission text</label>
+        <textarea id="text" placeholder="Paste text to analyze..."></textarea>
+        <div class="actions">
+          <button id="go">Analyze</button>
+          <button class="ghost" id="rerun" hidden>Re-run</button>
+        </div>
+        <div id="err" class="err" hidden></div>
+      </section>
+      <section class="panel" id="result" hidden>
+        <label>Determination</label>
+        <span id="badge" class="badge">—</span>
+        <div class="gauge"><div class="fill" id="fill"></div><div class="ci" id="ci"></div></div>
+        <div class="metrics">
+          <div class="k">P(LLM)</div>        <div id="p"></div>
+          <div class="k">Confidence CI</div> <div id="ciText"></div>
+          <div class="k">Severity bands</div><div id="predSet"></div>
+          <div class="k">Conformal set</div><div id="conformalSet"></div>
+          <div class="k">Fusion mode</div><div id="fusionMode"></div>
+        </div>
+        <div class="reason" id="reason"></div>
+        <div class="contribs">
+          <label>Top contributing signals</label>
+          <div id="contribs"></div>
+        </div>
+        <details class="section" id="layersSection">
+          <summary>Detector breakdown</summary>
+          <table class="layers"><thead><tr>
+            <th>id</th><th>domain</th><th style="text-align:right">raw</th>
+            <th style="text-align:right">p(llm)</th><th style="text-align:right">conf</th>
+            <th>verdict</th>
+          </tr></thead><tbody id="layersBody"></tbody></table>
+        </details>
+        <details class="section" id="allContribsSection">
+          <summary>All feature contributions</summary>
+          <div class="sort-controls" id="sortControls">
+            <button data-sort="abs" class="active">|value| ↓</button>
+            <button data-sort="desc">value ↓</button>
+            <button data-sort="asc">value ↑</button>
+            <button data-sort="alpha">a–z</button>
+          </div>
+          <div id="allContribs"></div>
+        </details>
+        <details class="section" id="highlightsSection">
+          <summary>Highlighted text</summary>
+          <div class="highlighted-text" id="highlightedText"></div>
+          <div class="highlight-legend" id="highlightLegend"></div>
+        </details>
+        <div class="detectors" id="detectors"></div>
+        <div id="detectorErrors" hidden style="margin-top:8px;padding:8px 10px;background:rgba(209,73,91,0.14);border:1px solid rgba(209,73,91,0.4);border-radius:4px;font-size:12px;color:var(--ink);"></div>
+        <div class="feedback" id="feedback" hidden>
+          <label>Reviewer feedback</label>
+          <div class="row">
+            <button class="fb human" id="fbHuman" title="Confirm this submission is human-written">Human</button>
+            <button class="fb llm" id="fbLLM" title="Confirm this submission is LLM-generated">LLM</button>
+            <input id="fbNotes" placeholder="Optional notes…" />
+          </div>
+          <div class="status" id="fbStatus"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section class="view" id="view-batch">
+    <div class="panel">
+      <label>Batch input</label>
+      <div class="batch-tabs" role="tablist">
+        <button data-binput="lines" class="active">One per line</button>
+        <button data-binput="json">JSON</button>
+        <button data-binput="file">File upload</button>
+      </div>
+      <div class="batch-input active" data-binput="lines">
+        <textarea id="batchLines" placeholder="One submission per line..."></textarea>
+      </div>
+      <div class="batch-input" data-binput="json">
+        <textarea id="batchJson" placeholder='[{"id":"s1","text":"..."}, {"id":"s2","text":"..."}]'></textarea>
+      </div>
+      <div class="batch-input" data-binput="file">
+        <div class="drop-zone" id="batchDrop">
+          Drop a .txt, .json, or .csv file here, or click to choose
+          <input type="file" id="batchFile" accept=".txt,.json,.csv" style="display:none">
+        </div>
+        <div style="margin-top:8px;color:var(--muted);font-size:12px;" id="batchFileStatus"></div>
+      </div>
+      <div class="actions">
+        <button id="batchGo">Run batch</button>
+        <button class="ghost" id="batchCancel" hidden>Cancel</button>
+        <button class="ghost" id="batchExportJson" hidden>Export JSON</button>
+        <button class="ghost" id="batchExportCsv" hidden>Export CSV</button>
+      </div>
+      <div id="batchErr" class="err" hidden></div>
+      <div id="batchProgress" hidden style="margin-top:12px;font-size:12px;color:var(--muted);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span id="batchProgressText">Starting…</span>
+          <span id="batchProgressEta"></span>
+        </div>
+        <div style="height:6px;background:rgba(127,127,127,0.18);border-radius:3px;overflow:hidden;">
+          <div id="batchProgressBar" style="height:100%;width:0%;background:var(--accent,#4ea1f3);transition:width 0.25s ease;"></div>
+        </div>
+      </div>
+      <div class="batch-summary" id="batchSummary" hidden></div>
+      <table class="data" id="batchTable" hidden>
+        <thead><tr>
+          <th>#</th><th>id</th><th>determination</th>
+          <th style="text-align:right">p(llm)</th><th style="text-align:right">detectors</th>
+        </tr></thead>
+        <tbody id="batchBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="view" id="view-monitoring">
+    <div class="actions" style="margin-top:0;margin-bottom:12px;">
+      <button class="ghost" id="monRefresh">Refresh</button>
+      <span class="reason" id="monStatus" style="margin:0;"></span>
+    </div>
+    <div class="summary-cards" id="monCards"></div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Determination distribution</label>
+      <div id="monDetermBar"></div>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Drift</label>
+      <div class="actions" style="margin-top:4px;gap:12px;align-items:center;">
+        <span id="driftBaselineStatus" style="color:var(--muted);font-size:12px;">—</span>
+        <span id="driftObsStatus" style="color:var(--muted);font-size:12px;">—</span>
+        <button class="ghost" id="driftSetBaseline" style="margin-left:auto;">Set baseline from recent history</button>
+      </div>
+      <div id="driftAlerts" style="margin-top:8px;"></div>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Per-day volume (last 14 days)</label>
+      <svg id="monPerDay" width="100%" height="80" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Recent submissions timeline <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;">(hover for id, click to open)</span></label>
+      <svg id="monTimeline" width="100%" height="200" preserveAspectRatio="none"></svg>
+      <div id="monTimelineTooltip" style="color:var(--muted);font-size:11px;margin-top:4px;min-height:14px;"></div>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Cascade phase distribution <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;">(which phases actually ran)</span></label>
+      <div id="monCascade"></div>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Per-detector behavior</label>
+      <table class="data">
+        <thead><tr>
+          <th>id</th><th style="text-align:right">n</th>
+          <th style="text-align:right">mean p(llm)</th>
+          <th style="text-align:right">mean conf</th>
+          <th>determinations</th>
+        </tr></thead>
+        <tbody id="monDetectorsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="view" id="view-evaluation">
+    <div class="panel">
+      <label>Dataset (JSONL — each line: {id, text, label, tier?, …})</label>
+      <div class="batch-tabs" role="tablist">
+        <button data-einput="paste" class="active">Paste JSONL</button>
+        <button data-einput="file">Upload .jsonl</button>
+        <button data-einput="history">Sample labeled history</button>
+      </div>
+      <div class="batch-input active" data-einput="paste">
+        <textarea id="evalPaste" placeholder='{"id":"s1","text":"…","label":1,"tier":"A0"}' style="min-height:180px;"></textarea>
+      </div>
+      <div class="batch-input" data-einput="file">
+        <div class="drop-zone" id="evalDrop">
+          Drop a .jsonl file here, or click to choose
+          <input type="file" id="evalFile" accept=".jsonl,.json,.txt" style="display:none">
+        </div>
+        <div id="evalFileStatus" style="margin-top:8px;color:var(--muted);font-size:12px;"></div>
+      </div>
+      <div class="batch-input" data-einput="history">
+        <div style="color:var(--muted);font-size:12px;margin-bottom:8px;">Pulls from history submissions that have reviewer feedback recorded.</div>
+        <button class="ghost" id="evalLoadHistory">Load labeled history</button>
+        <div id="evalHistoryStatus" style="margin-top:8px;color:var(--muted);font-size:12px;"></div>
+      </div>
+      <div class="actions" style="gap:12px;">
+        <button id="evalGo">Run evaluation</button>
+        <span class="reason" id="evalSummaryLine" style="margin:0;"></span>
+      </div>
+      <div id="evalErr" class="err" hidden></div>
+    </div>
+    <div id="evalResult" hidden>
+      <div class="summary-cards" id="evalCards" style="margin-top:12px;"></div>
+      <div class="panel" style="margin-top:12px;">
+        <label>Confusion matrix <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;">(threshold p ≥ 0.5)</span></label>
+        <div id="evalConfusion"></div>
+      </div>
+      <div class="panel" style="margin-top:12px;">
+        <label>Per-tier breakdown</label>
+        <table class="data">
+          <thead><tr><th>tier</th><th style="text-align:right">n</th><th style="text-align:right">AUROC</th><th style="text-align:right">ECE</th><th style="text-align:right">Brier</th><th style="text-align:right">TPR@FPR1%</th></tr></thead>
+          <tbody id="evalPerTierBody"></tbody>
+        </table>
+      </div>
+      <div class="panel" style="margin-top:12px;" id="evalPerAttackPanel" hidden>
+        <label>Per-attack breakdown</label>
+        <table class="data">
+          <thead><tr><th>attack</th><th style="text-align:right">n</th><th style="text-align:right">AUROC</th><th style="text-align:right">ECE</th><th style="text-align:right">Brier</th><th style="text-align:right">TPR@FPR1%</th></tr></thead>
+          <tbody id="evalPerAttackBody"></tbody>
+        </table>
+      </div>
+      <details class="section" id="evalFailedSection" hidden>
+        <summary>Failed samples</summary>
+        <table class="data">
+          <thead><tr><th>id</th><th>error</th></tr></thead>
+          <tbody id="evalFailedBody"></tbody>
+        </table>
+      </details>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <div class="panel">
+      <label>Active profile</label>
+      <div class="actions" style="margin-top:4px;gap:12px;align-items:center;">
+        <select id="profileSelect" style="background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:6px 10px;font-size:13px;min-width:200px;"></select>
+        <button id="profileSwitchBtn">Switch</button>
+        <span class="reason" id="profileSwitchStatus" style="margin:0;"></span>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Thresholds</label>
+      <table class="data" id="thresholdsTable"><tbody id="thresholdsBody"></tbody></table>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>Detectors <span id="detectorCounts"></span></label>
+      <table class="data">
+        <thead><tr><th>id</th><th>enabled</th><th>available</th><th style="text-align:right">weight</th><th>notes</th></tr></thead>
+        <tbody id="detectorsBody"></tbody>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <label>History store</label>
+      <table class="data" id="historyCfgTable"><tbody id="historyCfgBody"></tbody></table>
+    </div>
+    <div class="actions" style="margin-top:12px;">
+      <button class="ghost" id="settingsReload">Reload</button>
+      <span class="reason" id="settingsStatus" style="margin:0;"></span>
+    </div>
+  </section>
+
+  <section class="view" id="view-history">
+    <div class="filter-bar">
+      <div class="group">
+        <label>Determination</label>
+        <div class="check-group" id="histDeterm">
+          <label><input type="checkbox" value="RED"><span class="badge RED">RED</span></label>
+          <label><input type="checkbox" value="AMBER"><span class="badge AMBER">AMBER</span></label>
+          <label><input type="checkbox" value="YELLOW"><span class="badge YELLOW">YELLOW</span></label>
+          <label><input type="checkbox" value="GREEN"><span class="badge GREEN">GREEN</span></label>
+          <label><input type="checkbox" value="UNCERTAIN"><span class="badge UNCERTAIN">UNCERTAIN</span></label>
+          <label><input type="checkbox" value="MIXED"><span class="badge MIXED">MIXED</span></label>
+        </div>
+      </div>
+      <div class="group">
+        <label>Since</label>
+        <input type="date" id="histSince">
+      </div>
+      <div class="group">
+        <label>Until</label>
+        <input type="date" id="histUntil">
+      </div>
+      <div class="group" style="flex:1 1 200px;">
+        <label>Search (id or text)</label>
+        <input type="text" id="histSearch" placeholder="submission id or text fragment">
+      </div>
+      <div class="actions" style="margin:0;">
+        <button id="histApply">Apply</button>
+        <button class="ghost" id="histReset">Reset</button>
+        <button class="ghost" id="histExportJson">Export JSON</button>
+        <button class="ghost" id="histExportCsv">Export CSV</button>
+      </div>
+    </div>
+    <div class="panel" style="padding:0;">
+      <div id="histError" class="err" style="padding:12px 16px" hidden></div>
+      <table class="data" id="histTable">
+        <thead><tr>
+          <th>recorded_at</th><th>determination</th>
+          <th style="text-align:right">p(llm)</th>
+          <th>source</th><th>feedback</th><th>id</th>
+        </tr></thead>
+        <tbody id="histBody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+      </table>
+      <div class="pagination">
+        <button class="ghost" id="histPrev">Prev</button>
+        <span id="histPageInfo">–</span>
+        <button class="ghost" id="histNext">Next</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+/* ---------------- dual-mode API client ---------------- */
+const cairnApi = (() => {
+  const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
+  if (isTauri) {
+    const invoke = (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke)
+      || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
+    if (typeof invoke !== "function") throw new Error("Tauri detected but invoke() unavailable");
+    return {
+      mode: "tauri",
+      analyze: (text, submission_id) => invoke("analyze", { text, submissionId: submission_id || null }),
+      analyzeBatch: (items, batch_id) => invoke("analyze_batch", { items, batchId: batch_id || null }),
+      analyzeBatchAsync: (items, batch_id) => invoke("analyze_batch_async", { items, batchId: batch_id || null }),
+      getJob: (job_id) => invoke("get_job", { jobId: job_id }),
+      cancelJob: (job_id) => invoke("cancel_job", { jobId: job_id }),
+      feedback: (p) => invoke("feedback", {
+        text: p.text, confirmedLabel: p.confirmed_label,
+        submissionId: p.submission_id || null, reviewerNotes: p.reviewer_notes || null,
+      }),
+      health: () => invoke("health"),
+      historyList: (params) => invoke("history_list", { params }),
+      historyGet: (id) => invoke("history_get", { submissionId: id }),
+      historyDelete: (id) => invoke("history_delete", { submissionId: id }),
+      historyExport: (params) => invoke("history_export", { params }),
+      listProfiles: () => invoke("list_profiles", {}),
+      getConfig: () => invoke("get_config", {}),
+      switchProfile: (name) => invoke("switch_profile", { params: { name } }),
+      monitoringSummary: () => invoke("monitoring_summary", { params: {} }),
+      monitoringTimeline: (limit) => invoke("monitoring_timeline", { params: { limit: limit || 200 } }),
+      monitoringDetectors: (limit) => invoke("monitoring_detectors", { params: { limit: limit || 500 } }),
+      monitoringCascade: (limit) => invoke("monitoring_cascade", { params: { limit: limit || 1000 } }),
+      runEval: (items, max_samples) => invoke("run_eval", { params: { items, max_samples } }),
+      monitoringDrift: () => invoke("monitoring_drift", {}),
+      monitoringSetBaseline: (limit) => invoke("monitoring_set_baseline", { params: { limit: limit || 500 } }),
+    };
+  }
+  const post = async (path, body) => {
+    const res = await fetch(path, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "request failed");
+    return data;
+  };
+  return {
+    mode: "http",
+    analyze: (text, submission_id) => post("/analyze", { text, submission_id }),
+    analyzeBatch: (items, batch_id) => post("/batch", { items, batch_id }),
+    analyzeBatchAsync: (items, batch_id) => post("/batch/async", { items, batch_id }),
+    getJob: (job_id) => post("/jobs/get", { job_id }),
+    cancelJob: (job_id) => post("/jobs/cancel", { job_id }),
+    feedback: (p) => post("/feedback", p),
+    health: () => fetch("/health").then(r => r.json()),
+    historyList: (params) => post("/history/list", params),
+    historyGet: (id) => post("/history/get", { submission_id: id }),
+    historyDelete: (id) => post("/history/delete", { submission_id: id }),
+    historyExport: (params) => {
+      const q = new URLSearchParams();
+      for (const [k, v] of Object.entries(params || {})) {
+        if (v == null || v === "") continue;
+        if (Array.isArray(v)) v.forEach(x => q.append(k, x)); else q.append(k, v);
+      }
+      return { mode: "download", url: "/history/export?" + q.toString() };
+    },
+    listProfiles: () => fetch("/config/profiles").then(r => r.json()),
+    getConfig: () => fetch("/config/current").then(r => r.json()),
+    switchProfile: (name) => post("/config/switch", { name }),
+    monitoringSummary: () => post("/monitoring/summary", {}),
+    monitoringTimeline: (limit) => post("/monitoring/timeline", { limit: limit || 200 }),
+    monitoringDetectors: (limit) => post("/monitoring/detectors", { limit: limit || 500 }),
+    monitoringCascade: (limit) => post("/monitoring/cascade", { limit: limit || 1000 }),
+    runEval: (items, max_samples) => post("/evaluation/run", { items, max_samples }),
+    monitoringDrift: () => post("/monitoring/drift", {}),
+    monitoringSetBaseline: (limit) => post("/monitoring/set-baseline", { limit: limit || 500 }),
+  };
+})();
+$("modeIndicator").textContent = cairnApi.mode;
+
+/* ---------------- tab routing ---------------- */
+const VIEWS = ["analyze", "batch", "history", "monitoring", "evaluation", "settings"];
+function showTab(name) {
+  if (!VIEWS.includes(name)) name = "analyze";
+  VIEWS.forEach(v => {
+    $("view-" + v).classList.toggle("active", v === name);
+  });
+  document.querySelectorAll("nav.tabs button").forEach(b => {
+    b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
+  });
+  if (location.hash.slice(2) !== name) location.hash = "#/" + name;
+  if (name === "history") loadHistory();
+  if (name === "settings") loadSettings();
+  if (name === "monitoring") loadMonitoring();
+}
+document.querySelectorAll("nav.tabs button").forEach(b => {
+  b.addEventListener("click", () => showTab(b.dataset.tab));
+});
+window.addEventListener("hashchange", () => showTab(location.hash.slice(2) || "analyze"));
+showTab(location.hash.slice(2) || "analyze");
+
+/* ---------------- Analyze tab ---------------- */
+let lastAnalysis = null;
+let viewingHistoryId = null;
+
+$("go").addEventListener("click", async () => {
+  const text = $("text").value.trim();
+  const err = $("err");
+  const btn = $("go");
+  err.hidden = true;
+  if (!text) { err.textContent = "Enter some text."; err.hidden = false; return; }
+  btn.disabled = true; btn.textContent = "Analyzing…";
+  try {
+    clearHistoryBanner();
+    const data = await cairnApi.analyze(text);
+    lastAnalysis = { text, submission_id: data.submission_id || "" };
+    render(data);
+    $("feedback").hidden = false;
+    $("fbStatus").textContent = ""; $("fbStatus").className = "status";
+    $("fbNotes").value = "";
+  } catch (e) { err.textContent = e.message || String(e); err.hidden = false; }
+  finally { btn.disabled = false; btn.textContent = "Analyze"; }
+});
+
+$("rerun").addEventListener("click", () => {
+  viewingHistoryId = null;
+  $("historyBanner").hidden = true;
+  $("rerun").hidden = true;
+  $("go").click();
+});
+
+$("historyBannerClear").addEventListener("click", () => {
+  clearHistoryBanner();
+  $("text").value = "";
+  $("result").hidden = true;
+});
+
+function clearHistoryBanner() {
+  viewingHistoryId = null;
+  $("historyBanner").hidden = true;
+  $("rerun").hidden = true;
+}
+
+async function submitFeedback(label) {
+  if (!lastAnalysis) return;
+  const status = $("fbStatus");
+  status.className = "status"; status.textContent = "Submitting…";
+  const [h, l] = [$("fbHuman"), $("fbLLM")];
+  h.disabled = true; l.disabled = true;
+  try {
+    await cairnApi.feedback({
+      text: lastAnalysis.text, confirmed_label: label,
+      submission_id: lastAnalysis.submission_id,
+      reviewer_notes: $("fbNotes").value.trim() || null,
+    });
+    status.className = "status ok";
+    status.textContent = `Recorded as ${label === 1 ? "LLM" : "human"}.`;
+  } catch (e) {
+    status.className = "status err"; status.textContent = e.message || String(e);
+  } finally { h.disabled = false; l.disabled = false; }
+}
+$("fbHuman").addEventListener("click", () => submitFeedback(0));
+$("fbLLM").addEventListener("click", () => submitFeedback(1));
+
+function render(r) {
+  $("result").hidden = false;
+  const badge = $("badge");
+  badge.className = "badge " + (r.determination || "UNCERTAIN");
+  badge.textContent = r.determination;
+  const p = Number(r.p_llm || 0);
+  $("fill").style.width = (p * 100).toFixed(1) + "%";
+  const ci = r.confidence_interval || [0, 0];
+  $("ci").style.left = (ci[0] * 100).toFixed(1) + "%";
+  $("ci").style.width = ((ci[1] - ci[0]) * 100).toFixed(1) + "%";
+  $("p").textContent = p.toFixed(3);
+  $("ciText").textContent = "[" + ci[0].toFixed(2) + ", " + ci[1].toFixed(2) + "]";
+  const preds = (r.prediction_set || []).map(l => `<span class="badge ${l}">${l}</span>`).join(" ");
+  $("predSet").innerHTML = `<div class="pred-set">${preds}</div>
+    <div style="color:var(--muted);font-size:11px;margin-top:2px;">cosmetic severity overlap — not a coverage guarantee</div>`;
+  // Conformal set is present only when a calibrated conformal wrapper is loaded.
+  if (r.conformal_set && r.conformal_set.length) {
+    const covPct = r.conformal_alpha != null ? ((1 - r.conformal_alpha) * 100).toFixed(0) + "%" : "—";
+    const chips = r.conformal_set.map(l =>
+      `<span class="badge" style="background:${l === "LLM" ? "var(--red)" : "var(--green)"};color:white;">${escapeHtml(l)}</span>`
+    ).join(" ");
+    $("conformalSet").innerHTML = `${chips} <span style="color:var(--muted);font-size:11px;">(${covPct} target coverage)</span>`;
+  } else {
+    $("conformalSet").innerHTML = `<span style="color:var(--muted);font-style:italic;">unavailable — requires a calibrated conformal wrapper</span>`;
+  }
+  const mode = r.fusion_mode || "naive";
+  if (mode === "ebm") {
+    $("fusionMode").innerHTML = `<span style="color:var(--green)">EBM (trained)</span>`;
+  } else {
+    $("fusionMode").innerHTML = `<span style="color:var(--amber)">naive weighted mean</span> <span style="color:var(--muted);font-size:11px;">— "contributions" below are deviations-from-prior, not additive feature attributions</span>`;
+  }
+  $("reason").textContent = r.reason || "";
+  const contribs = (r.top_features || []).map(f => {
+    const feat = f.feature || f[0];
+    const val = f.contribution != null ? f.contribution : (f[1] || 0);
+    const sign = val >= 0 ? "+" : "";
+    return `<div class="row"><div>${escapeHtml(feat)}</div><div>${sign}${Number(val).toFixed(3)}</div></div>`;
+  }).join("");
+  $("contribs").innerHTML = contribs || "<div class='k'>no contributions reported</div>";
+  $("detectors").textContent = "Detectors run: " + (r.detectors_run || []).join(", ");
+  renderDetectorErrors(r.detector_errors || []);
+  renderLayers(r.layer_results || []);
+  renderAllContribs(r.feature_contributions || {});
+  renderHighlights(r.layer_results || []);
+}
+
+const KIND_LABELS = {
+  preamble: "preamble match",
+  fingerprint: "fingerprint word",
+  instruction: "instruction verb",
+  structure: "prompt structure",
+  boilerplate: "boilerplate phrase",
+  voice_informal: "informal voice",
+  spec: "spec language",
+  misc: "other",
+};
+
+function renderHighlights(layers) {
+  const text = $("text").value || "";
+  const el = $("highlightedText");
+  const legend = $("highlightLegend");
+  legend.innerHTML = "";
+  if (!text) { el.textContent = ""; return; }
+  const spans = [];
+  for (const l of layers) {
+    for (const s of (l.spans || [])) {
+      if (typeof s.start !== "number" || typeof s.end !== "number") continue;
+      if (s.start < 0 || s.end > text.length || s.start >= s.end) continue;
+      spans.push({ ...s, layer: l.layer_id });
+    }
+  }
+  if (!spans.length) {
+    el.innerHTML = `<span style="color:var(--muted);">${escapeHtml(text)}</span>`;
+    legend.innerHTML = `<span>No spans emitted for this submission.</span>`;
+    return;
+  }
+  spans.sort((a, b) => a.start - b.start);
+  // Drop overlapping (keep first)
+  const kept = [];
+  const kindCounts = {};
+  let last = -1;
+  for (const s of spans) {
+    if (s.start < last) continue;
+    kept.push(s); last = s.end;
+    const k = s.kind || "misc";
+    kindCounts[k] = (kindCounts[k] || 0) + 1;
+  }
+  let html = "";
+  let cursor = 0;
+  for (const s of kept) {
+    if (s.start > cursor) html += escapeHtml(text.slice(cursor, s.start));
+    const slice = escapeHtml(text.slice(s.start, s.end));
+    const note = s.note ? `${s.layer}: ${s.note}` : s.layer;
+    html += `<mark class="span-${escapeHtml(s.kind || 'misc')}" title="${escapeHtml(note)}">${slice}</mark>`;
+    cursor = s.end;
+  }
+  if (cursor < text.length) html += escapeHtml(text.slice(cursor));
+  el.innerHTML = html;
+
+  const chips = Object.entries(kindCounts).sort((a, b) => b[1] - a[1]).map(([kind, n]) => {
+    const label = KIND_LABELS[kind] || kind;
+    return `<span class="chip ${escapeHtml(kind)}">${escapeHtml(label)} · ${n}</span>`;
+  }).join("");
+  const dropped = spans.length - kept.length;
+  legend.innerHTML = chips + (dropped > 0 ? `<span>${dropped} overlap dropped</span>` : "") +
+    `<span>(hover a highlight for detector note)</span>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  })[c]);
+}
+function formatSignal(v) {
+  if (v === null || v === undefined) return String(v);
+  if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(4);
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+function renderDetectorErrors(errors) {
+  const el = $("detectorErrors");
+  if (!errors.length) { el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  const rows = errors.map(e =>
+    `<li><code>${escapeHtml(e.layer_id || "")}</code> (phase ${e.phase ?? "?"}): ${escapeHtml(e.error || "")}</li>`
+  ).join("");
+  el.innerHTML = `<strong>⚠ reduced coverage —</strong> ${errors.length} detector(s) failed during analysis:<ul style="margin:4px 0 0 18px;padding:0;">${rows}</ul>`;
+}
+
+function renderLayers(layers) {
+  const body = $("layersBody");
+  if (!layers.length) {
+    body.innerHTML = "<tr><td colspan='6' class='k'>no layer results</td></tr>";
+    return;
+  }
+  body.innerHTML = layers.map((l, i) => {
+    const verdict = l.determination || "UNCERTAIN";
+    const sig = l.signals || {};
+    const sigRows = Object.keys(sig).length
+      ? Object.entries(sig).map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(formatSignal(v))}`).join("\n")
+      : "(no signals)";
+    return `
+      <tr class="row" data-idx="${i}">
+        <td>${escapeHtml(l.layer_id || "")}</td>
+        <td>${escapeHtml(l.domain || "")}</td>
+        <td style="text-align:right">${Number(l.raw_score || 0).toFixed(2)}</td>
+        <td style="text-align:right">${Number(l.p_llm || 0).toFixed(3)}</td>
+        <td style="text-align:right">${Number(l.confidence || 0).toFixed(2)}</td>
+        <td><span class="badge ${verdict}">${verdict}</span></td>
+      </tr>
+      <tr class="sig" data-idx="${i}" hidden><td colspan="6">${escapeHtml(sigRows)}</td></tr>
+    `;
+  }).join("");
+  body.querySelectorAll("tr.row").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const idx = tr.dataset.idx;
+      const sig = body.querySelector(`tr.sig[data-idx="${idx}"]`);
+      if (sig) sig.hidden = !sig.hidden;
+    });
+  });
+}
+
+let _contribs = {}, _sortMode = "abs";
+function renderAllContribs(contribs) { _contribs = contribs || {}; paintContribs(); }
+function paintContribs() {
+  const entries = Object.entries(_contribs);
+  const container = $("allContribs");
+  if (!entries.length) { container.innerHTML = "<div class='k'>no contributions reported</div>"; return; }
+  const sorters = {
+    abs:  (a, b) => Math.abs(b[1]) - Math.abs(a[1]),
+    desc: (a, b) => b[1] - a[1],
+    asc:  (a, b) => a[1] - b[1],
+    alpha:(a, b) => a[0].localeCompare(b[0]),
+  };
+  entries.sort(sorters[_sortMode] || sorters.abs);
+  const maxAbs = Math.max(...entries.map(([, v]) => Math.abs(v)), 1e-9);
+  container.innerHTML = entries.map(([name, val]) => {
+    const pct = (Math.abs(val) / maxAbs) * 50;
+    const cls = val >= 0 ? "pos" : "neg";
+    const sign = val >= 0 ? "+" : "";
+    return `<div class="contrib-row">
+      <div class="name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+      <div class="bar"><div class="axis"></div><div class="fill ${cls}" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="val">${sign}${Number(val).toFixed(3)}</div>
+    </div>`;
+  }).join("");
+}
+$("sortControls").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-sort]");
+  if (!btn) return;
+  _sortMode = btn.dataset.sort;
+  document.querySelectorAll("#sortControls button").forEach(b => b.classList.toggle("active", b === btn));
+  paintContribs();
+});
+
+/* ---------------- Batch tab ---------------- */
+document.querySelectorAll(".batch-tabs button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".batch-tabs button").forEach(x => x.classList.toggle("active", x === b));
+    document.querySelectorAll(".batch-input").forEach(x => x.classList.toggle("active", x.dataset.binput === b.dataset.binput));
+  });
+});
+
+let _batchResults = [];
+let _batchId = null;
+
+function parseLines(s) {
+  return s.split("\n").map(l => l.trim()).filter(Boolean).map((text, i) => ({ id: `line_${i+1}`, text }));
+}
+function parseJsonInput(s) {
+  const data = JSON.parse(s);
+  if (!Array.isArray(data)) throw new Error("expected a JSON array");
+  return data.map((it, i) => {
+    if (typeof it === "string") return { id: `item_${i+1}`, text: it };
+    if (it && typeof it === "object") return { id: String(it.id || `item_${i+1}`), text: String(it.text || "") };
+    throw new Error(`item ${i} is not a string or object`);
+  });
+}
+function parseCsv(s) {
+  const lines = s.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+  const hdr = lines[0].split(",").map(h => h.trim().toLowerCase());
+  const hasHeader = hdr.includes("text");
+  const startAt = hasHeader ? 1 : 0;
+  const idIdx = hasHeader ? hdr.indexOf("id") : -1;
+  const textIdx = hasHeader ? hdr.indexOf("text") : (lines[0].includes(",") ? 1 : 0);
+  const items = [];
+  for (let i = startAt; i < lines.length; i++) {
+    // naive CSV: does not handle quoted commas. Good enough for v0.
+    const cols = lines[i].split(",");
+    const id = (idIdx >= 0 ? cols[idIdx] : `row_${i+1}`).trim();
+    const text = (textIdx >= 0 ? cols.slice(textIdx).join(",") : lines[i]).trim();
+    if (text) items.push({ id, text });
+  }
+  return items;
+}
+
+$("batchFile").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $("batchFileStatus").textContent = `Loaded: ${f.name} (${f.size} bytes)`;
+  const text = await f.text();
+  try {
+    let items;
+    if (f.name.endsWith(".json")) items = parseJsonInput(text);
+    else if (f.name.endsWith(".csv")) items = parseCsv(text);
+    else items = parseLines(text);
+    $("batchFileStatus").textContent = `Loaded ${items.length} items from ${f.name}`;
+    window._batchFileItems = items;
+  } catch (err) {
+    $("batchFileStatus").textContent = "Parse error: " + err.message;
+    window._batchFileItems = null;
+  }
+});
+$("batchDrop").addEventListener("click", () => $("batchFile").click());
+$("batchDrop").addEventListener("dragover", e => { e.preventDefault(); e.currentTarget.classList.add("dragover"); });
+$("batchDrop").addEventListener("dragleave", e => e.currentTarget.classList.remove("dragover"));
+$("batchDrop").addEventListener("drop", e => {
+  e.preventDefault(); e.currentTarget.classList.remove("dragover");
+  const f = e.dataTransfer.files[0];
+  if (f) { $("batchFile").files = e.dataTransfer.files; $("batchFile").dispatchEvent(new Event("change")); }
+});
+
+let _batchJobId = null;
+let _batchPollTimer = null;
+let _batchStartedAt = 0;
+
+function _setBatchProgress(done, total, current) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  $("batchProgressBar").style.width = pct + "%";
+  let label = "queued";
+  if (current === "__cross__") label = "cross-similarity post-pass";
+  else if (current) label = "current: " + current;
+  else if (done >= total && total > 0) label = "finalizing…";
+  $("batchProgressText").textContent = `${done}/${total} — ${label}`;
+  if (done > 0 && done < total && _batchStartedAt) {
+    const elapsed = (performance.now() - _batchStartedAt) / 1000;
+    const remaining = (elapsed / done) * (total - done);
+    $("batchProgressEta").textContent = `~${Math.ceil(remaining)}s remaining`;
+  } else {
+    $("batchProgressEta").textContent = "";
+  }
+}
+
+function _stopBatchPolling() {
+  if (_batchPollTimer) { clearTimeout(_batchPollTimer); _batchPollTimer = null; }
+  _batchJobId = null;
+  $("batchGo").disabled = false;
+  $("batchGo").textContent = "Run batch";
+  $("batchCancel").hidden = true;
+  $("batchProgress").hidden = true;
+}
+
+async function _pollBatchJob() {
+  if (!_batchJobId) return;
+  try {
+    const job = await cairnApi.getJob(_batchJobId);
+    _setBatchProgress(job.done || 0, job.total || 0, job.current);
+    if (job.status === "running") {
+      _batchPollTimer = setTimeout(_pollBatchJob, 500);
+      return;
+    }
+    _stopBatchPolling();
+    const err = $("batchErr");
+    if (job.status === "completed") {
+      const r = job.result || {};
+      _batchResults = r.results || [];
+      _batchId = r.batch_id || null;
+      const total = (r.results || []).length + (r.skipped || []).length;
+      renderBatchResults(_batchResults, r.skipped || [], total);
+      $("batchExportJson").hidden = false;
+      $("batchExportCsv").hidden = false;
+    } else if (job.status === "cancelled") {
+      err.textContent = "Batch cancelled.";
+      err.hidden = false;
+    } else {
+      err.textContent = "Batch failed: " + (job.error || "unknown error");
+      err.hidden = false;
+    }
+  } catch (e) {
+    _stopBatchPolling();
+    const err = $("batchErr");
+    err.textContent = "Polling failed: " + (e.message || e);
+    err.hidden = false;
+  }
+}
+
+async function _runBatchSync(items) {
+  const res = await cairnApi.analyzeBatch(items);
+  _batchResults = res.results || [];
+  _batchId = res.batch_id || null;
+  renderBatchResults(_batchResults, res.skipped || [], items.length);
+  $("batchExportJson").hidden = false;
+  $("batchExportCsv").hidden = false;
+}
+
+$("batchGo").addEventListener("click", async () => {
+  const err = $("batchErr");
+  err.hidden = true;
+  const activeMode = document.querySelector(".batch-tabs button.active").dataset.binput;
+  let items;
+  try {
+    if (activeMode === "lines") items = parseLines($("batchLines").value);
+    else if (activeMode === "json") items = parseJsonInput($("batchJson").value);
+    else items = window._batchFileItems || [];
+  } catch (e) { err.textContent = e.message; err.hidden = false; return; }
+  if (!items.length) { err.textContent = "No items to process."; err.hidden = false; return; }
+  if (items.length > 500) { err.textContent = `Too many items (${items.length}); cap is 500.`; err.hidden = false; return; }
+
+  const btn = $("batchGo");
+  btn.disabled = true; btn.textContent = `Running (${items.length})…`;
+  $("batchProgress").hidden = false;
+  $("batchCancel").hidden = false;
+  _batchStartedAt = performance.now();
+  _setBatchProgress(0, items.length, null);
+
+  let asyncStarted = false;
+  try {
+    try {
+      const started = await cairnApi.analyzeBatchAsync(items);
+      _batchJobId = started.job_id;
+      asyncStarted = true;
+      _pollBatchJob();
+    } catch (e) {
+      // Fall back to sync if backend lacks async — older sidecar / older HTTP server.
+      const msg = (e && e.message) || String(e);
+      if (/method_not_found|not.?found|404|unknown method/i.test(msg)) {
+        await _runBatchSync(items);
+      } else {
+        throw e;
+      }
+    }
+  } catch (e) {
+    err.textContent = e.message || String(e); err.hidden = false;
+  } finally {
+    if (!asyncStarted) {
+      btn.disabled = false; btn.textContent = "Run batch";
+      $("batchProgress").hidden = true;
+      $("batchCancel").hidden = true;
+    }
+    // Async path: _stopBatchPolling() resets UI when the job reaches a terminal state.
+  }
+});
+
+$("batchCancel").addEventListener("click", async () => {
+  if (!_batchJobId) return;
+  try { await cairnApi.cancelJob(_batchJobId); }
+  catch (_) { /* poll loop will pick up the terminal state regardless */ }
+});
+
+function renderBatchResults(results, skipped, total) {
+  $("batchSummary").hidden = false;
+  $("batchSummary").innerHTML = `
+    <span>total: <strong>${total}</strong></span>
+    <span>analyzed: <strong>${results.length}</strong></span>
+    <span>skipped: <strong>${skipped.length}</strong></span>
+    ${_batchId ? `<span>batch_id: <strong>${escapeHtml(_batchId)}</strong></span>` : ""}
+  `;
+  $("batchTable").hidden = false;
+  $("batchBody").innerHTML = results.map((r, i) => `
+    <tr class="row" data-sid="${escapeHtml(r.submission_id)}">
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.submission_id)}</td>
+      <td><span class="badge ${r.determination}">${r.determination}</span></td>
+      <td style="text-align:right">${Number(r.p_llm).toFixed(3)}</td>
+      <td style="text-align:right">${(r.detectors_run || []).length}</td>
+    </tr>`).join("");
+  $("batchBody").querySelectorAll("tr.row").forEach(tr => {
+    tr.addEventListener("click", () => openFromHistory(tr.dataset.sid));
+  });
+}
+
+async function downloadExport(params, filename) {
+  const r = cairnApi.historyExport(params);
+  if (r && r.mode === "download") {
+    const a = document.createElement("a");
+    a.href = r.url; a.download = filename || ""; document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+  const got = await r;
+  const blob = new Blob([got.content], { type: got.mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = got.filename || filename || "export";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+$("batchExportJson").addEventListener("click", () => {
+  if (!_batchId) return;
+  downloadExport({ format: "json", batch_id: _batchId }, `batch-${_batchId}.json`);
+});
+$("batchExportCsv").addEventListener("click", () => {
+  if (!_batchId) return;
+  downloadExport({ format: "csv", batch_id: _batchId }, `batch-${_batchId}.csv`);
+});
+
+/* ---------------- History tab ---------------- */
+let _histPage = 0;
+const _histPageSize = 25;
+
+function currentHistFilter() {
+  const dets = [...document.querySelectorAll("#histDeterm input:checked")].map(i => i.value);
+  const since = $("histSince").value ? $("histSince").value + "T00:00:00Z" : null;
+  const until = $("histUntil").value ? $("histUntil").value + "T23:59:59Z" : null;
+  const search = $("histSearch").value.trim() || null;
+  return { determination: dets.length ? dets : null, since, until, search };
+}
+
+async function loadHistory() {
+  const body = $("histBody");
+  const errBox = $("histError");
+  errBox.hidden = true;
+  body.innerHTML = "<tr><td colspan='6' class='empty'>Loading…</td></tr>";
+  const filter = currentHistFilter();
+  const params = { ...filter, limit: _histPageSize, offset: _histPage * _histPageSize };
+  try {
+    const res = await cairnApi.historyList(params);
+    renderHistoryTable(res.items || [], res.total || 0);
+  } catch (e) {
+    body.innerHTML = "";
+    errBox.textContent = "Could not load history: " + (e.message || e);
+    errBox.hidden = false;
+  }
+}
+
+function renderHistoryTable(items, total) {
+  const body = $("histBody");
+  if (!items.length) {
+    body.innerHTML = "<tr><td colspan='6' class='empty'>No submissions match the current filter.</td></tr>";
+  } else {
+    body.innerHTML = items.map(it => `
+      <tr class="row" data-sid="${escapeHtml(it.submission_id)}">
+        <td>${escapeHtml(it.recorded_at || "")}</td>
+        <td><span class="badge ${it.determination}">${it.determination}</span></td>
+        <td style="text-align:right">${Number(it.p_llm).toFixed(3)}</td>
+        <td>${escapeHtml(it.source || "")}</td>
+        <td>${it.has_feedback ? "✓" : "—"}</td>
+        <td style="font-size:11px;color:var(--muted);">${escapeHtml(it.submission_id)}</td>
+      </tr>`).join("");
+    body.querySelectorAll("tr.row").forEach(tr => {
+      tr.addEventListener("click", () => openFromHistory(tr.dataset.sid));
+    });
+  }
+  const start = _histPage * _histPageSize + 1;
+  const end = Math.min(start + items.length - 1, total);
+  $("histPageInfo").textContent = total ? `${start}–${end} of ${total}` : "0 of 0";
+  $("histPrev").disabled = _histPage === 0;
+  $("histNext").disabled = end >= total;
+}
+
+$("histApply").addEventListener("click", () => { _histPage = 0; loadHistory(); });
+$("histReset").addEventListener("click", () => {
+  document.querySelectorAll("#histDeterm input").forEach(i => { i.checked = false; syncCheckGroup(); });
+  $("histSince").value = ""; $("histUntil").value = ""; $("histSearch").value = "";
+  _histPage = 0; loadHistory();
+});
+$("histPrev").addEventListener("click", () => { if (_histPage > 0) { _histPage--; loadHistory(); } });
+$("histNext").addEventListener("click", () => { _histPage++; loadHistory(); });
+
+$("histExportJson").addEventListener("click", () => downloadExport({ format: "json", ...currentHistFilter() }, "history.json"));
+$("histExportCsv").addEventListener("click", () => downloadExport({ format: "csv", ...currentHistFilter() }, "history.csv"));
+
+// Check-group styling
+function syncCheckGroup() {
+  document.querySelectorAll("#histDeterm label").forEach(l => {
+    l.classList.toggle("on", l.querySelector("input").checked);
+  });
+}
+document.querySelectorAll("#histDeterm input").forEach(i => i.addEventListener("change", syncCheckGroup));
+
+/* ---------------- Monitoring tab ---------------- */
+const DETERM_COLORS = {
+  RED: "#d1495b", AMBER: "#e4a33a", YELLOW: "#dbcd53",
+  GREEN: "#57a773", UNCERTAIN: "#7a7a7a", MIXED: "#7a7a7a",
+};
+const DETERM_ORDER = ["RED", "AMBER", "YELLOW", "GREEN", "UNCERTAIN", "MIXED"];
+
+async function loadMonitoring() {
+  $("monStatus").textContent = "Loading…";
+  try {
+    const tasks = [
+      cairnApi.monitoringSummary(),
+      cairnApi.monitoringTimeline(200),
+      cairnApi.monitoringDetectors(500),
+      cairnApi.monitoringDrift().catch(() => null),
+      cairnApi.monitoringCascade(1000).catch(() => null),
+    ];
+    const [summary, timeline, detectors, drift, cascade] = await Promise.all(tasks);
+    renderMonCards(summary);
+    renderMonDetermBar(summary.by_determination || {});
+    renderMonPerDay(summary.per_day || {});
+    renderMonTimeline(timeline.items || []);
+    renderMonDetectors(detectors.detectors || []);
+    renderDrift(drift);
+    renderCascade(cascade);
+    $("monStatus").textContent = "";
+  } catch (e) {
+    $("monStatus").textContent = "Error: " + (e.message || e);
+  }
+}
+
+function renderDrift(d) {
+  if (!d) {
+    $("driftBaselineStatus").textContent = "drift monitor disabled";
+    $("driftObsStatus").textContent = "";
+    $("driftAlerts").innerHTML = "";
+    $("driftSetBaseline").disabled = true;
+    return;
+  }
+  $("driftSetBaseline").disabled = false;
+  if (d.has_baseline) {
+    $("driftBaselineStatus").innerHTML = `baseline: <span class="ink">set on ${(d.baseline_features || []).length} features</span>`;
+  } else {
+    $("driftBaselineStatus").innerHTML = `baseline: <span style="color:var(--amber)">not set</span>`;
+  }
+  $("driftObsStatus").textContent = `current window: ${d.n_observations} observations`;
+  const alerts = d.alerts || [];
+  if (!alerts.length) {
+    $("driftAlerts").innerHTML = `<div style="color:var(--muted);font-size:12px;">No active alerts.</div>`;
+  } else {
+    $("driftAlerts").innerHTML = alerts.map(a =>
+      `<div style="background:rgba(228,163,58,0.14);border:1px solid rgba(228,163,58,0.35);border-radius:4px;padding:6px 10px;font-size:12px;margin-bottom:4px;font-family:ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(a)}</div>`
+    ).join("");
+  }
+}
+
+$("driftSetBaseline").addEventListener("click", async () => {
+  const btn = $("driftSetBaseline");
+  btn.disabled = true; const prev = btn.textContent; btn.textContent = "Setting baseline…";
+  try {
+    const res = await cairnApi.monitoringSetBaseline(500);
+    if (res && res.ok) {
+      btn.textContent = `Baseline set (${res.n_samples} samples)`;
+      setTimeout(() => { btn.textContent = prev; btn.disabled = false; loadMonitoring(); }, 900);
+      return;
+    } else {
+      btn.textContent = `No history available`;
+      setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 1500);
+    }
+  } catch (e) {
+    btn.textContent = "Error: " + (e.message || e);
+    setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2000);
+  }
+});
+
+$("monRefresh").addEventListener("click", loadMonitoring);
+
+function renderMonCards(s) {
+  const fmt = (v) => v == null ? "—" : (typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(3)) : String(v));
+  const cards = [
+    { k: "Total", v: fmt(s.total) },
+    { k: "Last 24 h", v: fmt(s.last_24h) },
+    { k: "Last 7 d", v: fmt(s.last_7d) },
+    { k: "Mean p(LLM)", v: fmt(s.mean_p_llm) },
+    { k: "Feedback count", v: fmt(s.feedback_count), s: s.feedback_labeled_count != null ? `${s.feedback_labeled_count} linked` : "" },
+    { k: "Feedback accuracy", v: s.feedback_accuracy == null ? "—" : (s.feedback_accuracy * 100).toFixed(1) + "%",
+      s: s.brier != null ? `Brier ${s.brier.toFixed(3)}` : "" },
+  ];
+  $("monCards").innerHTML = cards.map(c =>
+    `<div class="card"><span class="k">${escapeHtml(c.k)}</span><span class="v">${escapeHtml(c.v)}</span>${c.s ? `<span class="s">${escapeHtml(c.s)}</span>` : ""}</div>`
+  ).join("");
+}
+
+function renderMonDetermBar(byDet) {
+  const total = Object.values(byDet).reduce((a, b) => a + b, 0) || 0;
+  if (!total) {
+    $("monDetermBar").innerHTML = `<div class='empty'>No submissions yet.</div>`;
+    return;
+  }
+  const segs = DETERM_ORDER.filter(k => byDet[k]).map(k => {
+    const n = byDet[k]; const pct = (n / total) * 100;
+    return `<div style="background:${DETERM_COLORS[k]};width:${pct.toFixed(2)}%;" title="${k}: ${n} (${pct.toFixed(1)}%)">${pct > 6 ? `${k} ${n}` : ""}</div>`;
+  }).join("");
+  const legend = DETERM_ORDER.filter(k => byDet[k]).map(k =>
+    `<span><span class="swatch" style="background:${DETERM_COLORS[k]};"></span>${k}: ${byDet[k]}</span>`
+  ).join("");
+  $("monDetermBar").innerHTML = `<div class="determ-bar">${segs}</div><div class="determ-legend">${legend}</div>`;
+}
+
+function renderMonPerDay(perDay) {
+  const svg = $("monPerDay");
+  const W = svg.clientWidth || 600, H = 80, PAD = 6;
+  // Build last 14 days axis
+  const today = new Date();
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today); d.setUTCDate(d.getUTCDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  const counts = days.map(d => perDay[d] || 0);
+  const maxC = Math.max(...counts, 1);
+  const bw = (W - PAD * 2) / days.length;
+  const bars = counts.map((c, i) => {
+    const h = (c / maxC) * (H - PAD * 2);
+    const x = PAD + i * bw;
+    const y = H - PAD - h;
+    return `<rect x="${x + 1}" y="${y}" width="${Math.max(1, bw - 2)}" height="${h}" fill="#3e8cf8">
+      <title>${days[i]}: ${c}</title></rect>`;
+  }).join("");
+  svg.innerHTML = bars;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+function renderMonTimeline(items) {
+  const svg = $("monTimeline");
+  const W = svg.clientWidth || 800, H = 200, PAD_L = 32, PAD_R = 8, PAD_T = 10, PAD_B = 20;
+  if (!items.length) {
+    svg.innerHTML = `<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="${"#8b949e"}" font-size="12">No data.</text>`;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    return;
+  }
+  const stamps = items.map(i => new Date(i.recorded_at).getTime());
+  const tMin = Math.min(...stamps), tMax = Math.max(...stamps);
+  const tSpan = Math.max(1, tMax - tMin);
+  const iw = W - PAD_L - PAD_R;
+  const ih = H - PAD_T - PAD_B;
+  // y axis: p_llm 0..1
+  const yGrid = [0, 0.25, 0.5, 0.75, 1].map(v => {
+    const y = PAD_T + (1 - v) * ih;
+    return `<line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="#30363d" stroke-dasharray="2,3"/>
+      <text x="${PAD_L - 4}" y="${y + 3}" fill="#8b949e" font-size="10" text-anchor="end">${v.toFixed(2)}</text>`;
+  }).join("");
+  const dots = items.map(i => {
+    const x = PAD_L + ((new Date(i.recorded_at).getTime() - tMin) / tSpan) * iw;
+    const y = PAD_T + (1 - Number(i.p_llm)) * ih;
+    const c = DETERM_COLORS[i.determination] || "#7a7a7a";
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" fill="${c}" stroke="#0b0f14" stroke-width="0.8"
+      data-sid="${escapeHtml(i.submission_id)}" data-p="${i.p_llm}" data-det="${i.determination}"
+      data-ts="${escapeHtml(i.recorded_at)}" style="cursor:pointer"></circle>`;
+  }).join("");
+  // x axis: first/last labels
+  const firstLabel = new Date(tMin).toISOString().slice(0, 16).replace("T", " ");
+  const lastLabel = new Date(tMax).toISOString().slice(0, 16).replace("T", " ");
+  const axis = `
+    <text x="${PAD_L}" y="${H - 4}" fill="#8b949e" font-size="10" text-anchor="start">${firstLabel}</text>
+    <text x="${W - PAD_R}" y="${H - 4}" fill="#8b949e" font-size="10" text-anchor="end">${lastLabel}</text>
+  `;
+  svg.innerHTML = yGrid + dots + axis;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  // Hover + click handlers
+  const tooltip = $("monTimelineTooltip");
+  svg.querySelectorAll("circle").forEach(c => {
+    c.addEventListener("mouseenter", (e) => {
+      const t = e.target;
+      tooltip.textContent = `${t.dataset.sid} · ${t.dataset.det} · p(LLM)=${Number(t.dataset.p).toFixed(3)} · ${t.dataset.ts}`;
+    });
+    c.addEventListener("mouseleave", () => { tooltip.textContent = ""; });
+    c.addEventListener("click", (e) => openFromHistory(e.target.dataset.sid));
+  });
+}
+
+function renderCascade(c) {
+  const el = $("monCascade");
+  if (!c || !c.n_samples) {
+    el.innerHTML = `<div class='empty'>No cascade data yet — run some submissions.</div>`;
+    return;
+  }
+  const n = c.n_samples;
+  const pc = c.phase_counts || {};
+  const bars = [1, 2, 3, 4].map(p => {
+    const count = pc[p] || pc[String(p)] || 0;
+    const pct = (count / n) * 100;
+    return `
+      <div style="display:grid;grid-template-columns:80px 1fr 90px;gap:8px;align-items:center;margin:2px 0;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;">
+        <div style="color:var(--muted)">Phase ${p}</div>
+        <div style="height:12px;background:#21262d;border-radius:3px;position:relative;">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:${pct.toFixed(1)}%;background:#3e8cf8;border-radius:3px;"></div>
+        </div>
+        <div style="text-align:right;color:var(--muted)">${count} / ${n} (${pct.toFixed(0)}%)</div>
+      </div>`;
+  }).join("");
+  const sets = Object.entries(c.phase_set_counts || {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const setRows = sets.map(([key, count]) => {
+    const pct = (count / n) * 100;
+    return `<div style="display:grid;grid-template-columns:120px 1fr 90px;gap:8px;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;">
+      <div style="color:var(--muted)">phases ${escapeHtml(key)}</div>
+      <div style="height:8px;background:#21262d;border-radius:2px;position:relative;margin-top:4px;">
+        <div style="position:absolute;top:0;left:0;bottom:0;width:${pct.toFixed(1)}%;background:#57a773;border-radius:2px;"></div>
+      </div>
+      <div style="text-align:right;color:var(--muted)">${count} (${pct.toFixed(0)}%)</div>
+    </div>`;
+  }).join("");
+  const hist = c.p_llm_histogram || [];
+  const maxH = Math.max(...hist, 1);
+  const histBars = hist.map((count, i) => {
+    const h = (count / maxH) * 40;
+    return `<div style="display:inline-block;width:9.5%;height:40px;vertical-align:bottom;position:relative;">
+      <div title="p(LLM) ${(i/10).toFixed(1)}–${((i+1)/10).toFixed(1)}: ${count}" style="position:absolute;bottom:0;left:10%;right:10%;height:${h}px;background:#3e8cf8;"></div>
+    </div>`;
+  }).join("");
+  el.innerHTML = `
+    <div style="color:var(--muted);font-size:11px;margin-bottom:6px;">Per-phase run frequency (fewer Phase 2/3 runs = cascade is short-circuiting effectively):</div>
+    ${bars}
+    <div style="color:var(--muted);font-size:11px;margin:12px 0 4px;">Top phase combinations:</div>
+    ${setRows || "<div class='empty'>no data</div>"}
+    <div style="color:var(--muted);font-size:11px;margin:12px 0 4px;">Fused p(LLM) histogram (bins of 0.1):</div>
+    <div style="display:flex;align-items:flex-end;height:48px;border-bottom:1px solid var(--line);">${histBars}</div>
+    <div style="display:flex;color:var(--muted);font-size:10px;margin-top:2px;"><div style="width:50%">0.0</div><div style="width:50%;text-align:right;">1.0</div></div>
+  `;
+}
+
+function renderMonDetectors(dets) {
+  const body = $("monDetectorsBody");
+  if (!dets.length) {
+    body.innerHTML = "<tr><td colspan='5' class='empty'>No detector data yet — run some submissions.</td></tr>";
+    return;
+  }
+  body.innerHTML = dets.map(d => {
+    const hist = d.determination_hist || {};
+    const total = Object.values(hist).reduce((a, b) => a + b, 0) || 1;
+    const segs = DETERM_ORDER.filter(k => hist[k]).map(k => {
+      const pct = (hist[k] / total) * 100;
+      return `<div style="background:${DETERM_COLORS[k]};width:${pct.toFixed(2)}%;" title="${k}: ${hist[k]}"></div>`;
+    }).join("");
+    return `<tr>
+      <td>${escapeHtml(d.id)}</td>
+      <td style="text-align:right">${d.n}</td>
+      <td style="text-align:right">${Number(d.mean_p_llm || 0).toFixed(3)}</td>
+      <td style="text-align:right">${Number(d.mean_confidence || 0).toFixed(2)}</td>
+      <td><div class="mini-bar">${segs}</div></td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------------- Evaluation tab ---------------- */
+let _evalItems = [];
+
+document.querySelectorAll("[data-einput]").forEach(el => {
+  if (el.tagName !== "BUTTON") return;
+  el.addEventListener("click", () => {
+    document.querySelectorAll(".batch-tabs [data-einput]").forEach(b => b.classList.toggle("active", b === el));
+    document.querySelectorAll(".batch-input[data-einput]").forEach(s => s.classList.toggle("active", s.dataset.einput === el.dataset.einput));
+    updateEvalSummary();
+  });
+});
+
+function parseJsonlText(text) {
+  const items = [];
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    let row;
+    try { row = JSON.parse(line); }
+    catch (e) { throw new Error(`invalid JSON: ${line.slice(0, 60)}…`); }
+    if (!("id" in row) || !("text" in row) || !("label" in row)) {
+      throw new Error(`missing id/text/label in: ${line.slice(0, 60)}…`);
+    }
+    items.push(row);
+  }
+  return items;
+}
+
+$("evalPaste").addEventListener("input", () => {
+  try { _evalItems = parseJsonlText($("evalPaste").value); $("evalErr").hidden = true; }
+  catch (e) { _evalItems = []; }
+  updateEvalSummary();
+});
+
+$("evalDrop").addEventListener("click", () => $("evalFile").click());
+$("evalDrop").addEventListener("dragover", e => { e.preventDefault(); e.currentTarget.classList.add("dragover"); });
+$("evalDrop").addEventListener("dragleave", e => e.currentTarget.classList.remove("dragover"));
+$("evalDrop").addEventListener("drop", e => {
+  e.preventDefault(); e.currentTarget.classList.remove("dragover");
+  const f = e.dataTransfer.files[0];
+  if (f) { $("evalFile").files = e.dataTransfer.files; $("evalFile").dispatchEvent(new Event("change")); }
+});
+$("evalFile").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const text = await f.text();
+  try {
+    _evalItems = parseJsonlText(text);
+    $("evalFileStatus").textContent = `Loaded ${_evalItems.length} items from ${f.name}`;
+    $("evalErr").hidden = true;
+  } catch (err) {
+    _evalItems = [];
+    $("evalFileStatus").textContent = "Parse error: " + err.message;
+  }
+  updateEvalSummary();
+});
+
+$("evalLoadHistory").addEventListener("click", async () => {
+  $("evalHistoryStatus").textContent = "Loading…";
+  try {
+    // Pull history and keep only those with has_feedback
+    const listed = await cairnApi.historyList({ limit: 500, offset: 0 });
+    const fb = (listed.items || []).filter(x => x.has_feedback);
+    const gets = await Promise.all(fb.map(x => cairnApi.historyGet(x.submission_id).catch(() => null)));
+    const items = [];
+    gets.forEach(g => {
+      if (!g || !g.feedback || !g.feedback.length || !g.text) return;
+      items.push({
+        id: g.submission_id,
+        text: g.text,
+        label: Number(g.feedback[0].confirmed_label),
+        tier: "history",
+      });
+    });
+    _evalItems = items;
+    $("evalHistoryStatus").textContent = `Loaded ${items.length} labeled submissions from history`;
+    updateEvalSummary();
+  } catch (e) {
+    $("evalHistoryStatus").textContent = "Error: " + (e.message || e);
+  }
+});
+
+function updateEvalSummary() {
+  if (!_evalItems.length) {
+    $("evalSummaryLine").textContent = "";
+    return;
+  }
+  const labels = _evalItems.map(i => Number(i.label));
+  const pos = labels.filter(l => l === 1).length;
+  const neg = labels.filter(l => l === 0).length;
+  const tiers = new Set(_evalItems.map(i => i.tier).filter(Boolean));
+  $("evalSummaryLine").textContent = `${_evalItems.length} samples — ${pos} LLM, ${neg} human${tiers.size ? `, tiers: ${[...tiers].join(", ")}` : ""}`;
+}
+
+$("evalGo").addEventListener("click", async () => {
+  const err = $("evalErr");
+  err.hidden = true;
+  if (!_evalItems.length) { err.textContent = "No items loaded."; err.hidden = false; return; }
+  const btn = $("evalGo");
+  btn.disabled = true; btn.textContent = `Running (${_evalItems.length})…`;
+  try {
+    const res = await cairnApi.runEval(_evalItems, Math.max(_evalItems.length, 200));
+    renderEvalResult(res);
+  } catch (e) {
+    err.textContent = e.message || String(e); err.hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = "Run evaluation";
+  }
+});
+
+function fmtMetric(v, dp = 3) {
+  if (v == null || Number.isNaN(v)) return "—";
+  return Number(v).toFixed(dp);
+}
+
+function renderEvalResult(res) {
+  $("evalResult").hidden = false;
+  const m = res.metrics || {};
+  const cards = [
+    { k: "Samples", v: String(res.n_samples) },
+    { k: "AUROC", v: fmtMetric(m.auroc) },
+    { k: "ECE", v: fmtMetric(m.ece) },
+    { k: "Brier", v: fmtMetric(m.brier) },
+    { k: "TPR @ FPR 1%", v: fmtMetric(m.tpr_at_fpr_01) },
+    { k: "Runtime", v: res.duration_ms != null ? `${(res.duration_ms/1000).toFixed(1)} s` : "—",
+      s: res.n_failed ? `${res.n_failed} failed` : "" },
+  ];
+  $("evalCards").innerHTML = cards.map(c =>
+    `<div class="card"><span class="k">${escapeHtml(c.k)}</span><span class="v">${escapeHtml(c.v)}</span>${c.s ? `<span class="s">${escapeHtml(c.s)}</span>` : ""}</div>`
+  ).join("");
+
+  const c = res.confusion || {};
+  $("evalConfusion").innerHTML = `
+    <table class="data" style="margin-top:8px;max-width:420px;">
+      <thead><tr><th></th><th>predicted LLM</th><th>predicted human</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--muted)">actual LLM</td>
+            <td><strong>${c.tp ?? 0}</strong> <span style="color:var(--muted)">tp</span></td>
+            <td>${c.fn ?? 0} <span style="color:var(--muted)">fn</span></td></tr>
+        <tr><td style="color:var(--muted)">actual human</td>
+            <td>${c.fp ?? 0} <span style="color:var(--muted)">fp</span></td>
+            <td><strong>${c.tn ?? 0}</strong> <span style="color:var(--muted)">tn</span></td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:8px;color:var(--muted);font-size:12px;">
+      precision ${fmtMetric(c.precision)} · recall ${fmtMetric(c.recall)} ·
+      F1 ${fmtMetric(c.f1)} · accuracy ${fmtMetric(c.accuracy)}
+    </div>
+  `;
+
+  const perTier = res.per_tier || {};
+  const tierCounts = {};
+  (res.predictions || []).forEach(p => {
+    if (p.tier) tierCounts[p.tier] = (tierCounts[p.tier] || 0) + 1;
+  });
+  const tierRows = Object.entries(perTier).map(([t, v]) =>
+    `<tr><td>${escapeHtml(t)}</td><td style="text-align:right">${tierCounts[t] || 0}</td>
+     <td style="text-align:right">${fmtMetric(v.auroc)}</td>
+     <td style="text-align:right">${fmtMetric(v.ece)}</td>
+     <td style="text-align:right">${fmtMetric(v.brier)}</td>
+     <td style="text-align:right">${fmtMetric(v.tpr_at_fpr_01)}</td></tr>`
+  ).join("");
+  $("evalPerTierBody").innerHTML = tierRows || `<tr><td colspan="6" class="empty">No tier labels in dataset.</td></tr>`;
+
+  const perAttack = res.per_attack || {};
+  if (Object.keys(perAttack).length) {
+    $("evalPerAttackPanel").hidden = false;
+    const attackCounts = {};
+    (res.predictions || []).forEach(p => { if (p.attack_name) attackCounts[p.attack_name] = (attackCounts[p.attack_name] || 0) + 1; });
+    $("evalPerAttackBody").innerHTML = Object.entries(perAttack).map(([a, v]) =>
+      `<tr><td>${escapeHtml(a)}</td><td style="text-align:right">${attackCounts[a] || 0}</td>
+       <td style="text-align:right">${fmtMetric(v.auroc)}</td>
+       <td style="text-align:right">${fmtMetric(v.ece)}</td>
+       <td style="text-align:right">${fmtMetric(v.brier)}</td>
+       <td style="text-align:right">${fmtMetric(v.tpr_at_fpr_01)}</td></tr>`
+    ).join("");
+  } else {
+    $("evalPerAttackPanel").hidden = true;
+  }
+
+  const failed = res.failed_samples || [];
+  if (failed.length) {
+    $("evalFailedSection").hidden = false;
+    $("evalFailedBody").innerHTML = failed.map(f =>
+      `<tr><td>${escapeHtml(f.id || "")}</td><td>${escapeHtml(f.error || "")}</td></tr>`
+    ).join("");
+  } else {
+    $("evalFailedSection").hidden = true;
+  }
+}
+
+/* ---------------- Settings tab ---------------- */
+let _currentProfile = null;
+
+async function refreshProfileIndicator() {
+  try {
+    const h = await cairnApi.health();
+    _currentProfile = h.profile || null;
+    $("profileIndicator").textContent = _currentProfile ? `profile: ${_currentProfile}` : "";
+    const cal = h.calibration_status || (h.model_loaded ? "fusion-only" : "heuristic");
+    const calEl = $("calibrationIndicator");
+    if (cal === "calibrated") {
+      calEl.textContent = "calibrated";
+      calEl.style.color = "var(--green)";
+    } else if (cal === "fusion-only") {
+      calEl.textContent = "fusion-only (no conformal)";
+      calEl.style.color = "var(--amber)";
+    } else {
+      calEl.textContent = "heuristic (untrained)";
+      calEl.style.color = "var(--amber)";
+    }
+    $("heuristicBanner").hidden = cal !== "heuristic";
+  } catch { /* swallow */ }
+}
+refreshProfileIndicator();
+
+async function loadSettings() {
+  $("settingsStatus").textContent = "Loading…";
+  try {
+    const [profiles, cfg] = await Promise.all([cairnApi.listProfiles(), cairnApi.getConfig()]);
+    renderProfileSelect(profiles);
+    renderConfigView(cfg);
+    $("settingsStatus").textContent = "";
+  } catch (e) {
+    $("settingsStatus").textContent = "Error: " + (e.message || e);
+  }
+}
+
+function renderProfileSelect(data) {
+  const sel = $("profileSelect");
+  const current = data.current || "";
+  _currentProfile = current;
+  $("profileIndicator").textContent = current ? `profile: ${current}` : "";
+  sel.innerHTML = (data.profiles || []).map(p =>
+    `<option value="${escapeHtml(p.name)}" ${p.name === current ? "selected" : ""}>
+      ${escapeHtml(p.name)}${p.extends ? ` (extends ${escapeHtml(p.extends)})` : ""}
+    </option>`
+  ).join("");
+}
+
+function renderConfigView(cfg) {
+  const t = cfg.thresholds || {};
+  const abst = t.abstention || {};
+  $("thresholdsBody").innerHTML = [
+    ["RED threshold (p ≥)", Number(t.red || 0).toFixed(2)],
+    ["AMBER threshold (p ≥)", Number(t.amber || 0).toFixed(2)],
+    ["YELLOW threshold (p ≥)", Number(t.yellow || 0).toFixed(2)],
+    ["Abstention enabled", abst.enabled ? "yes" : "no"],
+    ["Max prediction-set size", String(abst.max_prediction_set_size || 0)],
+  ].map(([k, v]) => `<tr><td style="color:var(--muted);font-family:inherit">${k}</td><td>${escapeHtml(String(v))}</td></tr>`).join("");
+
+  const dets = cfg.detectors || [];
+  const thead = document.querySelector("#view-settings table.data thead");
+  if (thead) {
+    thead.innerHTML = "<tr><th>id</th><th>enabled</th><th>available</th><th style='text-align:right'>weight</th><th>notes</th></tr>";
+  }
+  $("detectorsBody").innerHTML = dets.map(d => {
+    const dim = !d.enabled || !d.available;
+    const availChip = d.available
+      ? "<span class='badge GREEN'>yes</span>"
+      : "<span class='badge UNCERTAIN'>stub</span>";
+    const enabledChip = d.enabled
+      ? "<span class='badge GREEN'>on</span>"
+      : "<span class='badge UNCERTAIN'>off</span>";
+    const reason = d.reason || "";
+    const requires = (d.requires || []).length
+      ? `<span style="color:var(--muted);font-size:11px;">needs: ${(d.requires || []).map(escapeHtml).join(", ")}</span>`
+      : "";
+    return `<tr style="${dim ? "opacity:0.55;" : ""}">
+      <td>${escapeHtml(d.id)}</td>
+      <td>${enabledChip}</td>
+      <td>${availChip}</td>
+      <td style="text-align:right">${Number(d.weight || 0).toFixed(2)}</td>
+      <td style="font-size:11px;color:var(--muted);">${escapeHtml(reason)} ${requires}</td>
+    </tr>`;
+  }).join("");
+  const totalEnabled = dets.filter(d => d.enabled).length;
+  const totalAvailable = dets.filter(d => d.enabled && d.available).length;
+  const countsEl = document.getElementById("detectorCounts");
+  if (countsEl) {
+    countsEl.innerHTML = `<span style="color:var(--muted);font-size:12px;">${totalAvailable} active / ${totalEnabled} enabled / ${dets.length} declared</span>`;
+  }
+
+  const h = cfg.history || {};
+  $("historyCfgBody").innerHTML = [
+    ["Enabled", h.enabled ? "yes" : "no"],
+    ["Retain text", h.retain_text ? "yes" : "no"],
+    ["DB path", h.db_path || ""],
+  ].map(([k, v]) => `<tr><td style="color:var(--muted);font-family:inherit">${k}</td><td>${escapeHtml(String(v))}</td></tr>`).join("");
+}
+
+$("profileSwitchBtn").addEventListener("click", async () => {
+  const name = $("profileSelect").value;
+  if (!name) return;
+  const btn = $("profileSwitchBtn");
+  const status = $("profileSwitchStatus");
+  btn.disabled = true; status.textContent = "Switching…";
+  try {
+    const res = await cairnApi.switchProfile(name);
+    if (res && res.ok) {
+      status.textContent = `Switched to ${res.profile} (${(res.detectors_enabled || []).length} detectors active)`;
+      await loadSettings();
+    } else {
+      status.textContent = "Switch failed";
+    }
+  } catch (e) {
+    status.textContent = "Error: " + (e.message || e);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("settingsReload").addEventListener("click", loadSettings);
+
+async function openFromHistory(submissionId) {
+  if (!submissionId) return;
+  try {
+    const got = await cairnApi.historyGet(submissionId);
+    if (!got || !got.report) return;
+    $("text").value = got.text || "";
+    lastAnalysis = { text: got.text || "", submission_id: submissionId };
+    viewingHistoryId = submissionId;
+    render(got.report);
+    $("feedback").hidden = false;
+    $("fbStatus").textContent = ""; $("fbStatus").className = "status";
+    $("fbNotes").value = "";
+    $("historyBanner").hidden = false;
+    $("historyBannerId").textContent = submissionId;
+    $("rerun").hidden = !got.text;
+    showTab("analyze");
+  } catch (e) {
+    alert("Failed to open submission: " + (e.message || e));
+  }
+}
+</script>
+</body>
+</html>

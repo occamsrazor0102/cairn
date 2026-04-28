@@ -40,7 +40,7 @@ import json
 import random
 from pathlib import Path
 
-from beet.evaluation.dataset import EvalSample, save_dataset
+from cairn.evaluation.dataset import EvalSample, save_dataset
 
 
 _PROVIDERS = ["anthropic", "openai", "gemini"]

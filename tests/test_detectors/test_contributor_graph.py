@@ -1,9 +1,9 @@
 """Contributor graph / syndicate detector tests."""
-from beet.detectors.contributor_graph import DETECTOR
+from cairn.detectors.contributor_graph import DETECTOR
 
 
 def test_registered_in_registry():
-    import beet.detectors as registry
+    import cairn.detectors as registry
     assert "contributor_graph" in registry.get_all_detectors()
 
 

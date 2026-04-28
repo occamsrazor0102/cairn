@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from beet.config import load_config
-from beet.pipeline import detector_availability
+from cairn.config import load_config
+from cairn.pipeline import detector_availability
 
 
 @pytest.fixture

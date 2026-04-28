@@ -1,5 +1,5 @@
 import pytest
-from beet.detectors.fingerprint_vocab import FingerprintVocabDetector
+from cairn.detectors.fingerprint_vocab import FingerprintVocabDetector
 from tests.fixtures.llm_samples import A1_CLEANED, A0_CLINICAL_TASK
 from tests.fixtures.human_samples import CASUAL_SHORT
 

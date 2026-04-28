@@ -1,8 +1,8 @@
 import math
 import pytest
-from beet.fusion.ebm import FeatureAssembler, ASSEMBLER_FEATURE_NAMES
-from beet.cascade import PHASE1_DETECTORS, PHASE2_DETECTORS, PHASE3_DETECTORS, PHASE4_DETECTORS
-from beet.contracts import LayerResult
+from cairn.fusion.ebm import FeatureAssembler, ASSEMBLER_FEATURE_NAMES
+from cairn.cascade import PHASE1_DETECTORS, PHASE2_DETECTORS, PHASE3_DETECTORS, PHASE4_DETECTORS
+from cairn.contracts import LayerResult
 
 _EXCLUDED = {"contributor_graph"}
 ALL_CASCADE_DETECTORS = (

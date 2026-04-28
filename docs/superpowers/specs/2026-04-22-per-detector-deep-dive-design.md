@@ -21,7 +21,7 @@ voted the way it did — not just the final fused verdict and top-3 contributors
 
 ## Backend Changes
 
-### `beet/contracts.py` — `Determination`
+### `cairn/contracts.py` — `Determination`
 
 Add two fields:
 
@@ -38,13 +38,13 @@ top-3 projection survives as `top_features`).
 `top_features` stays as-is for back-compat with existing consumers
 (`build_text_report`, `build_csv_row`, tests).
 
-### `beet/pipeline.py`
+### `cairn/pipeline.py`
 
 Where the pipeline constructs the `Determination`, pass the per-layer results
 list and the full contribution dict through. No new computation — just stop
 throwing them away.
 
-### `beet/report.py` — `build_json_report`
+### `cairn/report.py` — `build_json_report`
 
 Serialize each `LayerResult` as:
 
@@ -73,7 +73,7 @@ Add two top-level keys to the report:
 
 ## Frontend Changes
 
-All changes confined to `beet/gui/static/index.html`.
+All changes confined to `cairn/gui/static/index.html`.
 
 ### Layout additions
 

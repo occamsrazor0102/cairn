@@ -1,11 +1,11 @@
 import pytest
 from pathlib import Path
-from beet.pipeline import BeetPipeline
+from cairn.pipeline import CairnPipeline
 
 
 @pytest.fixture
 def pipeline():
-    return BeetPipeline.from_config_file(Path(__file__).parent.parent / "configs" / "screening.yaml")
+    return CairnPipeline.from_config_file(Path(__file__).parent.parent / "configs" / "screening.yaml")
 
 
 def test_task_metadata_reaches_detector_config(pipeline, monkeypatch):

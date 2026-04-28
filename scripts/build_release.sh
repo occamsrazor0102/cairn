@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Build a release bundle of the BEET Tauri desktop shell on macOS / Linux.
+# Build a release bundle of the CAIRN Tauri desktop shell on macOS / Linux.
 #
 # Steps:
 #   1. Build the Python sidecar binary via scripts/build_sidecar.py
-#      (renames to beet-sidecar-<target-triple> under src-tauri/binaries/).
+#      (renames to cairn-sidecar-<target-triple> under src-tauri/binaries/).
 #   2. Run `cargo tauri build` to produce an unsigned .dmg / .app / .deb /
 #      .AppImage under src-tauri/target/release/bundle/.
 #

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "beet"
+name = "cairn"
 version = "2.0.0"
-description = "BEET 2.0 — LLM Authorship Detection Pipeline"
+description = "CAIRN — LLM Authorship Detection Pipeline"
 requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6.0",
@@ -38,7 +38,7 @@ api = [
     "uvicorn>=0.29",
 ]
 full = [
-    "beet[tier2,tier3,fusion,batch,api]",
+    "cairn[tier2,tier3,fusion,batch,api]",
     "pandas>=2.0",
     "openpyxl>=3.1",
 ]
@@ -51,8 +51,8 @@ dist = [
 ]
 
 [project.scripts]
-beet = "beet.console:main"
-beet-sidecar = "beet.sidecar:main"
+cairn = "cairn.console:main"
+cairn-sidecar = "cairn.sidecar:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

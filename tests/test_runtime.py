@@ -2,15 +2,15 @@ from pathlib import Path
 
 import pytest
 
-from beet.config import list_profiles, load_config
-from beet.pipeline import BeetPipeline
-from beet.runtime import RuntimeContext
+from cairn.config import list_profiles, load_config
+from cairn.pipeline import CairnPipeline
+from cairn.runtime import RuntimeContext
 
 
 @pytest.fixture
 def ctx():
     cfg = load_config(Path(__file__).parent.parent / "configs" / "screening.yaml")
-    return RuntimeContext(BeetPipeline(cfg), "screening", cfg)
+    return RuntimeContext(CairnPipeline(cfg), "screening", cfg)
 
 
 def test_context_exposes_pipeline_profile_config(ctx):
@@ -36,7 +36,7 @@ def test_switch_profile_unknown_raises_and_preserves_state(ctx):
 
 
 def test_resolve_profile_path_rejects_traversal():
-    from beet.config import ConfigError, resolve_profile_path
+    from cairn.config import ConfigError, resolve_profile_path
 
     for bad in ["../evil", "../../etc/passwd", "a/b", "a\\b", "/abs", ""]:
         with pytest.raises(ConfigError):
@@ -58,7 +58,7 @@ def test_list_profiles_includes_repo_profiles():
 
 def test_list_profiles_skips_underscore_files(tmp_path, monkeypatch):
     # list_profiles reads CONFIGS_DIR — verify the filter catches _private.yaml
-    from beet import config as cfg_mod
+    from cairn import config as cfg_mod
     monkeypatch.setattr(cfg_mod, "CONFIGS_DIR", tmp_path)
     (tmp_path / "public.yaml").write_text("_profile: public\ndetectors: {}\ncascade: {}\ndecision: {}\n")
     (tmp_path / "_private.yaml").write_text("_profile: private\n")

@@ -81,10 +81,10 @@ Cap class sizes for balanced subsets with `--max-per-class N`.
 
 ## Path 3 — You have folders of `.txt` files
 
-Use `beet.evaluation.dataset.build_dataset` programmatically:
+Use `cairn.evaluation.dataset.build_dataset` programmatically:
 
 ```python
-from beet.evaluation.dataset import build_dataset, save_dataset
+from cairn.evaluation.dataset import build_dataset, save_dataset
 
 samples = build_dataset([
   {"path": "data/raw/human/",   "label": 0, "tier": "human", "source": "in_house"},
@@ -227,7 +227,7 @@ detectors:
   calibration_path: models/calibrators/my_corpus.json
 ```
 
-Then `BeetPipeline.from_config_file("configs/calibrated.yaml")`
+Then `CairnPipeline.from_config_file("configs/calibrated.yaml")`
 auto-loads them and `/health` reports
 `calibration_status: "calibrated"` (UI banner suppressed).
 
