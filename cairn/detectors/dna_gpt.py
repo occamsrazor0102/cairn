@@ -59,8 +59,8 @@ def _resolve_api_key(config: dict, provider: str) -> str | None:
     key = config.get("api_key") or config.get(f"{provider}_api_key")
     if key:
         return key
-    env = os.environ.get(f"{provider.upper()}_API_KEY")
-    return env or None
+    env_name = config.get("api_key_env") or f"{provider.upper()}_API_KEY"
+    return os.environ.get(env_name) or None
 
 
 def _sanitize_provider_error(exc: Exception, api_key: str | None = None) -> str:
@@ -104,7 +104,7 @@ class DNAGPTDetector:
             cut = int(len(words) * frac)
             prefix = " ".join(words[:cut])
             actual_continuation = " ".join(words[cut:cut + 100])
-            generated, err = self._generate_continuation(prefix, api_key, provider, model)
+            generated, err = self._generate_continuation(prefix, api_key, provider, model, config)
             if err:
                 provider_errors.append(f"{frac}: {err}")
                 records.append({"label": label, "frac": frac, "ok": False, "bscore": 0.0})
@@ -175,7 +175,8 @@ class DNAGPTDetector:
         )
 
     def _generate_continuation(
-        self, prefix: str, api_key: str, provider: str, model: str
+        self, prefix: str, api_key: str, provider: str, model: str,
+        config: dict | None = None,
     ) -> tuple[str, str | None]:
         """Return (continuation_text, error_message). Errors surface rather than silently returning ''."""
         prompt = (
@@ -197,13 +198,19 @@ class DNAGPTDetector:
                 return msg.content[0].text, None
             except Exception as e:
                 return "", _sanitize_provider_error(e, api_key)
-        if provider == "openai":
+        if provider in ("openai", "openai-compat"):
             try:
                 from openai import OpenAI  # type: ignore
             except ImportError:
                 return "", "openai package not installed (pip install cairn[tier3])"
             try:
-                client = OpenAI(api_key=api_key)
+                kwargs: dict = {"api_key": api_key}
+                if provider == "openai-compat":
+                    base_url = (config or {}).get("base_url")
+                    if not base_url:
+                        return "", "openai-compat provider requires base_url in config"
+                    kwargs["base_url"] = base_url
+                client = OpenAI(**kwargs)
                 resp = client.chat.completions.create(
                     model=model, max_tokens=150,
                     messages=[{"role": "user", "content": prompt}],

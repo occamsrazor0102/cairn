@@ -94,7 +94,7 @@ def detector_availability(config: dict) -> list[dict]:
                 row["reason"] = "requires cairn[tier2] (transformers + torch)"
                 out.append(row)
                 continue
-        if det_id == "contrastive_gen":
+        if det_id in ("contrastive_gen", "dna_gpt"):
             provider = (det_cfg or {}).get("provider", "anthropic")
             row["requires"] = [f"{provider} API key"]
             if provider == "anthropic" and not (has_anthropic and anthropic_key):
@@ -105,17 +105,12 @@ def detector_availability(config: dict) -> list[dict]:
                 row["reason"] = "requires cairn[tier3] + OPENAI_API_KEY"
                 out.append(row)
                 continue
-        if det_id == "dna_gpt":
-            provider = (det_cfg or {}).get("provider", "anthropic")
-            row["requires"] = [f"{provider} API key"]
-            if provider == "anthropic" and not (has_anthropic and anthropic_key):
-                row["reason"] = "requires cairn[tier3] + ANTHROPIC_API_KEY"
-                out.append(row)
-                continue
-            if provider == "openai" and not (has_openai and openai_key):
-                row["reason"] = "requires cairn[tier3] + OPENAI_API_KEY"
-                out.append(row)
-                continue
+            if provider == "openai-compat":
+                env_name = (det_cfg or {}).get("api_key_env", "")
+                if not (has_openai and env_name and os.environ.get(env_name)):
+                    row["reason"] = f"requires cairn[tier3] + {env_name or 'api_key_env'} env var"
+                    out.append(row)
+                    continue
         row["available"] = True
         out.append(row)
     return out

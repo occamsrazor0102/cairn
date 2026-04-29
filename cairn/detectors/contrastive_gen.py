@@ -62,7 +62,8 @@ def _resolve_api_key(config: dict, provider: str) -> str | None:
     key = config.get("api_key") or config.get(f"{provider}_api_key")
     if key:
         return key
-    return os.environ.get(f"{provider.upper()}_API_KEY")
+    env_name = config.get("api_key_env") or f"{provider.upper()}_API_KEY"
+    return os.environ.get(env_name)
 
 
 def _sanitize_provider_error(exc: Exception, api_key: str | None = None) -> str:
@@ -137,7 +138,8 @@ class ContrastiveGenDetector:
             return _skip(self, {"skipped": "too_short", "n_words": len(words)})
 
         n_baselines = int(config.get("n_baselines", 3))
-        model = config.get("model", "claude-sonnet-4-6" if provider == "anthropic" else "gpt-4o-mini")
+        default_models = {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o-mini"}
+        model = config.get("model", default_models.get(provider, "gpt-4o-mini"))
 
         baselines, errors = self._generate_baselines(
             task_description, api_key, provider, model, n_baselines
@@ -249,13 +251,19 @@ class ContrastiveGenDetector:
                         errors.append(f"baseline {i}: {_sanitize_provider_error(e, api_key)}")
             except Exception as e:
                 errors.append(f"client init failed: {_sanitize_provider_error(e, api_key)}")
-        elif provider == "openai":
+        elif provider in ("openai", "openai-compat"):
             try:
                 from openai import OpenAI  # type: ignore
             except ImportError:
                 return [], ["openai package not installed (pip install cairn[tier3])"]
             try:
-                client = OpenAI(api_key=api_key)
+                kwargs: dict = {"api_key": api_key}
+                if provider == "openai-compat":
+                    base_url = config.get("base_url")
+                    if not base_url:
+                        return [], ["openai-compat provider requires base_url in config"]
+                    kwargs["base_url"] = base_url
+                client = OpenAI(**kwargs)
                 for i in range(n):
                     try:
                         resp = client.chat.completions.create(
