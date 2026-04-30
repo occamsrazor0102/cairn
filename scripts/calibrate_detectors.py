@@ -19,6 +19,7 @@ from pathlib import Path
 from cairn.calibration import DetectorCalibrator
 from cairn.dotenv import load_dotenv
 from cairn.evaluation.dataset import load_dataset
+from cairn.feature_cache import CachedPipeline
 from cairn.pipeline import CairnPipeline
 
 try:
@@ -34,9 +35,18 @@ def main() -> None:
     ap.add_argument("--dataset", required=True, type=Path)
     ap.add_argument("--config", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--features-cache", type=Path, default=None,
+                    help="Path to a precomputed feature cache (built by "
+                         "scripts/cache_pipeline_features.py). When set, "
+                         "skip detector inference and read raw_scores from "
+                         "the cache. Massively faster for ablation runs.")
     args = ap.parse_args()
 
-    pipeline = CairnPipeline.from_config_file(args.config)
+    pipeline = (
+        CachedPipeline(args.features_cache, args.config)
+        if args.features_cache
+        else CairnPipeline.from_config_file(args.config)
+    )
     samples = load_dataset(args.dataset)
 
     scores: dict[str, list[float]] = defaultdict(list)

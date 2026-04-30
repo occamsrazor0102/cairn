@@ -1,0 +1,23 @@
+_profile: calibrated_calib2000
+_extends: default
+_description: >
+  Calibrated against the calib2000 corpus — six current frontier
+  models, 2000 HC3 question-pairs each (5 categories × 400 stratified),
+  same shuffled --seed 42 slate across providers:
+
+    * Anthropic   claude-sonnet-4-6              (2000 pairs)
+    * OpenAI      gpt-5.4-mini (Responses API)   (2000 pairs)
+    * Google      gemini-3-flash-preview, no grounding (1998 pairs)
+    * Mistral     mistral-medium-latest          (2000 pairs)
+    * DeepSeek    deepseek-chat                  (2000 pairs)
+    * Moonshot    kimi-k2.6                      (1999 pairs)
+
+  Total ~11,997 question-pairs. Stratified across HC3's five real
+  subdomains (finance, medicine, open_qa, reddit_eli5, wiki_csai).
+  Most distribution-diverse calibration corpus available, replacing
+  the older 3499-pair superunion.
+
+fusion:
+  model_path: models/calib2000/full/ebm.pkl
+  conformal_path: models/calib2000/full/conformal.json
+  detector_calibration_path: models/calib2000/full/detector_calibration.json

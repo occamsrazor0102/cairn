@@ -21,6 +21,7 @@ from pathlib import Path
 from cairn.dotenv import load_dotenv
 from cairn.evaluation import load_dataset, run_eval
 from cairn.evaluation.runner import eval_report_to_dict
+from cairn.feature_cache import CachedPipeline
 from cairn.pipeline import CairnPipeline
 
 
@@ -41,6 +42,9 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=None,
                     help="Random-subsample the dataset to N items (deterministic with --seed).")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--features-cache", type=Path, default=None,
+                    help="Path to a precomputed feature cache (built by "
+                         "scripts/cache_pipeline_features.py).")
     args = ap.parse_args()
 
     dataset = load_dataset(args.dataset)
@@ -48,7 +52,11 @@ def main() -> None:
         rng = random.Random(args.seed)
         dataset = rng.sample(dataset, args.limit)
 
-    pipeline = CairnPipeline.from_config_file(args.config)
+    pipeline = (
+        CachedPipeline(args.features_cache, args.config)
+        if args.features_cache
+        else CairnPipeline.from_config_file(args.config)
+    )
     t0 = time.monotonic()
     report = run_eval(pipeline, dataset, progress=args.progress)
     duration = time.monotonic() - t0

@@ -15,9 +15,16 @@ from sklearn.model_selection import train_test_split
 
 from cairn.dotenv import load_dotenv
 from cairn.evaluation.dataset import load_dataset
+from cairn.feature_cache import CachedPipeline
 from cairn.fusion.ebm import FeatureAssembler
 from cairn.fusion.training import save_model, train_ebm
 from cairn.pipeline import CairnPipeline
+
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover - tqdm is optional
+    def tqdm(it, **_kw):
+        return it
 
 
 def main() -> None:
@@ -27,15 +34,24 @@ def main() -> None:
     ap.add_argument("--config", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--test-size", type=float, default=0.2)
+    ap.add_argument("--features-cache", type=Path, default=None,
+                    help="Path to a precomputed feature cache (built by "
+                         "scripts/cache_pipeline_features.py). When set, "
+                         "the cache supplies detector outputs and the "
+                         "config's calibrator is applied at read-time.")
     args = ap.parse_args()
 
-    pipeline = CairnPipeline.from_config_file(args.config)
+    pipeline = (
+        CachedPipeline(args.features_cache, args.config)
+        if args.features_cache
+        else CairnPipeline.from_config_file(args.config)
+    )
     samples = load_dataset(args.dataset)
     assembler = FeatureAssembler()
 
     X: list[dict] = []
     y: list[int] = []
-    for s in samples:
+    for s in tqdm(samples, desc="featurizing", unit="sample"):
         _, results, rd = pipeline.analyze_detailed(s.text)
         vec = assembler.assemble(results, word_count=rd.word_count, domain=rd.domain)
         X.append(vec)
