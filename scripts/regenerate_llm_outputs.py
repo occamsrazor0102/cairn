@@ -64,8 +64,8 @@ _SUBSET_FILES = {
 _SYSTEM_PROMPT = "You are a helpful assistant. Answer the user's question accurately and helpfully."
 
 
-def _resolve_api_key(provider: str) -> str:
-    env_var = f"{provider.upper()}_API_KEY"
+def _resolve_api_key(provider: str, env_override: str | None = None) -> str:
+    env_var = env_override or f"{provider.upper()}_API_KEY"
     key = os.environ.get(env_var)
     if not key:
         raise SystemExit(
@@ -79,12 +79,10 @@ def _resolve_api_key(provider: str) -> str:
 def _generate_gemini(question: str, api_key: str, model: str, max_tokens: int) -> tuple[str, dict]:
     """Generate via Google's google-genai SDK.
 
-    Mirrors the user-supplied configuration exactly: thinking_level=HIGH
-    (extended reasoning before answering) and the GoogleSearch grounding
-    tool enabled (lets the model cite live web sources). Note that
-    GoogleSearch grounding produces qualitatively different output than
-    the no-tool Anthropic / OpenAI runs — it's a deliberate choice to
-    capture how Gemini is actually deployed.
+    thinking_level=HIGH for extended reasoning. No grounding tool —
+    GoogleSearch grounding has its own per-day quota that's much
+    smaller than the model's RPM/TPM budget, and the bare model run
+    matches the tool-free conditioning used by Anthropic/OpenAI/etc.
     """
     from google import genai  # type: ignore
     from google.genai import types  # type: ignore
@@ -97,7 +95,6 @@ def _generate_gemini(question: str, api_key: str, model: str, max_tokens: int) -
     ]
     config = types.GenerateContentConfig(
         thinking_config=types.ThinkingConfig(thinking_level="HIGH"),
-        tools=[types.Tool(googleSearch=types.GoogleSearch())],
         max_output_tokens=max_tokens,
         system_instruction=_SYSTEM_PROMPT,
     )
@@ -169,15 +166,16 @@ def _generate_openai(
     prompt_version: str = "1",
     template_variable: str | None = None,
 ) -> tuple[str, dict]:
-    """Two modes:
+    """Two modes (both use the Responses API):
 
-    * `prompt_id` set  → use the OpenAI Responses API with a saved
-      prompt template (the one you built in platform.openai.com →
-      Prompts). The HC3 question is passed either as `input` or
-      assigned to a named variable on the template, depending on
-      `template_variable`.
-    * `prompt_id` None → fall back to chat.completions with the
-      minimal "you are a helpful assistant" system prompt baked in.
+    * `prompt_id` set  → call with a saved prompt template (the one you
+      built in platform.openai.com → Prompts). The HC3 question is
+      passed either as `input` or assigned to a named variable on the
+      template, depending on `template_variable`.
+    * `prompt_id` None → call the raw model directly with reasoning
+      effort=medium, verbosity=medium, and the helpful-assistant
+      `instructions`. Mirrors how a real API user invokes a reasoning
+      model (gpt-5.x family).
     """
     from openai import OpenAI  # type: ignore
     client = OpenAI(api_key=api_key)
@@ -190,24 +188,107 @@ def _generate_openai(
         else:
             kwargs["input"] = question
         resp = client.responses.create(**kwargs)
-        # Responses API exposes a convenience `output_text` that joins all
-        # text segments; fall back to walking `output` if that's missing.
-        text = getattr(resp, "output_text", None)
-        if text is None:
-            parts: list[str] = []
-            for item in getattr(resp, "output", []) or []:
-                for c in getattr(item, "content", []) or []:
-                    t = getattr(c, "text", None)
-                    if isinstance(t, str):
-                        parts.append(t)
-            text = "".join(parts)
-        u = getattr(resp, "usage", None)
-        usage = {
-            "input_tokens": getattr(u, "input_tokens", 0) if u else 0,
-            "output_tokens": getattr(u, "output_tokens", 0) if u else 0,
-        }
-        return text or "", usage
+    else:
+        resp = client.responses.create(
+            model=model,
+            input=question,
+            instructions=_SYSTEM_PROMPT,
+            text={"format": {"type": "text"}, "verbosity": "medium"},
+            reasoning={"effort": "medium", "summary": "auto"},
+            max_output_tokens=max_tokens,
+            store=True,
+            tools=[],
+        )
+    # Responses API exposes a convenience `output_text` that joins all
+    # text segments; fall back to walking `output` if that's missing.
+    text = getattr(resp, "output_text", None)
+    if text is None:
+        parts: list[str] = []
+        for item in getattr(resp, "output", []) or []:
+            for c in getattr(item, "content", []) or []:
+                t = getattr(c, "text", None)
+                if isinstance(t, str):
+                    parts.append(t)
+        text = "".join(parts)
+    u = getattr(resp, "usage", None)
+    usage = {
+        "input_tokens": getattr(u, "input_tokens", 0) if u else 0,
+        "output_tokens": getattr(u, "output_tokens", 0) if u else 0,
+    }
+    return text or "", usage
 
+
+def _generate_mistral(
+    question: str, api_key: str, model: str, max_tokens: int,
+) -> tuple[str, dict]:
+    """Generate via Mistral SDK's beta Conversations API.
+
+    Uses `client.beta.conversations.start()` per the user-provided
+    reference. The system prompt is passed via the top-level
+    `instructions` arg (Conversations API equivalent of `system`).
+    """
+    try:
+        from mistralai import Mistral  # type: ignore
+    except ImportError:  # older path
+        from mistralai.client import Mistral  # type: ignore
+    client = Mistral(api_key=api_key)
+    response = client.beta.conversations.start(
+        inputs=[{"role": "user", "content": question}],
+        model=model,
+        instructions=_SYSTEM_PROMPT,
+        completion_args={"temperature": 0.89, "max_tokens": max_tokens, "top_p": 1},
+        tools=[],
+    )
+    parts: list[str] = []
+    for out in getattr(response, "outputs", None) or []:
+        if isinstance(out, dict):
+            t = out.get("type")
+            if t not in ("message.output", "message.text", None):
+                continue
+            content = out.get("content")
+        else:
+            t = getattr(out, "type", None)
+            if t not in ("message.output", "message.text", None):
+                continue
+            content = getattr(out, "content", None)
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            for chunk in content:
+                if isinstance(chunk, dict):
+                    if chunk.get("type") in (None, "text"):
+                        txt = chunk.get("text")
+                    else:
+                        txt = None
+                else:
+                    if getattr(chunk, "type", "text") == "text":
+                        txt = getattr(chunk, "text", None)
+                    else:
+                        txt = None
+                if isinstance(txt, str):
+                    parts.append(txt)
+    text = "".join(parts)
+    u = getattr(response, "usage", None)
+    if u is None and isinstance(response, dict):
+        u = response.get("usage")
+    if isinstance(u, dict):
+        usage = {
+            "input_tokens": u.get("prompt_tokens", 0),
+            "output_tokens": u.get("completion_tokens", 0),
+        }
+    else:
+        usage = {
+            "input_tokens": getattr(u, "prompt_tokens", 0) if u else 0,
+            "output_tokens": getattr(u, "completion_tokens", 0) if u else 0,
+        }
+    return text, usage
+
+
+def _generate_openai_compat(
+    question: str, api_key: str, model: str, max_tokens: int, base_url: str,
+) -> tuple[str, dict]:
+    from openai import OpenAI  # type: ignore
+    client = OpenAI(api_key=api_key, base_url=base_url)
     resp = client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,
@@ -216,7 +297,16 @@ def _generate_openai(
             {"role": "user", "content": question},
         ],
     )
-    text = resp.choices[0].message.content or ""
+    raw = resp.choices[0].message.content or ""
+    if isinstance(raw, list):
+        text = "".join(
+            block.get("text", "") if isinstance(block, dict) else getattr(block, "text", "")
+            for block in raw
+            if (isinstance(block, dict) and block.get("type") == "text")
+            or (hasattr(block, "type") and getattr(block, "type") == "text")
+        )
+    else:
+        text = raw
     u = resp.usage
     usage = {
         "input_tokens": getattr(u, "prompt_tokens", 0) if u else 0,
@@ -229,6 +319,7 @@ def _generate(provider: str, question: str, api_key: str, model: str, max_tokens
               prompt_id: str | None = None,
               prompt_version: str = "1",
               template_variable: str | None = None,
+              base_url: str | None = None,
               max_retries: int = 3) -> tuple[str, dict]:
     last_err: Exception | None = None
     for attempt in range(max_retries):
@@ -237,6 +328,12 @@ def _generate(provider: str, question: str, api_key: str, model: str, max_tokens
                 return _generate_anthropic(question, api_key, model, max_tokens)
             if provider == "gemini":
                 return _generate_gemini(question, api_key, model, max_tokens)
+            if provider == "mistral":
+                return _generate_mistral(question, api_key, model, max_tokens)
+            if provider == "openai-compat":
+                if not base_url:
+                    raise ValueError("openai-compat provider requires --base-url")
+                return _generate_openai_compat(question, api_key, model, max_tokens, base_url)
             return _generate_openai(
                 question, api_key, model, max_tokens,
                 prompt_id=prompt_id,
@@ -260,7 +357,9 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--subset", default="finance", choices=sorted(_SUBSET_FILES.keys()))
-    ap.add_argument("--provider", choices=["anthropic", "openai", "gemini"], default="anthropic")
+    ap.add_argument("--provider",
+                    choices=["anthropic", "openai", "gemini", "mistral", "openai-compat"],
+                    default="anthropic")
     ap.add_argument("--model", default="claude-haiku-4-5-20251001",
                     help="model id. anthropic: e.g. claude-haiku-4-5-20251001 / claude-sonnet-4-6; "
                          "openai: e.g. gpt-4o-mini (or use --openai-prompt-id with a saved template); "
@@ -287,6 +386,16 @@ def main() -> None:
                     help="if your OpenAI prompt template uses {{name}} variable substitution, pass the "
                          "variable name here (e.g. 'question'). The HC3 question is bound to it. "
                          "If unset, the question is passed via the Responses API `input` parameter.")
+    ap.add_argument("--base-url", type=str, default=None,
+                    help="base URL for openai-compat provider (e.g. https://api.deepseek.com/v1)")
+    ap.add_argument("--api-key-env", type=str, default=None,
+                    help="override which env var to read the API key from "
+                         "(e.g. DEEPSEEK_API_KEY, KIMI_API_KEY). Default: {PROVIDER}_API_KEY.")
+    ap.add_argument("--shuffle", action="store_true",
+                    help="randomly sample questions instead of taking a sequential slice. "
+                         "Use with --seed to get the same sample across multiple provider runs.")
+    ap.add_argument("--seed", type=int, default=42,
+                    help="random seed for --shuffle (default: 42). Same seed = same questions.")
     ap.add_argument("--concurrency", type=int, default=8,
                     help="parallel API workers (default: 8). Bump higher if your provider tier "
                          "allows more RPM (e.g. 32 for tier-2 OpenAI, 64+ for higher tiers). Drop "
@@ -300,7 +409,7 @@ def main() -> None:
     except ImportError as e:
         raise SystemExit("requires `huggingface_hub`. install: pip install huggingface_hub") from e
 
-    api_key = _resolve_api_key(args.provider)
+    api_key = _resolve_api_key(args.provider, env_override=args.api_key_env)
 
     print(f"fetching Hello-SimpleAI/HC3/{_SUBSET_FILES[args.subset]} ...", file=sys.stderr)
     raw_path = hf_hub_download(
@@ -322,33 +431,24 @@ def main() -> None:
     else:
         source_tag = f"hc3_{args.subset}_regen_{args.model}"
 
-    # Phase 1: collect work items sequentially. Cheap (just file scan + dict
-    # lookups), so no benefit from parallelizing this part.
-    #
-    # The slice is strictly [start_question, start_question + max_questions).
-    # We bound on the absolute row index so a partially-resumed run stays
-    # within the same slice — never extends past max_questions to "fill the
-    # cap". Already-done questions inside the slice are skipped silently.
-    work_items: list[tuple[str, int, str, str]] = []  # (qid, i, question, human_text)
+    # Phase 1: collect work items. Cheap (just file scan + dict lookups).
+    all_eligible: list[tuple[str, int, str, str]] = []  # (qid, i, question, human_text)
     n_skipped = 0
-    slice_end = args.start_question + args.max_questions
     with open(raw_path, encoding="utf-8") as f:
         for i, line in enumerate(f):
             line = line.strip()
             if not line:
                 continue
-            if i < args.start_question:
-                continue
-            if i >= slice_end:
-                break
+            if not args.shuffle:
+                if i < args.start_question:
+                    continue
+                if i >= args.start_question + args.max_questions:
+                    break
             row = json.loads(line)
             question = (row.get("question") or "").strip()
             human_answers = row.get("human_answers", []) or []
             if not question or not human_answers:
                 n_skipped += 1
-                continue
-            qid = f"hc3_{args.subset}_q{i:06d}"
-            if qid in done:
                 continue
             human_text = next(
                 (a.strip() for a in human_answers if isinstance(a, str) and a.strip()),
@@ -357,7 +457,15 @@ def main() -> None:
             if not human_text:
                 n_skipped += 1
                 continue
-            work_items.append((qid, i, question, human_text))
+            qid = f"hc3_{args.subset}_q{i:06d}"
+            all_eligible.append((qid, i, question, human_text))
+
+    if args.shuffle:
+        rng = random.Random(args.seed)
+        rng.shuffle(all_eligible)
+        all_eligible = all_eligible[:args.max_questions]
+
+    work_items = [item for item in all_eligible if item[0] not in done]
 
     if not work_items:
         print(
@@ -381,6 +489,7 @@ def main() -> None:
                 prompt_id=args.openai_prompt_id,
                 prompt_version=args.openai_prompt_version,
                 template_variable=args.openai_template_variable,
+                base_url=args.base_url,
             )
         except Exception as e:
             return ("failed", [], {"input_tokens": 0, "output_tokens": 0},
