@@ -76,6 +76,15 @@ class FeatureAssembler:
             "cross_similarity_p_llm": p("cross_similarity"),
             # Metadata
             "word_count": float(word_count),
+            "log_word_count": math.log1p(float(word_count)),
+            # Length-bucket indicators give the EBM clean breakpoints to
+            # learn length-conditional behaviour (e.g. "trust this detector
+            # less on short text"). Buckets chosen from the empirical
+            # distribution: <150 captures terse Q&A and brief replies,
+            # 150-500 the bulk of long-form responses, 500+ the long tail.
+            "is_short": 1.0 if word_count < 150 else 0.0,
+            "is_medium": 1.0 if 150 <= word_count < 500 else 0.0,
+            "is_long": 1.0 if word_count >= 500 else 0.0,
             "domain_prompt": 1.0 if domain == "prompt" else 0.0,
             "domain_prose": 1.0 if domain == "prose" else 0.0,
         }

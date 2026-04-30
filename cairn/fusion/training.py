@@ -32,7 +32,11 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
     model = ExplainableBoostingClassifier(
         feature_names=feature_names,
         max_rounds=300,
-        interactions=5,
+        # 15 pairwise interactions (was 5). Length-bucket × per-detector
+        # p_llm interactions are the prime motivator — verb=low sweep
+        # showed length-conditional behaviour the previous 5-interaction
+        # budget couldn't model.
+        interactions=15,
         random_state=42,
     )
     model.fit(X_arr, y_arr)
