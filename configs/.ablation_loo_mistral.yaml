@@ -1,0 +1,6 @@
+_profile: ablation_loo_mistral
+_extends: default
+fusion:
+  model_path: models/calib2000/ablation/loo_mistral/ebm.pkl
+  conformal_path: models/calib2000/ablation/loo_mistral/conformal.json
+  detector_calibration_path: models/calib2000/ablation/loo_mistral/detector_calibration.json

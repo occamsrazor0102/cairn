@@ -1,0 +1,6 @@
+_profile: ablation_solo_moonshot
+_extends: default
+fusion:
+  model_path: models/calib2000/ablation/solo_moonshot/ebm.pkl
+  conformal_path: models/calib2000/ablation/solo_moonshot/conformal.json
+  detector_calibration_path: models/calib2000/ablation/solo_moonshot/detector_calibration.json

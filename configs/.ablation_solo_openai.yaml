@@ -1,0 +1,6 @@
+_profile: ablation_solo_openai
+_extends: default
+fusion:
+  model_path: models/calib2000/ablation/solo_openai/ebm.pkl
+  conformal_path: models/calib2000/ablation/solo_openai/conformal.json
+  detector_calibration_path: models/calib2000/ablation/solo_openai/detector_calibration.json

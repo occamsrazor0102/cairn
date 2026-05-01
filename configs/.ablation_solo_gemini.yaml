@@ -1,0 +1,6 @@
+_profile: ablation_solo_gemini
+_extends: default
+fusion:
+  model_path: models/calib2000/ablation/solo_gemini/ebm.pkl
+  conformal_path: models/calib2000/ablation/solo_gemini/conformal.json
+  detector_calibration_path: models/calib2000/ablation/solo_gemini/detector_calibration.json

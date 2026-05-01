@@ -1,0 +1,6 @@
+_profile: ablation_full
+_extends: default
+fusion:
+  model_path: models/calib2000/ablation/full/ebm.pkl
+  conformal_path: models/calib2000/ablation/full/conformal.json
+  detector_calibration_path: models/calib2000/ablation/full/detector_calibration.json

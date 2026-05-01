@@ -1,0 +1,6 @@
+_profile: ablation_solo_deepseek
+_extends: default
+fusion:
+  model_path: models/calib2000/ablation/solo_deepseek/ebm.pkl
+  conformal_path: models/calib2000/ablation/solo_deepseek/conformal.json
+  detector_calibration_path: models/calib2000/ablation/solo_deepseek/detector_calibration.json

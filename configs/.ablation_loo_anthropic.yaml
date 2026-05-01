@@ -1,0 +1,6 @@
+_profile: ablation_loo_anthropic
+_extends: default
+fusion:
+  model_path: models/calib2000/ablation/loo_anthropic/ebm.pkl
+  conformal_path: models/calib2000/ablation/loo_anthropic/conformal.json
+  detector_calibration_path: models/calib2000/ablation/loo_anthropic/detector_calibration.json
