@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.3955,
+    "ece": 0.3733,
+    "brier": 0.405,
+    "tpr_at_fpr_01": 0.0269
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.7214,
+      "brier": 0.6054,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.3585,
+      "brier": 0.2046,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 736,
+    "fp": 1117,
+    "tn": 1932,
+    "fn": 2313,
+    "precision": 0.3972,
+    "recall": 0.2414,
+    "f1": 0.3003,
+    "accuracy": 0.4375
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.profile_finance.yaml",
+  "duration_seconds": 8.88
+}

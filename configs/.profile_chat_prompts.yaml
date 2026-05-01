@@ -1,0 +1,6 @@
+_profile: profile_chat_prompts
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/chat_prompts/ebm.pkl
+  conformal_path: models/calib2000/profiles/chat_prompts/conformal.json
+  detector_calibration_path: models/calib2000/profiles/chat_prompts/detector_calibration.json

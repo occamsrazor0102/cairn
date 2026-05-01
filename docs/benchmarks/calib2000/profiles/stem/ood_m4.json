@@ -1,0 +1,42 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.5457,
+    "ece": 0.2824,
+    "brier": 0.3384,
+    "tpr_at_fpr_01": 0.02
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.3798,
+      "brier": 0.2459,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.5951,
+      "brier": 0.431,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 69,
+    "fp": 62,
+    "tn": 38,
+    "fn": 31,
+    "precision": 0.5267,
+    "recall": 0.69,
+    "f1": 0.5974,
+    "accuracy": 0.535
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_m4_test.jsonl",
+  "config": "configs\\.profile_stem.yaml",
+  "duration_seconds": 0.27
+}

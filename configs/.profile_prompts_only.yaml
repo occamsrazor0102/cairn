@@ -1,0 +1,6 @@
+_profile: profile_prompts_only
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/prompts_only/ebm.pkl
+  conformal_path: models/calib2000/profiles/prompts_only/conformal.json
+  detector_calibration_path: models/calib2000/profiles/prompts_only/detector_calibration.json

@@ -1,0 +1,6 @@
+_profile: profile_general_hc3
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/general_hc3/ebm.pkl
+  conformal_path: models/calib2000/profiles/general_hc3/conformal.json
+  detector_calibration_path: models/calib2000/profiles/general_hc3/detector_calibration.json

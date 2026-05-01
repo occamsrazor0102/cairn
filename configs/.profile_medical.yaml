@@ -1,0 +1,6 @@
+_profile: profile_medical
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/medical/ebm.pkl
+  conformal_path: models/calib2000/profiles/medical/conformal.json
+  detector_calibration_path: models/calib2000/profiles/medical/detector_calibration.json

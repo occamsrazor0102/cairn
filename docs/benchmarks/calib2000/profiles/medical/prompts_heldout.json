@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.6396,
+    "ece": 0.4848,
+    "brier": 0.4865,
+    "tpr_at_fpr_01": 0.0325
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.9724,
+      "brier": 0.9672,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.0099,
+      "brier": 0.0058,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 81,
+    "fp": 20,
+    "tn": 3029,
+    "fn": 2968,
+    "precision": 0.802,
+    "recall": 0.0266,
+    "f1": 0.0514,
+    "accuracy": 0.51
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.profile_medical.yaml",
+  "duration_seconds": 8.88
+}

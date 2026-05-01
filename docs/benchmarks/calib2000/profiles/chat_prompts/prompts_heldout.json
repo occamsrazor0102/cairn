@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.5238,
+    "ece": 0.492,
+    "brier": 0.4925,
+    "tpr_at_fpr_01": 0.0341
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.0083,
+      "brier": 0.0003,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.9922,
+      "brier": 0.9847,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 3049,
+    "fp": 3049,
+    "tn": 0,
+    "fn": 0,
+    "precision": 0.5,
+    "recall": 1.0,
+    "f1": 0.6667,
+    "accuracy": 0.5
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.profile_chat_prompts.yaml",
+  "duration_seconds": 9.28
+}

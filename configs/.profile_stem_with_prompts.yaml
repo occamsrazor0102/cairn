@@ -1,0 +1,6 @@
+_profile: profile_stem_with_prompts
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/stem_with_prompts/ebm.pkl
+  conformal_path: models/calib2000/profiles/stem_with_prompts/conformal.json
+  detector_calibration_path: models/calib2000/profiles/stem_with_prompts/detector_calibration.json

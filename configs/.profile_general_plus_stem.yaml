@@ -1,0 +1,6 @@
+_profile: profile_general_plus_stem
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/general_plus_stem/ebm.pkl
+  conformal_path: models/calib2000/profiles/general_plus_stem/conformal.json
+  detector_calibration_path: models/calib2000/profiles/general_plus_stem/detector_calibration.json

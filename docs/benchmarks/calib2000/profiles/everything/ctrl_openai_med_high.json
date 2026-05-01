@@ -1,0 +1,42 @@
+{
+  "n_samples": 400,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.9481,
+    "ece": 0.15,
+    "brier": 0.1207,
+    "tpr_at_fpr_01": 0.73
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.4015,
+      "brier": 0.1961,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.1085,
+      "brier": 0.0453,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 187,
+    "fp": 34,
+    "tn": 166,
+    "fn": 13,
+    "precision": 0.8462,
+    "recall": 0.935,
+    "f1": 0.8884,
+    "accuracy": 0.8825
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\sweep_openai_effort_medium_verb_high.jsonl",
+  "config": "configs\\.profile_everything.yaml",
+  "duration_seconds": 0.7
+}

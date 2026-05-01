@@ -1,0 +1,6 @@
+_profile: profile_finance
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/finance/ebm.pkl
+  conformal_path: models/calib2000/profiles/finance/conformal.json
+  detector_calibration_path: models/calib2000/profiles/finance/detector_calibration.json

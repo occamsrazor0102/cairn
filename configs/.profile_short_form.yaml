@@ -1,0 +1,6 @@
+_profile: profile_short_form
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/short_form/ebm.pkl
+  conformal_path: models/calib2000/profiles/short_form/conformal.json
+  detector_calibration_path: models/calib2000/profiles/short_form/detector_calibration.json

@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.3221,
+    "ece": 0.3668,
+    "brier": 0.3634,
+    "tpr_at_fpr_01": 0.0321
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.7049,
+      "brier": 0.5287,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.4055,
+      "brier": 0.198,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 520,
+    "fp": 1340,
+    "tn": 1709,
+    "fn": 2529,
+    "precision": 0.2796,
+    "recall": 0.1705,
+    "f1": 0.2119,
+    "accuracy": 0.3655
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.profile_general_plus_stem.yaml",
+  "duration_seconds": 9.02
+}
