@@ -62,6 +62,13 @@ _SUBSET_FILES = {
 }
 
 _SYSTEM_PROMPT = "You are a helpful assistant. Answer the user's question accurately and helpfully."
+# Concise mode: matches how a real user asks for a short answer. Generators
+# read _SYSTEM_PROMPT by name at call time, so swapping the module global
+# before regen is sufficient to switch every provider into concise mode.
+_SYSTEM_PROMPT_CONCISE = (
+    "You are a helpful assistant. Answer the user's question accurately and concisely. "
+    "Limit your response to 1-2 sentences."
+)
 
 
 def _resolve_api_key(provider: str, env_override: str | None = None) -> str:
@@ -94,7 +101,10 @@ def _generate_gemini(question: str, api_key: str, model: str, max_tokens: int) -
         )
     ]
     config = types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(thinking_level="HIGH"),
+        # MEDIUM thinking instead of HIGH — HIGH burns hidden reasoning
+        # tokens that count toward billing and were producing
+        # disproportionate spend ($80+ on a small call volume).
+        thinking_config=types.ThinkingConfig(thinking_level="MEDIUM"),
         max_output_tokens=max_tokens,
         system_instruction=_SYSTEM_PROMPT,
     )
@@ -137,7 +147,12 @@ def _load_existing(out_path: Path) -> tuple[list[dict], set[str]]:
     return rows, done
 
 
-def _generate_anthropic(question: str, api_key: str, model: str, max_tokens: int) -> tuple[str, dict]:
+def _generate_anthropic(
+    question: str, api_key: str, model: str, max_tokens: int,
+    temperature: float | None = None,
+    top_p: float | None = None,
+    top_k: int | None = None,
+) -> tuple[str, dict]:
     import anthropic  # type: ignore
     client = anthropic.Anthropic(api_key=api_key)
     kwargs: dict = {
@@ -146,6 +161,12 @@ def _generate_anthropic(question: str, api_key: str, model: str, max_tokens: int
         "system": _SYSTEM_PROMPT,
         "messages": [{"role": "user", "content": question}],
     }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    if top_p is not None:
+        kwargs["top_p"] = top_p
+    if top_k is not None and top_k > 0:
+        kwargs["top_k"] = top_k
     # Sonnet/Opus 4.x can do extended thinking; explicitly disable so we
     # capture clean answer output (and don't pay for hidden reasoning).
     # Haiku doesn't support the thinking parameter and would 400.
@@ -165,6 +186,8 @@ def _generate_openai(
     prompt_id: str | None = None,
     prompt_version: str = "1",
     template_variable: str | None = None,
+    reasoning_effort: str = "medium",
+    verbosity: str = "medium",
 ) -> tuple[str, dict]:
     """Two modes (both use the Responses API):
 
@@ -193,8 +216,8 @@ def _generate_openai(
             model=model,
             input=question,
             instructions=_SYSTEM_PROMPT,
-            text={"format": {"type": "text"}, "verbosity": "medium"},
-            reasoning={"effort": "medium", "summary": "auto"},
+            text={"format": {"type": "text"}, "verbosity": verbosity},
+            reasoning={"effort": reasoning_effort, "summary": "auto"},
             max_output_tokens=max_tokens,
             store=True,
             tools=[],
@@ -320,12 +343,20 @@ def _generate(provider: str, question: str, api_key: str, model: str, max_tokens
               prompt_version: str = "1",
               template_variable: str | None = None,
               base_url: str | None = None,
+              temperature: float | None = None,
+              top_p: float | None = None,
+              top_k: int | None = None,
+              reasoning_effort: str = "medium",
+              verbosity: str = "medium",
               max_retries: int = 3) -> tuple[str, dict]:
     last_err: Exception | None = None
     for attempt in range(max_retries):
         try:
             if provider == "anthropic":
-                return _generate_anthropic(question, api_key, model, max_tokens)
+                return _generate_anthropic(
+                    question, api_key, model, max_tokens,
+                    temperature=temperature, top_p=top_p, top_k=top_k,
+                )
             if provider == "gemini":
                 return _generate_gemini(question, api_key, model, max_tokens)
             if provider == "mistral":
@@ -339,6 +370,8 @@ def _generate(provider: str, question: str, api_key: str, model: str, max_tokens
                 prompt_id=prompt_id,
                 prompt_version=prompt_version,
                 template_variable=template_variable,
+                reasoning_effort=reasoning_effort,
+                verbosity=verbosity,
             )
         except Exception as e:
             last_err = e
@@ -400,7 +433,28 @@ def main() -> None:
                     help="parallel API workers (default: 8). Bump higher if your provider tier "
                          "allows more RPM (e.g. 32 for tier-2 OpenAI, 64+ for higher tiers). Drop "
                          "to 1 for strictly sequential execution / debugging.")
+    ap.add_argument("--temperature", type=float, default=None,
+                    help="sampling temperature (anthropic only). Omit to use provider default.")
+    ap.add_argument("--top-p", type=float, default=None,
+                    help="top-p nucleus sampling (anthropic only). Omit to use provider default.")
+    ap.add_argument("--top-k", type=int, default=None,
+                    help="top-k sampling (anthropic only). 0 or omit for default.")
+    ap.add_argument("--reasoning-effort", type=str, default="medium",
+                    choices=["minimal", "low", "medium", "high"],
+                    help="reasoning effort for openai gpt-5.x (default: medium).")
+    ap.add_argument("--verbosity", type=str, default="medium",
+                    choices=["low", "medium", "high"],
+                    help="output verbosity for openai gpt-5.x (default: medium).")
+    ap.add_argument("--concise", action="store_true",
+                    help="swap the system prompt to ask the model to be concise "
+                         "(1-2 sentences). Works across all providers; cheaper "
+                         "and shorter outputs that improve calibration coverage "
+                         "on low-verbosity LLM text.")
     args = ap.parse_args()
+
+    if args.concise:
+        global _SYSTEM_PROMPT
+        _SYSTEM_PROMPT = _SYSTEM_PROMPT_CONCISE
 
     load_dotenv()
 
@@ -430,6 +484,8 @@ def main() -> None:
         source_tag = f"hc3_{args.subset}_regen_openai_{args.openai_prompt_id[:20]}"
     else:
         source_tag = f"hc3_{args.subset}_regen_{args.model}"
+    if args.concise:
+        source_tag += "_concise"
 
     # Phase 1: collect work items. Cheap (just file scan + dict lookups).
     all_eligible: list[tuple[str, int, str, str]] = []  # (qid, i, question, human_text)
@@ -490,6 +546,11 @@ def main() -> None:
                 prompt_version=args.openai_prompt_version,
                 template_variable=args.openai_template_variable,
                 base_url=args.base_url,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                top_k=args.top_k,
+                reasoning_effort=args.reasoning_effort,
+                verbosity=args.verbosity,
             )
         except Exception as e:
             return ("failed", [], {"input_tokens": 0, "output_tokens": 0},
