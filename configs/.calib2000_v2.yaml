@@ -1,0 +1,6 @@
+_profile: calib2000_v2
+_extends: default
+fusion:
+  model_path: models/calib2000/v2/ebm.pkl
+  conformal_path: models/calib2000/v2/conformal.json
+  detector_calibration_path: models/calib2000/v2/detector_calibration.json

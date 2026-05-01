@@ -1,0 +1,14 @@
+ablation,providers,n_train,n_calib,n_test,auroc,ece,brier,tpr_at_fpr_01,f1,accuracy,duration_s
+full,anthropic+openai+gemini+mistral+deepseek+moonshot,16794,3598,3602,0.9458,0.015,0.0783,0.779,0.8886,0.8956,88.4
+solo_anthropic,anthropic,2822,548,3602,0.9202,0.0313,0.1005,0.6158,0.8625,0.8709,61.9
+solo_openai,openai,2796,616,3602,0.8896,0.0598,0.1203,0.563,0.8312,0.8498,58.6
+solo_gemini,gemini,2767,623,3602,0.8896,0.1228,0.1351,0.6474,0.8058,0.8354,63.5
+solo_mistral,mistral,2784,606,3602,0.9119,0.0703,0.1035,0.7407,0.8521,0.8684,69.7
+solo_deepseek,deepseek,2827,583,3602,0.9303,0.0253,0.092,0.7357,0.8727,0.8801,60.8
+solo_moonshot,moonshot,2798,622,3602,0.929,0.0277,0.0937,0.7313,0.8616,0.8679,59.6
+loo_anthropic,openai+gemini+mistral+deepseek+moonshot,13972,3050,3602,0.942,0.0157,0.0811,0.7773,0.8854,0.8939,71.8
+loo_openai,anthropic+gemini+mistral+deepseek+moonshot,13998,2982,3602,0.9415,0.0165,0.0814,0.7735,0.8866,0.8948,71.1
+loo_gemini,anthropic+openai+mistral+deepseek+moonshot,14027,2975,3602,0.9462,0.0198,0.0782,0.7857,0.8888,0.8953,75.6
+loo_mistral,anthropic+openai+gemini+deepseek+moonshot,14010,2992,3602,0.9454,0.0186,0.0785,0.784,0.8891,0.8959,71.9
+loo_deepseek,anthropic+openai+gemini+mistral+moonshot,13967,3015,3602,0.9465,0.0176,0.0782,0.7773,0.8918,0.8992,73.7
+loo_moonshot,anthropic+openai+gemini+mistral+deepseek,13996,2976,3602,0.9427,0.0142,0.0802,0.7801,0.8868,0.8939,70.3

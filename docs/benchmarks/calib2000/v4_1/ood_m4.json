@@ -1,0 +1,42 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.6216,
+    "ece": 0.1878,
+    "brier": 0.2693,
+    "tpr_at_fpr_01": 0.12
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.6352,
+      "brier": 0.4508,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.2658,
+      "brier": 0.0879,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 22,
+    "fp": 6,
+    "tn": 94,
+    "fn": 78,
+    "precision": 0.7857,
+    "recall": 0.22,
+    "f1": 0.3437,
+    "accuracy": 0.58
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_m4_test.jsonl",
+  "config": "configs\\.calib2000_v4_1.yaml",
+  "duration_seconds": 0.33
+}

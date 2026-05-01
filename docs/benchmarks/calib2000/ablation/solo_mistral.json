@@ -1,0 +1,42 @@
+{
+  "n_samples": 3602,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.9119,
+    "ece": 0.0703,
+    "brier": 0.1035,
+    "tpr_at_fpr_01": 0.7407
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.0925,
+      "brier": 0.0238,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.2332,
+      "brier": 0.1832,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 1365,
+    "fp": 38,
+    "tn": 1763,
+    "fn": 436,
+    "precision": 0.9729,
+    "recall": 0.7579,
+    "f1": 0.8521,
+    "accuracy": 0.8684
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\calib2000_full_test.jsonl",
+  "config": "configs\\.ablation_solo_mistral.yaml",
+  "duration_seconds": 6.29
+}

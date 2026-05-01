@@ -1,0 +1,42 @@
+{
+  "n_samples": 1200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.6115,
+    "ece": 0.1669,
+    "brier": 0.2691,
+    "tpr_at_fpr_01": 0.0317
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.3068,
+      "brier": 0.1171,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.6149,
+      "brier": 0.4211,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 149,
+    "fp": 56,
+    "tn": 544,
+    "fn": 451,
+    "precision": 0.7268,
+    "recall": 0.2483,
+    "f1": 0.3702,
+    "accuracy": 0.5775
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_combined.jsonl",
+  "config": "configs\\.calib2000_v4.yaml",
+  "duration_seconds": 3.38
+}

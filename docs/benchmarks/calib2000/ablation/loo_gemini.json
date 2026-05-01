@@ -1,0 +1,42 @@
+{
+  "n_samples": 3602,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.9462,
+    "ece": 0.0198,
+    "brier": 0.0782,
+    "tpr_at_fpr_01": 0.7857
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.1739,
+      "brier": 0.0528,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.1568,
+      "brier": 0.1036,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 1507,
+    "fp": 83,
+    "tn": 1718,
+    "fn": 294,
+    "precision": 0.9478,
+    "recall": 0.8368,
+    "f1": 0.8888,
+    "accuracy": 0.8953
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\calib2000_full_test.jsonl",
+  "config": "configs\\.ablation_loo_gemini.yaml",
+  "duration_seconds": 7.08
+}

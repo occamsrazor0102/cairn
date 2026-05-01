@@ -1,0 +1,42 @@
+{
+  "n_samples": 400,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.9777,
+    "ece": 0.0825,
+    "brier": 0.0543,
+    "tpr_at_fpr_01": 0.9
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.2184,
+      "brier": 0.0666,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.0821,
+      "brier": 0.0421,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 189,
+    "fp": 8,
+    "tn": 192,
+    "fn": 11,
+    "precision": 0.9594,
+    "recall": 0.945,
+    "f1": 0.9521,
+    "accuracy": 0.9525
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\sweep_openai_effort_medium_verb_high.jsonl",
+  "config": "configs\\.calib2000_v3.yaml",
+  "duration_seconds": 0.67
+}

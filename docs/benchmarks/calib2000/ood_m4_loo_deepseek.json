@@ -1,0 +1,42 @@
+{
+  "n_samples": 1000,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.5543,
+    "ece": 0.2675,
+    "brier": 0.3305,
+    "tpr_at_fpr_01": 0.054
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.2095,
+      "brier": 0.0755,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.7197,
+      "brier": 0.5855,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 81,
+    "fp": 28,
+    "tn": 472,
+    "fn": 419,
+    "precision": 0.7431,
+    "recall": 0.162,
+    "f1": 0.266,
+    "accuracy": 0.553
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_m4.jsonl",
+  "config": "configs\\.ablation_loo_deepseek.yaml",
+  "duration_seconds": 1.54
+}

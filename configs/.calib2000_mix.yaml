@@ -1,0 +1,6 @@
+_profile: calib2000_mix
+_extends: default
+fusion:
+  model_path: models/calib2000/mix/ebm.pkl
+  conformal_path: models/calib2000/mix/conformal.json
+  detector_calibration_path: models/calib2000/mix/detector_calibration.json

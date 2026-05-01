@@ -1,0 +1,42 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.7018,
+    "ece": 0.1495,
+    "brier": 0.2377,
+    "tpr_at_fpr_01": 0.17
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.5206,
+      "brier": 0.3542,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.2867,
+      "brier": 0.1213,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 38,
+    "fp": 11,
+    "tn": 89,
+    "fn": 62,
+    "precision": 0.7755,
+    "recall": 0.38,
+    "f1": 0.5101,
+    "accuracy": 0.635
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_raid_test.jsonl",
+  "config": "configs\\.calib2000_v4.yaml",
+  "duration_seconds": 0.5
+}
