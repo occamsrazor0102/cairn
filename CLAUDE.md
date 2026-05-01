@@ -168,16 +168,44 @@ contracts, endpoints, or user-facing surfaces.
 
 ## Things the project does NOT have yet (don't pretend it does)
 
-- A trained EBM fusion model — `fusion.model_path` is unset in every
-  config, and no artifact is checked in.
-- A calibrated conformal wrapper — `fusion.conformal_path` same story.
-- A labeled dataset of any size in the repo. `scripts/download_hc3.py`
-  can fetch one; run it before doing any calibration work.
-- A production CI smoke number beyond HC3 finance screening
-  (`docs/benchmarks/hc3_finance_screening_smoke.json`). Other
-  profiles / datasets are future work.
 - Auth / rate limiting on the FastAPI or GUI HTTP layers. Binds to
   loopback by default; hardening is on the roadmap.
+- A non-loopback hardening story for `cairn serve`. Front with a
+  reverse proxy if exposed beyond a single machine.
+- Profile auto-routing. `RuntimeContext.switch_profile()` swaps
+  manually but the pipeline does not auto-pick `general_hc3` vs
+  `master_minus_arxiv` vs `prompts_only` based on input shape —
+  that's a deployment-time choice today.
+- A persistent DriftMonitor window. Baselines rebuild from the
+  history store on demand, but the in-flight observation window
+  is lost on sidecar restart.
+
+## Things the project DOES have now (recent additions)
+
+- **Calibrated profiles** under `models/calib2000/profiles/` —
+  trained EBM + isotonic + split-conformal artifacts for 13+
+  profiles. Production recommendation: `master_minus_arxiv` for
+  prose, `prompts_only` for prompts. See
+  `docs/benchmarks/README.md` for the full grid.
+- **Feature cache** (`cairn/feature_cache.py::CachedPipeline`) —
+  sha256-keyed detector output cache that makes profile-grid /
+  LOO experiments tractable (~3 min retrain vs ~1–2 hr).
+  `data/all_features_v6.jsonl` is the master cache; see
+  `docs/calibration.md`.
+- **Multi-provider calibration corpus** — ~94K rows
+  (`data/calib2000_v6_train.jsonl`) across six providers and
+  multiple genres. Built by `scripts/regenerate_llm_outputs.py`
+  + `scripts/regen_domain_calib.py`.
+- **Held-out OOD validation** — M4 / RAID / MAGE samples at
+  `data/ood_*_test.jsonl`. Use them to validate any profile
+  change.
+- **Prompt detection corpus** — ~30K provenance-clean human +
+  LLM-generated prompts at `data/prompts_*.jsonl`, supporting
+  the `prompts_only` profile.
+- **Length-aware EBM features** — `log_word_count`, `is_short`
+  / `is_medium` / `is_long`. EBM `interactions=15` (was 5).
+- **Modal GPU offload** for feature caching —
+  `scripts/modal_cache_features.py`.
 
 ## Commit style
 

@@ -128,35 +128,82 @@ intermediate confidence — useful for evaluation.
 
 ## Fusion
 
-`cairn/fusion/ebm.py::EBMFusion` has two modes:
+`cairn/fusion/ebm.py::EBMFusion` has two modes, selected by config:
 
-- **Naive weighted mean (default).** If no trained model artifact is
-  loaded (controlled by `fusion.model_path` in the active config), the
-  fusion returns a weighted mean of per-detector `p_llm` values and
-  reports per-detector deviations from prior (`(p_llm - 0.5) *
-  confidence`) as pseudo-contributions. This is the mode every
-  out-of-the-box deployment runs in. `/health` reports
-  `calibration_status: "heuristic"` to signal this, and the GUI shows
-  a banner.
-- **EBM (when trained).** If a fitted Explainable Boosting Machine is
-  loaded via `fusion.model_path`, the fusion builds a feature vector
-  (per-detector `p_llm` × weight, plus a few derived features like
-  detectors-active count), gets a fused `p_llm` and additive feature
-  contributions, and optionally a conformal prediction set if
-  `fusion.conformal_path` is also loaded.
+- **Naive weighted mean (heuristic mode).** If no trained model
+  artifact is loaded (controlled by `fusion.model_path` in the
+  active config), the fusion returns a weighted mean of per-detector
+  `p_llm` values and reports per-detector deviations from prior
+  (`(p_llm - 0.5) * confidence`) as pseudo-contributions. The
+  `default` / `screening` / `strict` profiles run in this mode.
+  `/health` reports `calibration_status: "heuristic"` and the GUI
+  shows a banner.
+- **EBM (calibrated mode).** When a fitted Explainable Boosting
+  Machine is loaded via `fusion.model_path`, the fusion builds a
+  feature vector and returns a fused `p_llm` plus additive feature
+  contributions. The feature vector includes per-detector `p_llm`,
+  detector confidence, plus length-aware features
+  (`log_word_count`, `is_short` / `is_medium` / `is_long`) so the
+  EBM can route differently for short vs long inputs. The EBM
+  trains with `interactions=15` to capture pairwise effects.
 
-The prediction set / confidence-interval path in
-`cairn/fusion/conformal.py::ConformalWrapper` maps fusion scores to
-four severity bands via a midpoint heuristic. This is NOT a coverage-
-guaranteeing conformal prediction — replacing it with a genuine split-
-conformal implementation (binary, with a documented post-hoc band
-mapping) is a known follow-up.
+### Conformal prediction
 
-Per-detector `p_llm` values themselves are also heuristic out of the
-box — each detector's `analyze()` runs a hand-picked piecewise-linear
-mapping (`_HEURISTIC_*` constants) from its raw score to a p(LLM).
-Replace with isotonic calibration via `cairn.calibration.DetectorCalibrator`
-once a labeled dataset exists.
+`cairn/fusion/conformal.py::ConformalWrapper` is a true split-conformal
+wrapper trained by `scripts/calibrate_conformal.py` on a held-out
+calibration set. With `alpha=0.05` it provides marginal coverage on
+in-distribution test data — the binary `conformal_set` field on
+`FusionResult` is honest under exchangeability assumptions; the
+`prediction_set` field carries the cosmetic severity-band mapping for
+UI display. Coverage degrades on OOD data (MAGE, RAID, unseen
+providers); the prediction set widens but the coverage guarantee
+holds only inasmuch as the calibration distribution matches.
+
+### Per-detector calibration
+
+Each detector ships a `_HEURISTIC_*` raw-score → `p_llm` table used
+when no calibration is loaded. Calibrated profiles override these via
+`cairn.calibration.DetectorCalibrator` — per-detector isotonic
+regression fit by `scripts/calibrate_detectors.py` on a labeled
+training set. `DetectorCalibrator.has(layer_id)` gates whether the
+isotonic transform applies; otherwise the heuristic table is used.
+
+## Profile system
+
+Profiles in `configs/` come in two flavors:
+
+- **Heuristic profiles** (`default`, `screening`, `strict`,
+  `no-api`, `production`) — no `fusion.model_path`; all detectors
+  use their `_HEURISTIC_*` tables; fusion is the naive weighted mean.
+- **Calibrated profiles** (`calibrated_*`, `profile_*`) — set
+  `fusion.model_path`, `fusion.conformal_path`,
+  `fusion.detector_calibration_path` to artifacts under
+  `models/calib2000/`. These are produced by the training pipeline
+  documented in [`docs/calibration.md`](calibration.md).
+
+`RuntimeContext.switch_profile()` hot-swaps between any two profiles
+without restarting the process; the EBM/calibrator/conformal artifacts
+are loaded into a new `CairnPipeline` outside the context lock and
+swapped atomically.
+
+## Feature cache (training-only)
+
+`cairn/feature_cache.py::CachedPipeline` is a drop-in replacement for
+`CairnPipeline` used by the training scripts. It keys detector outputs
+by `sha256(normalize_text(input))` and serves cached `LayerResult`
+lists in <1ms, bypassing all detector inference. This is what makes
+profile-grid and LOO experiments tractable — once
+`scripts/cache_pipeline_features.py` (or
+`scripts/modal_cache_features.py` for GPU offload) writes
+`data/all_features_v6.jsonl`, every subsequent
+`scripts/calibrate_detectors.py` / `train_fusion.py` /
+`run_benchmark.py` invocation reads from cache instead of re-running
+the pipeline.
+
+The cache is calibrator-independent: it stores raw detector outputs
+(`raw_score`, signals, spans), and the per-detector calibration is
+applied at fusion-time, not at cache-write-time. Same cache feeds all
+13+ profile variants.
 
 ## Decision engine
 

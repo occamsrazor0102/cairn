@@ -6,7 +6,12 @@ tune thresholds, detectors, and the GUI's history / drift store.
 
 ## Profile layout
 
-Five profiles ship in `configs/`:
+Profiles divide into two groups: **heuristic** (no calibration
+artifacts; per-detector tables drive `p_llm`) and **calibrated**
+(trained EBM + isotonic + split-conformal artifacts override
+heuristics).
+
+### Heuristic profiles
 
 | Profile | Intent | Key choices |
 |---------|--------|-------------|
@@ -15,6 +20,41 @@ Five profiles ship in `configs/`:
 | `strict` | High-recall | more aggressive thresholds; tier-3 enabled if credentials present |
 | `no-api` | Offline | tier-3 detectors forcibly off (no Anthropic/OpenAI calls) |
 | `production` | Containerised | paths rooted at `/app` and `/data`, logging + retention dialed up |
+
+### Calibrated profiles (production)
+
+These set `fusion.model_path`, `fusion.conformal_path`, and
+`fusion.detector_calibration_path` to trained artifacts under
+`models/calib2000/`. See [`docs/calibration.md`](calibration.md) for
+how the corpus and artifacts are produced.
+
+| Profile | Trained on | Best for |
+|---------|------------|----------|
+| `calibrated_calib2000` | Full v6 master corpus (~94K rows, 6 providers, all source tags) | General-purpose default |
+| `general_hc3` | HC3 only (~20K rows) | Pure prose, in-domain — peak in-distribution AUROC (0.94) |
+| `general_full` | HC3 + OOD (raid/m4/mage) | HC3 plus OOD coverage |
+| `master_minus_arxiv` | v6 minus arxiv abstracts (~70K rows) | **Cross-domain prose, RAID/MAGE, short-form. Recommended.** |
+| `drop_top3_drags` | v6 minus arxiv + reddit + magpie (~63K rows) | Most aggressive OOD gain; sacrifices prompt-detection |
+| `prompts_only` | All prompt corpora (~24K rows) | Prompt detection (human-written vs LLM-generated prompts) |
+| `chat_prompts` | Conversational prompt subsets | Chat-style prompts |
+| `medical` | HC3 medicine + MedQA prompts | Medical domain |
+| `finance` | HC3 finance only | Finance domain |
+| `stem` | arxiv + GSM8K + HumanEval | Math / code / scientific prose |
+| `stem_with_prompts` | STEM + math/code/reasoning prompts | STEM responses + STEM prompts |
+| `short_form` | concise + verb_low cells | Short-form responses |
+| `everything` | Full v6 (reference baseline) | Strictly worse than `master_minus_arxiv` on OOD; kept for comparison |
+| `general_plus_*` | HC3+OOD plus stem / short / medical | Adjustable mixes |
+
+### Picking a profile
+
+```
+short, prose, in-domain HC3   → general_hc3
+RAID / MAGE / cross-genre     → master_minus_arxiv
+human-vs-LLM prompts          → prompts_only
+domain-specific corpus        → medical / finance / stem
+unsure / mixed inputs         → calibrated_calib2000 (full v6)
+no labeled data, just heuristics → screening / default
+```
 
 Every profile except `default` uses `_extends: default` so they only
 need to override what differs.

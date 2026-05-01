@@ -7,6 +7,16 @@ synthetic fixtures bundled with the repo.
 
 ## Status
 
+The current production-grade calibration is the **calib2000 v6**
+corpus + profile family — see [the calib2000 results](#calib2000-six-provider-master-corpus--profile-grid)
+section below for the production numbers and
+[`docs/calibration.md`](../calibration.md) for the training pipeline.
+The earlier per-corpus profiles (`calibrated`, `calibrated_all`,
+`calibrated_regen`, `calibrated_union`, `calibrated_full`) remain in
+`configs/` for reproducibility but are superseded.
+
+### History — early calibrated benchmarks
+
 First *calibrated* benchmark landed: `hc3_finance_calibrated.json` —
 150-sample test split of HC3 finance, evaluated with the EBM fusion +
 split-conformal wrapper trained on the disjoint train/calib slices.
@@ -266,6 +276,105 @@ Practical implication: when adding new model coverage, you don't
 need proportionally more training data — substituting some single-
 provider samples for multi-provider samples improves coverage at no
 sample-count cost. Diversity is doing real work.
+
+## calib2000 — six-provider master corpus + profile grid
+
+The latest calibration round trained 13+ profiles against a master
+training corpus of ~94K rows spanning six providers (Anthropic /
+OpenAI / Gemini / Mistral / DeepSeek / Moonshot), HC3's five
+subdomains, OOD samples from M4 / RAID / MAGE, domain prose
+(arXiv, GSM8K, HumanEval), and ~30K provenance-clean prompts.
+
+Full numbers in `docs/benchmarks/calib2000/`:
+
+- `profile_grid_summary.csv` — 13 profiles × 9 test sets × 4 metrics
+- `loo_summary.csv` — 16-source leave-one-out matrix × 9 tests
+- `loss_filter_summary.csv` — 4 point-level filtering strategies
+- `per_detector_auroc.csv` — per-detector AUROC across datasets
+- `profiles/<name>/` — per-profile per-test JSON reports
+- `loo/<source>/` — per-LOO per-test JSON reports
+
+### Production profile selection
+
+The 13-profile grid plus per-source LOO surfaced two top profiles:
+
+| profile | in_domain | ood_raid | ood_mage | verb_low | prompts_heldout |
+|---------|-----------|----------|----------|----------|-----------------|
+| `general_hc3` | **0.9410** | 0.6264 | 0.6279 | 0.7641 | 0.5716 |
+| `everything` (full v6) | 0.9024 | 0.5596 | 0.5230 | 0.7970 | 0.7963 |
+| **`master_minus_arxiv`** | 0.9028 | **0.6841** | 0.5667 | **0.8908** | 0.7809 |
+| `drop_top3_drags` | 0.8993 | 0.6757 | **0.5844** | **0.9032** | 0.7110 |
+| `prompts_only` | 0.8737 | 0.6173 | 0.5023 | 0.5741 | **0.8414** |
+
+**Key findings:**
+
+- **More data isn't always better.** `everything` (full v6, ~94K
+  rows) lost 0.05–0.12 AUROC on OOD vs HC3-only because arxiv
+  abstracts contaminated the prose-detection signal.
+- **`master_minus_arxiv` is the production response profile.**
+  Beats `everything` on 6/9 tests with negligible in-domain cost
+  (+0.0004): RAID +0.125, verb_low +0.094, MAGE +0.044. The Δ
+  predicted by the LOO matrix held empirically to within 0.001.
+- **`drop_top3_drags` goes further on some metrics** (verb_low
+  0.903, MAGE 0.584) but loses 0.085 on `prompts_heldout` because
+  Magpie was a major prompt source — `master_minus_arxiv` is the
+  better single-profile pick.
+- **Use `general_hc3` for in-domain prose**, `master_minus_arxiv`
+  for cross-domain / short-form, `prompts_only` for prompt
+  detection.
+
+### OOD validation (held-out, never trained on)
+
+Held-out samples from three external benchmarks:
+
+| benchmark | n | best profile | AUROC |
+|-----------|---|--------------|-------|
+| **M4** (multilingual + multidomain) | varies | `general_full` | 0.6391 |
+| **RAID** (adversarial transformations) | varies | `master_minus_arxiv` | **0.6841** |
+| **MAGE** (model-attribution) | varies | `drop_top3_drags` | **0.5844** |
+
+OOD numbers are substantially lower than in-domain by design —
+these test transfer to genres/distributions the model has never
+seen. RAID's adversarial transforms (paraphrase, repetition,
+synonym-swap) and MAGE's model-attribution mix are deliberately
+hostile.
+
+### Verbosity sweep — primary attack surface
+
+OpenAI Responses API at `verbosity=low` drops detector AUROC by
+15–24 points on most profiles. The length-aware EBM features
+(`is_short`, `log_word_count`) added in this round partially
+counteract this:
+
+| profile | verb_low AUROC |
+|---------|----------------|
+| `everything` | 0.7970 |
+| `general_hc3` | 0.7641 |
+| `general_full` | 0.7491 |
+| `prompts_only` | 0.5741 |
+| **`master_minus_arxiv`** | **0.8908** |
+| **`drop_top3_drags`** | **0.9032** |
+
+The `verb_low` test set is itself constructed from sweep cells run
+through the full provider matrix — it represents a real attack
+profile, not a synthetic adversary.
+
+### Per-source leave-one-out (top drags)
+
+The 16-source LOO matrix surfaced which sources hurt or help when
+removed. Top drags (removal *helps* mean AUROC across 9 tests):
+
+| excluded source | n_excluded | mean Δ vs everything | best Δ on |
+|-----------------|------------|---------------------|-----------|
+| `domain_arxiv` | 23,182 | **+0.026** | RAID (+0.125), verb_low (+0.094) |
+| `domain_gsm8k` | 23,090 | +0.011 | (mixed) |
+| `prompt_magpie` | 4,003 | +0.005 | verb_low (+0.020) |
+| `hc3_reddit` | 3,299 | +0.004 | (mixed) |
+
+Top critical (removal *hurts*): all five HC3 subdomains hurt
+in_domain when removed by 0.005–0.015 — keep them. `prompt_*`
+sources hurt prompts_heldout/fresh by 0.02–0.10 when removed —
+keep for prompt detection.
 
 ## Reproducing the calibrated benchmark
 
