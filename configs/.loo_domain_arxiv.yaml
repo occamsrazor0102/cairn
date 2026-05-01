@@ -1,0 +1,6 @@
+_profile: loo_domain_arxiv
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/domain_arxiv/ebm.pkl
+  conformal_path: models/calib2000/loo/domain_arxiv/conformal.json
+  detector_calibration_path: models/calib2000/loo/domain_arxiv/detector_calibration.json

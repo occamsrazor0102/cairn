@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.7822,
+    "ece": 0.0816,
+    "brier": 0.1863,
+    "tpr_at_fpr_01": 0.1683
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.3774,
+      "brier": 0.1961,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.3839,
+      "brier": 0.1766,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 2009,
+    "fp": 440,
+    "tn": 2609,
+    "fn": 1040,
+    "precision": 0.8203,
+    "recall": 0.6589,
+    "f1": 0.7308,
+    "accuracy": 0.7573
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.loo_prompt_slimorca.yaml",
+  "duration_seconds": 9.24
+}

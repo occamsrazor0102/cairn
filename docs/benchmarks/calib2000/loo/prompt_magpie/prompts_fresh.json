@@ -1,0 +1,42 @@
+{
+  "n_samples": 300,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.6318,
+    "ece": 0.1103,
+    "brier": 0.2349,
+    "tpr_at_fpr_01": 0.0733
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.4158,
+      "brier": 0.2202,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.4813,
+      "brier": 0.2497,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 91,
+    "fp": 69,
+    "tn": 81,
+    "fn": 59,
+    "precision": 0.5687,
+    "recall": 0.6067,
+    "f1": 0.5871,
+    "accuracy": 0.5733
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_test_fresh.jsonl",
+  "config": "configs\\.loo_prompt_magpie.yaml",
+  "duration_seconds": 0.44
+}

@@ -1,0 +1,6 @@
+_profile: lossfilter_uncertain
+_extends: default
+fusion:
+  model_path: models/calib2000/loss_filter/uncertain/ebm.pkl
+  conformal_path: models/calib2000/loss_filter/uncertain/conformal.json
+  detector_calibration_path: models/calib2000/loss_filter/uncertain/detector_calibration.json

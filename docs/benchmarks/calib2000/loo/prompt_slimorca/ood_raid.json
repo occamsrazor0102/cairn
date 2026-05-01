@@ -1,0 +1,42 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.5593,
+    "ece": 0.1856,
+    "brier": 0.2953,
+    "tpr_at_fpr_01": 0.04
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.5326,
+      "brier": 0.3711,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.4015,
+      "brier": 0.2196,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 45,
+    "fp": 34,
+    "tn": 66,
+    "fn": 55,
+    "precision": 0.5696,
+    "recall": 0.45,
+    "f1": 0.5028,
+    "accuracy": 0.555
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_raid_test.jsonl",
+  "config": "configs\\.loo_prompt_slimorca.yaml",
+  "duration_seconds": 0.37
+}

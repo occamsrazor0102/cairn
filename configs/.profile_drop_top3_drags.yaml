@@ -1,0 +1,6 @@
+_profile: profile_drop_top3_drags
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/drop_top3_drags/ebm.pkl
+  conformal_path: models/calib2000/profiles/drop_top3_drags/conformal.json
+  detector_calibration_path: models/calib2000/profiles/drop_top3_drags/detector_calibration.json

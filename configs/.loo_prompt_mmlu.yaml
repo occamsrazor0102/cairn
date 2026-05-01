@@ -1,0 +1,6 @@
+_profile: loo_prompt_mmlu
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/prompt_mmlu/ebm.pkl
+  conformal_path: models/calib2000/loo/prompt_mmlu/conformal.json
+  detector_calibration_path: models/calib2000/loo/prompt_mmlu/detector_calibration.json

@@ -1,0 +1,42 @@
+{
+  "n_samples": 400,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.9426,
+    "ece": 0.155,
+    "brier": 0.1221,
+    "tpr_at_fpr_01": 0.71
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.3981,
+      "brier": 0.1949,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.1154,
+      "brier": 0.0493,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 185,
+    "fp": 36,
+    "tn": 164,
+    "fn": 15,
+    "precision": 0.8371,
+    "recall": 0.925,
+    "f1": 0.8789,
+    "accuracy": 0.8725
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\sweep_openai_effort_medium_verb_high.jsonl",
+  "config": "configs\\.loo_hc3_open.yaml",
+  "duration_seconds": 0.64
+}

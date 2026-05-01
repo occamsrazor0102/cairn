@@ -1,0 +1,6 @@
+_profile: loo_hc3_finance
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/hc3_finance/ebm.pkl
+  conformal_path: models/calib2000/loo/hc3_finance/conformal.json
+  detector_calibration_path: models/calib2000/loo/hc3_finance/detector_calibration.json

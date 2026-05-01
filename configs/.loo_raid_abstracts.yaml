@@ -1,0 +1,6 @@
+_profile: loo_raid_abstracts
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/raid_abstracts/ebm.pkl
+  conformal_path: models/calib2000/loo/raid_abstracts/conformal.json
+  detector_calibration_path: models/calib2000/loo/raid_abstracts/detector_calibration.json

@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.711,
+    "ece": 0.0601,
+    "brier": 0.2106,
+    "tpr_at_fpr_01": 0.1781
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.4011,
+      "brier": 0.205,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.4357,
+      "brier": 0.2163,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 2077,
+    "fp": 1138,
+    "tn": 1911,
+    "fn": 972,
+    "precision": 0.646,
+    "recall": 0.6812,
+    "f1": 0.6632,
+    "accuracy": 0.654
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.profile_drop_top3_drags.yaml",
+  "duration_seconds": 7.53
+}

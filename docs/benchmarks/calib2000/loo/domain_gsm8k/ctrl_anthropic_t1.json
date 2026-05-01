@@ -1,0 +1,42 @@
+{
+  "n_samples": 400,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.9431,
+    "ece": 0.0804,
+    "brier": 0.0975,
+    "tpr_at_fpr_01": 0.715
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.269,
+      "brier": 0.1133,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.1619,
+      "brier": 0.0817,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 173,
+    "fp": 29,
+    "tn": 171,
+    "fn": 27,
+    "precision": 0.8564,
+    "recall": 0.865,
+    "f1": 0.8607,
+    "accuracy": 0.86
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\sweep_anthropic_temp_1.jsonl",
+  "config": "configs\\.loo_domain_gsm8k.yaml",
+  "duration_seconds": 0.62
+}

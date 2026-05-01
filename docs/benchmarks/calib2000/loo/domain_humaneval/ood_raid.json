@@ -1,0 +1,42 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.5597,
+    "ece": 0.1932,
+    "brier": 0.293,
+    "tpr_at_fpr_01": 0.04
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.5112,
+      "brier": 0.3479,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.4242,
+      "brier": 0.2381,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 46,
+    "fp": 37,
+    "tn": 63,
+    "fn": 54,
+    "precision": 0.5542,
+    "recall": 0.46,
+    "f1": 0.5027,
+    "accuracy": 0.545
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_raid_test.jsonl",
+  "config": "configs\\.loo_domain_humaneval.yaml",
+  "duration_seconds": 0.43
+}

@@ -1,0 +1,6 @@
+_profile: lossfilter_high_loss_top30
+_extends: default
+fusion:
+  model_path: models/calib2000/loss_filter/high_loss_top30/ebm.pkl
+  conformal_path: models/calib2000/loss_filter/high_loss_top30/conformal.json
+  detector_calibration_path: models/calib2000/loss_filter/high_loss_top30/detector_calibration.json

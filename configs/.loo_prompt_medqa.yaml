@@ -1,0 +1,6 @@
+_profile: loo_prompt_medqa
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/prompt_medqa/ebm.pkl
+  conformal_path: models/calib2000/loo/prompt_medqa/conformal.json
+  detector_calibration_path: models/calib2000/loo/prompt_medqa/detector_calibration.json

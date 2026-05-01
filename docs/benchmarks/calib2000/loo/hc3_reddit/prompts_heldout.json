@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.7944,
+    "ece": 0.0936,
+    "brier": 0.1864,
+    "tpr_at_fpr_01": 0.1751
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.3393,
+      "brier": 0.1614,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.4273,
+      "brier": 0.2113,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 2171,
+    "fp": 641,
+    "tn": 2408,
+    "fn": 878,
+    "precision": 0.772,
+    "recall": 0.712,
+    "f1": 0.7408,
+    "accuracy": 0.7509
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.loo_hc3_reddit.yaml",
+  "duration_seconds": 9.0
+}

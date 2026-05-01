@@ -1,0 +1,6 @@
+_profile: loo_prompt_slimorca
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/prompt_slimorca/ebm.pkl
+  conformal_path: models/calib2000/loo/prompt_slimorca/conformal.json
+  detector_calibration_path: models/calib2000/loo/prompt_slimorca/detector_calibration.json

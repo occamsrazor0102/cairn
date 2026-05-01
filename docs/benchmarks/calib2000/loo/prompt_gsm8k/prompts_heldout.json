@@ -1,0 +1,42 @@
+{
+  "n_samples": 6098,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.7834,
+    "ece": 0.1241,
+    "brier": 0.1982,
+    "tpr_at_fpr_01": 0.1751
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.3226,
+      "brier": 0.1446,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.4689,
+      "brier": 0.2519,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 2468,
+    "fp": 1584,
+    "tn": 1465,
+    "fn": 581,
+    "precision": 0.6091,
+    "recall": 0.8094,
+    "f1": 0.6951,
+    "accuracy": 0.645
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\prompts_v5_test.jsonl",
+  "config": "configs\\.loo_prompt_gsm8k.yaml",
+  "duration_seconds": 9.13
+}

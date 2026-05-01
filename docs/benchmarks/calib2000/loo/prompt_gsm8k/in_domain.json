@@ -1,0 +1,42 @@
+{
+  "n_samples": 3602,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.8988,
+    "ece": 0.1611,
+    "brier": 0.1524,
+    "tpr_at_fpr_01": 0.6846
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.4498,
+      "brier": 0.2349,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.1442,
+      "brier": 0.0698,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 1597,
+    "fp": 698,
+    "tn": 1103,
+    "fn": 204,
+    "precision": 0.6959,
+    "recall": 0.8867,
+    "f1": 0.7798,
+    "accuracy": 0.7496
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\calib2000_full_test.jsonl",
+  "config": "configs\\.loo_prompt_gsm8k.yaml",
+  "duration_seconds": 6.2
+}

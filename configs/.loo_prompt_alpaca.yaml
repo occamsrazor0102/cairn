@@ -1,0 +1,6 @@
+_profile: loo_prompt_alpaca
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/prompt_alpaca/ebm.pkl
+  conformal_path: models/calib2000/loo/prompt_alpaca/conformal.json
+  detector_calibration_path: models/calib2000/loo/prompt_alpaca/detector_calibration.json

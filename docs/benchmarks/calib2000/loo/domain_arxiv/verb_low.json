@@ -1,0 +1,42 @@
+{
+  "n_samples": 240,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.8908,
+    "ece": 0.0981,
+    "brier": 0.1432,
+    "tpr_at_fpr_01": 0.4667
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.3812,
+      "brier": 0.1784,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.2459,
+      "brier": 0.108,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 109,
+    "fp": 37,
+    "tn": 83,
+    "fn": 11,
+    "precision": 0.7466,
+    "recall": 0.9083,
+    "f1": 0.8195,
+    "accuracy": 0.8
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\sweep_verb_low_test.jsonl",
+  "config": "configs\\.loo_domain_arxiv.yaml",
+  "duration_seconds": 0.4
+}

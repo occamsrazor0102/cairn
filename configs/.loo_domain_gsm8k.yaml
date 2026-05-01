@@ -1,0 +1,6 @@
+_profile: loo_domain_gsm8k
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/domain_gsm8k/ebm.pkl
+  conformal_path: models/calib2000/loo/domain_gsm8k/conformal.json
+  detector_calibration_path: models/calib2000/loo/domain_gsm8k/detector_calibration.json

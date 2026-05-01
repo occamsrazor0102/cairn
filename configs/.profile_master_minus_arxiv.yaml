@@ -1,0 +1,6 @@
+_profile: profile_master_minus_arxiv
+_extends: default
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv/detector_calibration.json

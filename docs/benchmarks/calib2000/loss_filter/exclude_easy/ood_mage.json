@@ -1,0 +1,42 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.4739,
+    "ece": 0.2042,
+    "brier": 0.3005,
+    "tpr_at_fpr_01": 0.03
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.4612,
+      "brier": 0.2536,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.5557,
+      "brier": 0.3473,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 32,
+    "fp": 40,
+    "tn": 60,
+    "fn": 68,
+    "precision": 0.4444,
+    "recall": 0.32,
+    "f1": 0.3721,
+    "accuracy": 0.46
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_mage_test.jsonl",
+  "config": "configs\\.lossfilter_exclude_easy.yaml",
+  "duration_seconds": 0.3
+}

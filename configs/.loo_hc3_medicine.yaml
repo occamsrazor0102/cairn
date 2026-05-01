@@ -1,0 +1,6 @@
+_profile: loo_hc3_medicine
+_extends: default
+fusion:
+  model_path: models/calib2000/loo/hc3_medicine/ebm.pkl
+  conformal_path: models/calib2000/loo/hc3_medicine/conformal.json
+  detector_calibration_path: models/calib2000/loo/hc3_medicine/detector_calibration.json
