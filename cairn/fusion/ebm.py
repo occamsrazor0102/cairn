@@ -32,6 +32,9 @@ class FeatureAssembler:
 
         severity_map = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
+        def missing(layer_id: str) -> float:
+            return 0.0 if layer_id in by_id else 1.0
+
         vec = {
             # Preamble
             "preamble_p_llm": p("preamble"),
@@ -74,6 +77,25 @@ class FeatureAssembler:
             "dna_gpt_p_llm": p("dna_gpt"),
             "mixed_boundary_p_llm": p("mixed_boundary"),
             "cross_similarity_p_llm": p("cross_similarity"),
+            # Per-detector missingness indicators (1.0 = absent / SKIP, 0.0 = present).
+            # Same short-form prefix as the matching `<prefix>_p_llm` key.
+            # Lets the EBM learn detector-specific "trust this signal less when
+            # this other detector skipped" interactions instead of conflating
+            # NaN imputation with mid-confidence predictions.
+            "preamble_missing": missing("preamble"),
+            "fingerprint_missing": missing("fingerprint_vocab"),
+            "ps_missing": missing("prompt_structure"),
+            "vs_missing": missing("voice_spec"),
+            "idi_missing": missing("instruction_density"),
+            "nssi_missing": missing("nssi"),
+            "surprisal_missing": missing("surprisal_dynamics"),
+            "binoculars_missing": missing("contrastive_lm"),
+            "tocsin_missing": missing("token_cohesiveness"),
+            "perturbation_missing": missing("perturbation"),
+            "contrastive_gen_missing": missing("contrastive_gen"),
+            "dna_gpt_missing": missing("dna_gpt"),
+            "mixed_boundary_missing": missing("mixed_boundary"),
+            "cross_similarity_missing": missing("cross_similarity"),
             # Metadata
             "word_count": float(word_count),
             "log_word_count": math.log1p(float(word_count)),
