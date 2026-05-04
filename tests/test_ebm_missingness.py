@@ -205,7 +205,7 @@ def test_train_ebm_applies_monotone_constraints():
 @pytest.mark.parametrize("prefix", [
     "preamble", "fingerprint", "ps", "vs", "idi", "nssi", "surprisal",
     "binoculars", "tocsin", "perturbation", "contrastive_gen", "dna_gpt",
-    "mixed_boundary", "cross_similarity",
+    "mixed_boundary", "cross_similarity", "semantic_kinematics",
 ])
 def test_each_detector_has_full_feature_triplet(prefix):
     """Every cascade detector must contribute a full {p_llm, missing, confidence}
@@ -217,3 +217,30 @@ def test_each_detector_has_full_feature_triplet(prefix):
         assert key in ASSEMBLER_FEATURE_NAMES, (
             f"detector prefix {prefix!r} missing {suffix!r} feature"
         )
+
+
+def test_assembler_emits_semantic_kinematics_features():
+    a = FeatureAssembler()
+    vec_absent = a.assemble([], word_count=200, domain="prose")
+    assert vec_absent["semantic_kinematics_missing"] == 1.0
+    assert math.isnan(vec_absent["semantic_kinematics_confidence"])
+
+    lr = _lr(
+        "semantic_kinematics", p_llm=0.7, confidence=0.55,
+        n_sentences=8, sk_velocity_mean=0.18, sk_velocity_std=0.04,
+        sk_acceleration_mean=0.02, sk_acceleration_std=0.01,
+        sk_jerk_mean=0.01, sk_jerk_std=0.005,
+    )
+    vec = a.assemble([lr], word_count=200, domain="prose")
+    assert vec["semantic_kinematics_missing"] == 0.0
+    assert vec["semantic_kinematics_p_llm"] == pytest.approx(0.7)
+    assert vec["sk_velocity_std"] == pytest.approx(0.04)
+    assert vec["sk_jerk_std"] == pytest.approx(0.005)
+
+
+def test_semantic_kinematics_features_in_canonical_list():
+    assert "semantic_kinematics_p_llm" in ASSEMBLER_FEATURE_NAMES
+    assert "semantic_kinematics_missing" in ASSEMBLER_FEATURE_NAMES
+    assert "semantic_kinematics_confidence" in ASSEMBLER_FEATURE_NAMES
+    assert "sk_velocity_std" in ASSEMBLER_FEATURE_NAMES
+    assert "sk_jerk_std" in ASSEMBLER_FEATURE_NAMES

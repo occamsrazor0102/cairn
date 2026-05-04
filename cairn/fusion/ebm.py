@@ -74,6 +74,18 @@ class FeatureAssembler:
             "binoculars_ratio": sig("contrastive_lm", "binoculars_ratio"),
             "tocsin_p_llm": p("token_cohesiveness"),
             "tocsin_mean_deletion_impact": sig("token_cohesiveness", "mean_deletion_impact"),
+            # Semantic kinematics (Phase 2, embedding-trajectory macro-feature).
+            # Full detector ID is used for the {p_llm, missing, confidence}
+            # triplet; signal-level keys live in their own `sk_*` namespace
+            # (mean/std of velocity, acceleration, jerk along the sentence
+            # trajectory) so the EBM can learn each moment independently.
+            "semantic_kinematics_p_llm": p("semantic_kinematics"),
+            "sk_velocity_mean": sig("semantic_kinematics", "sk_velocity_mean"),
+            "sk_velocity_std": sig("semantic_kinematics", "sk_velocity_std"),
+            "sk_acceleration_mean": sig("semantic_kinematics", "sk_acceleration_mean"),
+            "sk_acceleration_std": sig("semantic_kinematics", "sk_acceleration_std"),
+            "sk_jerk_mean": sig("semantic_kinematics", "sk_jerk_mean"),
+            "sk_jerk_std": sig("semantic_kinematics", "sk_jerk_std"),
             # Tier 3 / advanced
             "perturbation_p_llm": p("perturbation"),
             "contrastive_gen_p_llm": p("contrastive_gen"),
@@ -94,6 +106,7 @@ class FeatureAssembler:
             "surprisal_missing": missing("surprisal_dynamics"),
             "binoculars_missing": missing("contrastive_lm"),
             "tocsin_missing": missing("token_cohesiveness"),
+            "semantic_kinematics_missing": missing("semantic_kinematics"),
             "perturbation_missing": missing("perturbation"),
             "contrastive_gen_missing": missing("contrastive_gen"),
             "dna_gpt_missing": missing("dna_gpt"),
@@ -113,6 +126,7 @@ class FeatureAssembler:
             "surprisal_confidence": conf("surprisal_dynamics"),
             "binoculars_confidence": conf("contrastive_lm"),
             "tocsin_confidence": conf("token_cohesiveness"),
+            "semantic_kinematics_confidence": conf("semantic_kinematics"),
             "perturbation_confidence": conf("perturbation"),
             "contrastive_gen_confidence": conf("contrastive_gen"),
             "dna_gpt_confidence": conf("dna_gpt"),
