@@ -57,7 +57,11 @@ def main() -> None:
     wrapper.calibrate(np.asarray(scores), np.asarray(labels))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     wrapper.save(args.out)
-    print(f"calibrated on {len(scores)} samples (alpha={args.alpha}); wrote {args.out}")
+    print(
+        f"calibrated on {len(scores)} samples (alpha={args.alpha}); "
+        f"per-class={wrapper.threshold_per_class}; "
+        f"wrote {args.out}"
+    )
 
 
 if __name__ == "__main__":
