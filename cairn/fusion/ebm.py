@@ -178,7 +178,10 @@ class EBMFusion:
                         "(ignored until retrain): %s", sorted(extra_in_assembler),
                     )
             cm = getattr(model, "_cairn_column_means", None)
-            if cm:
+            # Use `is not None` (not truthiness): an empty dict is a valid
+            # "trained, but no columns required imputation" signal and must
+            # propagate, not be coerced to "legacy artifact, fall back to 0.5".
+            if cm is not None:
                 self._column_means = dict(cm)
 
     def fuse(self, layer_results: list[LayerResult], word_count: int = 0, domain: str = "prose") -> FusionResult:

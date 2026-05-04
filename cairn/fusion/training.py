@@ -37,9 +37,11 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
         finite = col[~np.isnan(col)]
         col_means[name] = float(finite.mean()) if finite.size else 0.5
     for j, name in enumerate(feature_names):
-        col = X_arr[:, j]
-        col[np.isnan(col)] = col_means[name]
-        X_arr[:, j] = col
+        # Idiomatic in-place NaN fill: index directly into X_arr so the write
+        # is unambiguous (no intermediate `col` view that may or may not be
+        # a copy depending on layout). After the loop X_arr must be NaN-free.
+        X_arr[np.isnan(X_arr[:, j]), j] = col_means[name]
+    assert not np.isnan(X_arr).any(), "NaN imputation incomplete before model.fit"
     y_arr = np.array(y)
 
     model = ExplainableBoostingClassifier(
