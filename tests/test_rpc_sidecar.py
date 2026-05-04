@@ -85,7 +85,26 @@ def test_health_reports_history_flag_and_profile(sidecar):
     h = sc.handle("health", {})
     assert h["history_enabled"] is True
     assert h["profile"] == "screening"
-    assert h["calibration_status"] in ("heuristic", "fusion-only", "calibrated")
+    assert h["calibration_status"] in (
+        "heuristic", "fusion-only", "calibrated", "calibrated-router-conditional",
+    )
+
+
+def test_health_reports_calibrated_router_conditional(sidecar, monkeypatch):
+    """Sidecar /health surfaces the 4th calibration tier when the conformal
+    wrapper has per-router thresholds (Phase 3 v3 schema). Uses monkeypatch
+    because cairn.fusion.ebm.DEFAULT_FUSION is a module-level singleton — a
+    bare assignment would leak into subsequent tests."""
+    from types import SimpleNamespace
+    sc, _ = sidecar
+    fusion = sc._pipeline._fusion
+    monkeypatch.setattr(fusion, "_model", SimpleNamespace())
+    monkeypatch.setattr(fusion, "_conformal", SimpleNamespace(
+        calibrated=True,
+        threshold_per_router={"prose": {0: 0.5, 1: 0.5}},
+    ))
+    h = sc.handle("health", {})
+    assert h["calibration_status"] == "calibrated-router-conditional"
 
 
 def test_feedback_also_writes_history_feedback(sidecar):

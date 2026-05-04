@@ -96,11 +96,30 @@ def create_app(config_path: Path | str | None = None) -> Any:
 
     @app.get("/health")
     def health() -> dict:
+        fusion = pipeline._fusion
+        model_loaded = fusion._model is not None
+        conformal_loaded = (
+            fusion._conformal is not None
+            and getattr(fusion._conformal, "calibrated", False)
+        )
+        router_conditional = (
+            conformal_loaded
+            and getattr(fusion._conformal, "threshold_per_router", None)
+        )
+        if model_loaded and router_conditional:
+            cal_status = "calibrated-router-conditional"
+        elif model_loaded and conformal_loaded:
+            cal_status = "calibrated"
+        elif model_loaded:
+            cal_status = "fusion-only"
+        else:
+            cal_status = "heuristic"
         return {
             "status": "ok",
             "version": "2.0.0",
-            "model_loaded": pipeline._fusion._model is not None,
-            "conformal_loaded": pipeline._fusion._conformal is not None,
+            "model_loaded": model_loaded,
+            "conformal_loaded": conformal_loaded,
+            "calibration_status": cal_status,
             "detectors": list(pipeline._detectors.keys()),
         }
 

@@ -26,6 +26,9 @@ def test_health(client):
     data = r.json()
     assert data["status"] == "ok"
     assert "detectors" in data
+    assert data["calibration_status"] in (
+        "heuristic", "fusion-only", "calibrated", "calibrated-router-conditional",
+    )
 
 
 def test_config_is_redacted(client):
