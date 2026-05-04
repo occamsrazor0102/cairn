@@ -14,7 +14,21 @@ venv/
 /data/
 
 # Trained model artifacts — too large for git; see scripts/
-/models/
+/models/*
+# ...except the calibrated production profile that the RAID CI gate depends on
+# (.github/workflows/raid.yml loads configs/.profile_master_minus_arxiv.yaml,
+# which references these three files). Walk-down required: gitignore cannot
+# re-include a file if a parent directory is excluded, so each level above
+# the artifact files must be explicitly re-included before the leaf rules.
+!/models/calib2000/
+/models/calib2000/*
+!/models/calib2000/profiles/
+/models/calib2000/profiles/*
+!/models/calib2000/profiles/master_minus_arxiv/
+/models/calib2000/profiles/master_minus_arxiv/*
+!/models/calib2000/profiles/master_minus_arxiv/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv/detector_calibration.json
 
 # Local editor / IDE
 .vscode/
