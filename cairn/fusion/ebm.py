@@ -184,18 +184,34 @@ class EBMFusion:
             if cm is not None:
                 self._column_means = dict(cm)
 
-    def fuse(self, layer_results: list[LayerResult], word_count: int = 0, domain: str = "prose") -> FusionResult:
+    def fuse(
+        self,
+        layer_results: list[LayerResult],
+        word_count: int = 0,
+        domain: str | None = "prose",
+    ) -> FusionResult:
         if self._model is None:
-            return self._naive_fuse(layer_results)
+            return self._naive_fuse(layer_results, domain=domain)
         return self._ebm_fuse(layer_results, word_count, domain)
 
-    def _maybe_conformal(self, p_llm: float) -> tuple[list[str] | None, float | None]:
-        """Return the honest binary conformal set (+alpha) when calibrated."""
+    def _maybe_conformal(
+        self, p_llm: float, router_class: str | None = None
+    ) -> tuple[list[str] | None, float | None]:
+        """Return the honest binary conformal set (+alpha) when calibrated.
+
+        Falls back to a router-unaware ``predict_set(p_llm)`` call when the
+        wrapped conformal object is a legacy implementation that does not
+        accept ``router_class`` (TypeError on the keyword).
+        """
         if self._conformal is None or not getattr(self._conformal, "calibrated", False):
             return None, None
-        return self._conformal.predict_set(p_llm), float(getattr(self._conformal, "alpha", 0.0))
+        try:
+            cs = self._conformal.predict_set(p_llm, router_class=router_class)
+        except TypeError:
+            cs = self._conformal.predict_set(p_llm)
+        return cs, float(getattr(self._conformal, "alpha", 0.0))
 
-    def _ebm_fuse(self, results: list[LayerResult], word_count: int, domain: str) -> FusionResult:
+    def _ebm_fuse(self, results: list[LayerResult], word_count: int, domain: str | None) -> FusionResult:
         import numpy as np
         vec = self._assembler.assemble(results, word_count, domain)
         features = self._feature_names or list(vec.keys())
@@ -221,14 +237,14 @@ class EBMFusion:
 
         ci = (max(0.0, p_llm - 0.10), min(1.0, p_llm + 0.10))
         prediction_set = _p_llm_to_labels(p_llm, 0.10)
-        conformal_set, conformal_alpha = self._maybe_conformal(p_llm)
+        conformal_set, conformal_alpha = self._maybe_conformal(p_llm, router_class=domain)
         return FusionResult(p_llm=p_llm, confidence_interval=ci,
                             prediction_set=prediction_set,
                             feature_contributions=contribs, top_contributors=top,
                             conformal_set=conformal_set, conformal_alpha=conformal_alpha,
                             fusion_mode="ebm")
 
-    def _naive_fuse(self, results: list[LayerResult]) -> FusionResult:
+    def _naive_fuse(self, results: list[LayerResult], domain: str | None = None) -> FusionResult:
         """Fallback when no EBM is trained."""
         active = [r for r in results if r.determination != "SKIP" and r.confidence > 0]
         if not active:
@@ -245,7 +261,7 @@ class EBMFusion:
         contribs = {r.layer_id: (r.p_llm - 0.5) * r.confidence for r in active}
         top = sorted(contribs.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
         prediction_set = _p_llm_to_labels(p_llm, hw)
-        conformal_set, conformal_alpha = self._maybe_conformal(p_llm)
+        conformal_set, conformal_alpha = self._maybe_conformal(p_llm, router_class=domain)
         return FusionResult(p_llm=p_llm, confidence_interval=ci,
                             prediction_set=prediction_set,
                             feature_contributions=contribs, top_contributors=top,

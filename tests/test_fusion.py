@@ -100,3 +100,27 @@ def test_conformal_wrapper():
     pset = wrapper.predict_set(0.82)
     assert isinstance(pset, list)
     assert len(pset) >= 1
+
+
+def test_ebm_fuse_passes_domain_to_conformal():
+    from cairn.fusion.ebm import EBMFusion
+    from cairn.contracts import LayerResult
+
+    captured: dict = {}
+
+    class _FakeConformal:
+        calibrated = True
+        alpha = 0.1
+        def predict_set(self, p, router_class=None):
+            captured["router_class"] = router_class
+            return ["LLM"]
+
+    f = EBMFusion(model=None, conformal=_FakeConformal())
+    fr = f.fuse(
+        [LayerResult(layer_id="preamble", domain="universal", raw_score=0.9, p_llm=0.9,
+                     confidence=0.8, signals={}, determination="RED", attacker_tiers=[],
+                     compute_cost="trivial", min_text_length=0)],
+        word_count=200, domain="prose",
+    )
+    assert captured["router_class"] == "prose"
+    assert fr.conformal_set == ["LLM"]
