@@ -14,7 +14,12 @@ token-level entropy, not embedding-level trajectory.
 """
 from __future__ import annotations
 
+import logging
+import threading
+
 from cairn.contracts import LayerResult
+
+logger = logging.getLogger(__name__)
 
 
 # _HEURISTIC_ priors per CLAUDE.md naming. Hand-tuned starting points only;
@@ -30,18 +35,29 @@ _DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def _segment(text: str) -> list[str]:
+    """Split text into sentences. Prefers cairn.normalizer.split_sentences when available;
+    falls back to a simple terminator-aware regex on import failure or attribute miss."""
     try:
         from cairn.normalizer import split_sentences  # type: ignore[attr-defined]
         out = [s.strip() for s in split_sentences(text) if s.strip()]
         if out:
             return out
+    except (ImportError, AttributeError):
+        pass  # cairn.normalizer.split_sentences not available; regex fallback below
     except Exception:
-        pass
+        logger.debug("split_sentences failed; falling back to regex", exc_info=True)
     import re
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
 
 
 def _cosine_distances(vecs) -> list[float]:
+    """Return 1 - cos(theta) for consecutive sentence pairs.
+
+    Vectors MUST be L2-normalised (caller passes normalize_embeddings=True to
+    SentenceTransformer.encode). Range [0, 2]: 0 = identical direction, 1 =
+    orthogonal, 2 = opposite. Unnormalised inputs would silently produce values
+    outside [0, 2] and break downstream kinematics.
+    """
     import numpy as np
     out: list[float] = []
     for i in range(len(vecs) - 1):
@@ -53,6 +69,11 @@ def _cosine_distances(vecs) -> list[float]:
 
 def _kinematics(distances: list[float]) -> dict[str, float]:
     import numpy as np
+    # The < 3 guard is defensive: in production _MIN_SENTENCES = 5 (in analyze)
+    # guarantees at least 4 distances and the else branch always fires. The
+    # zero-fill here is a structural placeholder for callers that bypass the
+    # sentence-count check; the std=0.0 values are NOT statistically meaningful
+    # for 1- or 2-distance inputs.
     if len(distances) < 3:
         return {
             "velocity_mean": float(np.mean(distances)) if distances else 0.0,
@@ -78,6 +99,10 @@ def _heuristic_p_llm(k: dict[str, float]) -> float:
     vz = max(0.0, _HEURISTIC_HUMAN_VELOCITY_STD - k["velocity_std"]) / max(_HEURISTIC_HUMAN_VELOCITY_STD, 1e-6)
     jz = max(0.0, _HEURISTIC_HUMAN_JERK_STD - k["jerk_std"]) / max(_HEURISTIC_HUMAN_JERK_STD, 1e-6)
     z = (vz + jz) / 2.0
+    # _HEURISTIC_SCALE / 6.0 is the gain multiplier; 6.0 is the "identity" baseline
+    # so the current value (SCALE=6.0) corresponds to 1x amplification. Future tuning
+    # can raise SCALE above 6 to amplify the heuristic toward 1.0 faster, or below
+    # 6 to dampen it, without changing the formula shape.
     return float(min(1.0, z * (_HEURISTIC_SCALE / 6.0)))
 
 
@@ -152,16 +177,21 @@ class SemanticKinematicsDetector:
 
 
 class _LazySemanticKinematics:
+    """Lazy wrapper around SemanticKinematicsDetector — defers model load until first analyze."""
+
     id = "semantic_kinematics"
     domain = "prose"
     compute_cost = "moderate"
-    _instance = None
+    _instance: "SemanticKinematicsDetector | None" = None
+    _lock = threading.Lock()
 
     def analyze(self, text: str, config: dict) -> LayerResult:
         if self._instance is None:
-            self._instance = SemanticKinematicsDetector(
-                model_name=(config or {}).get("model", _DEFAULT_MODEL),
-            )
+            with self._lock:
+                if self._instance is None:  # double-checked
+                    type(self)._instance = SemanticKinematicsDetector(
+                        model_name=(config or {}).get("model", _DEFAULT_MODEL),
+                    )
         return self._instance.analyze(text, config)
 
     def calibrate(self, labeled_data: list) -> None:
