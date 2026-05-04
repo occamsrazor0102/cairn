@@ -35,6 +35,9 @@ class FeatureAssembler:
         def missing(layer_id: str) -> float:
             return 0.0 if layer_id in by_id else 1.0
 
+        def conf(layer_id: str) -> float:
+            return float(by_id[layer_id].confidence) if layer_id in by_id else _NAN
+
         vec = {
             # Preamble
             "preamble_p_llm": p("preamble"),
@@ -96,6 +99,25 @@ class FeatureAssembler:
             "dna_gpt_missing": missing("dna_gpt"),
             "mixed_boundary_missing": missing("mixed_boundary"),
             "cross_similarity_missing": missing("cross_similarity"),
+            # Per-detector confidence (NaN when detector absent, raw confidence
+            # in [0, 1] when present). Acts as a soft gate so the EBM can
+            # downweight a low-confidence detector's p_llm contribution
+            # without us hard-coding the policy. NaNs imputed at training and
+            # inference via the per-column means in `_cairn_column_means`.
+            "preamble_confidence": conf("preamble"),
+            "fingerprint_confidence": conf("fingerprint_vocab"),
+            "ps_confidence": conf("prompt_structure"),
+            "vs_confidence": conf("voice_spec"),
+            "idi_confidence": conf("instruction_density"),
+            "nssi_confidence": conf("nssi"),
+            "surprisal_confidence": conf("surprisal_dynamics"),
+            "binoculars_confidence": conf("contrastive_lm"),
+            "tocsin_confidence": conf("token_cohesiveness"),
+            "perturbation_confidence": conf("perturbation"),
+            "contrastive_gen_confidence": conf("contrastive_gen"),
+            "dna_gpt_confidence": conf("dna_gpt"),
+            "mixed_boundary_confidence": conf("mixed_boundary"),
+            "cross_similarity_confidence": conf("cross_similarity"),
             # Metadata
             "word_count": float(word_count),
             "log_word_count": math.log1p(float(word_count)),
