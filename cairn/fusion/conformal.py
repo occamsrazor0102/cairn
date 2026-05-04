@@ -75,6 +75,12 @@ class ConformalWrapper:
 
         scores: array of fused p(LLM) estimates, shape (n,), values in [0, 1].
         labels: array of ground-truth labels, shape (n,), 0 = human, 1 = LLM.
+
+        Atomicity: all four state fields (`_threshold`, `_n_calibration`,
+        `_threshold_per_class`, `_n_per_class`) are written together only
+        after every per-class check has passed. If any check raises, the
+        wrapper retains its prior state (typically all-None, i.e.
+        ``calibrated == False``).
         """
         scores = np.asarray(scores, dtype=float)
         labels = np.asarray(labels, dtype=int)
@@ -85,9 +91,10 @@ class ConformalWrapper:
         n = len(scores)
         if n < self._MIN_PER_CLASS:
             raise ValueError(f"too few calibration points ({n})")
+
         nonconformity = np.where(labels == 1, 1.0 - scores, scores)
-        self._threshold = self._quantile_for(nonconformity)
-        self._n_calibration = int(n)
+        global_threshold = self._quantile_for(nonconformity)
+
         per_class: dict[int, float] = {}
         n_per_class: dict[int, int] = {}
         for cls in (0, 1):
@@ -98,6 +105,10 @@ class ConformalWrapper:
             nc_cls = (1.0 - scores[mask]) if cls == 1 else scores[mask]
             per_class[cls] = self._quantile_for(nc_cls)
             n_per_class[cls] = n_cls
+
+        # All checks passed — commit the calibration atomically.
+        self._threshold = global_threshold
+        self._n_calibration = int(n)
         self._threshold_per_class = per_class
         self._n_per_class = n_per_class
 
@@ -131,7 +142,7 @@ class ConformalWrapper:
     def save(self, path: Path) -> None:
         if self._threshold is None:
             raise RuntimeError("ConformalWrapper.save: not calibrated")
-        payload: dict = {
+        payload: dict[str, object] = {
             "alpha": self._alpha,
             "threshold": self._threshold,
             "n_calibration": self._n_calibration,
@@ -156,11 +167,16 @@ class ConformalWrapper:
         self._threshold = float(data["threshold"])
         self._n_calibration = int(data.get("n_calibration", 0))
         tpc = data.get("threshold_per_class")
-        if tpc:
+        if tpc is not None:
             self._threshold_per_class = {int(k): float(v) for k, v in tpc.items()}
         elif schema == self._SCHEMA_V1 or schema is None:
             self._threshold_per_class = {0: self._threshold, 1: self._threshold}
+        else:
+            # schema == _SCHEMA_V2 but threshold_per_class is missing — malformed.
+            raise ValueError(
+                f"ConformalWrapper.load: schema {self._SCHEMA_V2!r} requires threshold_per_class"
+            )
         npc = data.get("n_per_class")
         self._n_per_class = (
-            {int(k): int(v) for k, v in npc.items()} if npc else None
+            {int(k): int(v) for k, v in npc.items()} if npc is not None else None
         )
