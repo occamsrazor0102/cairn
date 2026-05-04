@@ -74,3 +74,15 @@ def test_nan_metrics_become_none():
 def test_include_predictions_false_empties_list():
     out = eval_report_to_dict(_mk_report(_preds()), include_predictions=False)
     assert out["predictions"] == []
+
+
+def test_eval_report_to_dict_includes_per_source():
+    from cairn.evaluation.runner import EvalReport
+    from cairn.evaluation import eval_report_to_dict
+    rep = EvalReport(
+        predictions=[], metrics={}, per_tier={}, n_samples=0,
+        config_hash="abc", per_source={"anthropic": {"n_samples": 10, "auroc": 0.95}},
+    )
+    out = eval_report_to_dict(rep)
+    assert "per_source" in out
+    assert out["per_source"]["anthropic"]["auroc"] == 0.95

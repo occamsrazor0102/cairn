@@ -183,6 +183,7 @@ def eval_report_to_dict(
         "metrics": _clean_metrics(report.metrics),
         "per_tier": {k: _clean_metrics(v) for k, v in report.per_tier.items()},
         "per_attack": {k: _clean_metrics(v) for k, v in report.per_attack.items()},
+        "per_source": dict(report.per_source),
         "confusion": {
             "threshold": threshold,
             "tp": tp, "fp": fp, "tn": tn, "fn": fn,
