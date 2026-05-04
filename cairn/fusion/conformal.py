@@ -114,18 +114,16 @@ class ConformalWrapper:
         p_llm = max(0.0, min(1.0, float(p_llm)))
         if self._threshold is None:
             return list(_LABELS)
-        out: list[str] = []
-        # Nonconformity of each class hypothesis for this test point.
-        nc = {"human": p_llm, "LLM": 1.0 - p_llm}
-        for cls in _LABELS:
-            if nc[cls] <= self._threshold:
-                out.append(cls)
-        # It's mathematically possible to produce the empty set when
-        # alpha is high and both classes look unconformable. Honest thing
-        # is to report the empty set — but most downstream code assumes
-        # at least one member. Callers should check .calibrated and fall
-        # back; returning both labels here would misreport coverage.
-        return out
+        if self._threshold_per_class is not None:
+            out: list[str] = []
+            nc = {0: p_llm, 1: 1.0 - p_llm}
+            idx_to_label = {0: "human", 1: "LLM"}
+            for cls in (0, 1):
+                if nc[cls] <= self._threshold_per_class[cls]:
+                    out.append(idx_to_label[cls])
+            return out
+        nc_named = {"human": p_llm, "LLM": 1.0 - p_llm}
+        return [c for c in _LABELS if nc_named[c] <= self._threshold]
 
     def save(self, path: Path) -> None:
         if self._threshold is None:

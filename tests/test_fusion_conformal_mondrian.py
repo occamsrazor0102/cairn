@@ -31,3 +31,12 @@ def test_per_class_calibration_rejects_class_with_too_few_points():
     labels = np.concatenate([np.zeros(200, dtype=int), np.ones(5, dtype=int)])
     with pytest.raises(ValueError, match="too few class-1 calibration points"):
         w.calibrate(scores, labels)
+
+
+def test_predict_set_uses_per_class_thresholds():
+    w = ConformalWrapper(alpha=0.1)
+    scores, labels = _mk_scores()
+    w.calibrate(scores, labels)
+    assert w.threshold_per_class[0] != pytest.approx(w.threshold_per_class[1], abs=1e-6)
+    assert w.predict_set(0.99) == ["LLM"]
+    assert w.predict_set(0.01) == ["human"]
