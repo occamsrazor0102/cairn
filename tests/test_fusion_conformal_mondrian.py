@@ -40,3 +40,27 @@ def test_predict_set_uses_per_class_thresholds():
     assert w.threshold_per_class[0] != pytest.approx(w.threshold_per_class[1], abs=1e-6)
     assert w.predict_set(0.99) == ["LLM"]
     assert w.predict_set(0.01) == ["human"]
+
+
+def test_save_and_load_round_trips_mondrian(tmp_path):
+    w = ConformalWrapper(alpha=0.1)
+    scores, labels = _mk_scores()
+    w.calibrate(scores, labels)
+    p = tmp_path / "cal.json"
+    w.save(p)
+    w2 = ConformalWrapper(alpha=0.5)
+    w2.load(p)
+    assert w2.threshold_per_class is not None
+    assert w2.predict_set(0.5) == w.predict_set(0.5)
+
+
+def test_load_v1_artifact_lifts_threshold_to_both_classes(tmp_path):
+    p = tmp_path / "old.json"
+    p.write_text(
+        '{"alpha": 0.05, "threshold": 0.42, "n_calibration": 100, '
+        '"schema": "binary-split-conformal-v1"}'
+    )
+    w = ConformalWrapper()
+    w.load(p)
+    assert w.calibrated
+    assert w.threshold_per_class == {0: 0.42, 1: 0.42}

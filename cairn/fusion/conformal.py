@@ -125,24 +125,42 @@ class ConformalWrapper:
         nc_named = {"human": p_llm, "LLM": 1.0 - p_llm}
         return [c for c in _LABELS if nc_named[c] <= self._threshold]
 
+    _SCHEMA_V1 = "binary-split-conformal-v1"
+    _SCHEMA_V2 = "binary-mondrian-conformal-v2"
+
     def save(self, path: Path) -> None:
         if self._threshold is None:
             raise RuntimeError("ConformalWrapper.save: not calibrated")
-        Path(path).write_text(json.dumps({
+        payload: dict = {
             "alpha": self._alpha,
             "threshold": self._threshold,
             "n_calibration": self._n_calibration,
-            "schema": "binary-split-conformal-v1",
-        }))
+            "schema": self._SCHEMA_V2,
+        }
+        if self._threshold_per_class is not None:
+            payload["threshold_per_class"] = {
+                str(k): v for k, v in self._threshold_per_class.items()
+            }
+        if self._n_per_class is not None:
+            payload["n_per_class"] = {str(k): v for k, v in self._n_per_class.items()}
+        Path(path).write_text(json.dumps(payload))
 
     def load(self, path: Path) -> None:
         data = json.loads(Path(path).read_text())
         schema = data.get("schema")
-        if schema is not None and schema != "binary-split-conformal-v1":
+        if schema not in (None, self._SCHEMA_V1, self._SCHEMA_V2):
             raise ValueError(
-                f"ConformalWrapper.load: unknown schema {schema!r}; "
-                "artifact was produced by a different version"
+                f"ConformalWrapper.load: unknown schema {schema!r}"
             )
         self._alpha = float(data["alpha"])
         self._threshold = float(data["threshold"])
         self._n_calibration = int(data.get("n_calibration", 0))
+        tpc = data.get("threshold_per_class")
+        if tpc:
+            self._threshold_per_class = {int(k): float(v) for k, v in tpc.items()}
+        elif schema == self._SCHEMA_V1 or schema is None:
+            self._threshold_per_class = {0: self._threshold, 1: self._threshold}
+        npc = data.get("n_per_class")
+        self._n_per_class = (
+            {int(k): int(v) for k, v in npc.items()} if npc else None
+        )
