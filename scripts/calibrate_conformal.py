@@ -48,18 +48,24 @@ def main() -> None:
 
     scores: list[float] = []
     labels: list[int] = []
+    router_classes: list[str] = []
     for s in tqdm(samples, desc="scoring", unit="sample"):
-        det = pipeline.analyze(s.text)
+        det, _results, rd = pipeline.analyze_detailed(s.text)
         scores.append(float(det.p_llm))
         labels.append(int(s.label))
+        router_classes.append(rd.domain)
 
     wrapper = ConformalWrapper(alpha=args.alpha)
-    wrapper.calibrate(np.asarray(scores), np.asarray(labels))
+    wrapper.calibrate(
+        np.asarray(scores), np.asarray(labels),
+        router_classes=np.asarray(router_classes),
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     wrapper.save(args.out)
     print(
         f"calibrated on {len(scores)} samples (alpha={args.alpha}); "
         f"per-class={wrapper.threshold_per_class}; "
+        f"per-router={list((wrapper.threshold_per_router or {}).keys())}; "
         f"wrote {args.out}"
     )
 
