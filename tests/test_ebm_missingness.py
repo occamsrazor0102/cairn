@@ -179,6 +179,29 @@ def test_empty_column_means_dict_is_preserved_not_dropped():
     assert fusion._column_means == {}
 
 
+def test_train_ebm_applies_monotone_constraints():
+    pytest.importorskip("interpret")
+    a = FeatureAssembler()
+    rows = []
+    for i in range(50):
+        if i < 25:
+            lr = _lr("preamble", p_llm=0.05, confidence=0.5, severity="NONE", n_matches=0)
+        else:
+            lr = _lr("preamble", p_llm=0.95, confidence=0.5, severity="CRITICAL", n_matches=4)
+        rows.append((a.assemble([lr], word_count=200, domain="prose"), int(i >= 25)))
+    X = [r for r, _ in rows]
+    y = [lab for _, lab in rows]
+    from cairn.fusion.training import train_ebm
+    model = train_ebm(X, y)
+    constraints = getattr(model, "_cairn_monotone_constraints", None)
+    if constraints is None:
+        pytest.skip("interpret-ml without monotone_constraints support")
+    feat_to_idx = {n: i for i, n in enumerate(model._cairn_feature_names)}
+    for name in ("preamble_severity", "fingerprint_hits_per_1000", "nssi_n_signals_active"):
+        idx = feat_to_idx[name]
+        assert constraints[idx] == 1, f"expected monotone-up on {name}"
+
+
 @pytest.mark.parametrize("prefix", [
     "preamble", "fingerprint", "ps", "vs", "idi", "nssi", "surprisal",
     "binoculars", "tocsin", "perturbation", "contrastive_gen", "dna_gpt",
