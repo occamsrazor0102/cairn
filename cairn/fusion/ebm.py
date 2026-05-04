@@ -167,9 +167,16 @@ class EBMFusion:
                 extra_in_artifact = artifact_set - assembler_set
                 extra_in_assembler = assembler_set - artifact_set
                 if extra_in_artifact:
-                    logger.warning("EBM artifact expects features not in assembler: %s", sorted(extra_in_artifact))
+                    raise RuntimeError(
+                        "EBM artifact requires features the current assembler "
+                        f"cannot produce: {sorted(extra_in_artifact)}. Either "
+                        "retrain the EBM or update the assembler to produce them."
+                    )
                 if extra_in_assembler:
-                    logger.info("Assembler produces features not in EBM artifact (ignored until retrain): %s", sorted(extra_in_assembler))
+                    logger.info(
+                        "Assembler produces features not in EBM artifact "
+                        "(ignored until retrain): %s", sorted(extra_in_assembler),
+                    )
             cm = getattr(model, "_cairn_column_means", None)
             if cm:
                 self._column_means = dict(cm)
