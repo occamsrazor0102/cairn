@@ -30,6 +30,7 @@ class EvalReport:
     config_hash: str
     failed_samples: list[dict] = field(default_factory=list)
     per_attack: dict[str, dict] = field(default_factory=dict)
+    per_source: dict[str, dict] = field(default_factory=dict)
 
 
 def _config_hash(config: dict | None) -> str:
@@ -113,6 +114,23 @@ def run_eval(
         ys = [p["p_llm"] for p in preds]
         per_attack[attack] = summarize(yt, ys)
 
+    by_source: dict[str, list[dict]] = defaultdict(list)
+    for pred, sample in zip(predictions, kept):
+        if sample.source:
+            by_source[sample.source].append(pred)
+    per_source: dict[str, dict] = {}
+    for src, preds in by_source.items():
+        scores = [p["p_llm"] for p in preds]
+        labels_ = [p["label"] for p in preds]
+        block: dict = {"n_samples": len(preds)}
+        if len(set(labels_)) >= 2:
+            # auroc/brier in cairn.evaluation.metrics expect (y_true, y_score).
+            block["auroc"] = auroc(labels_, scores)
+            block["brier"] = brier(labels_, scores)
+        else:
+            block["auroc_unavailable"] = "single-class slice"
+        per_source[src] = block
+
     return EvalReport(
         predictions=predictions,
         metrics=metrics,
@@ -121,6 +139,7 @@ def run_eval(
         config_hash=_config_hash(_extract_config(pipeline)),
         failed_samples=failed,
         per_attack=per_attack,
+        per_source=per_source,
     )
 
 
