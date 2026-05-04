@@ -22,7 +22,8 @@ class DecisionEngine:
                     feature_contributions=dict(fusion.feature_contributions),
                     conformal_set=list(fusion.conformal_set) if fusion.conformal_set is not None else None,
                     conformal_alpha=fusion.conformal_alpha,
-                    fusion_mode=fusion.fusion_mode)
+                    fusion_mode=fusion.fusion_mode,
+                    coverage_guarantee_applies=False)
             if result.layer_id == "mixed_boundary":
                 mixed_prob = float(result.signals.get("mixed_probability", 0.0) or 0.0)
                 if mixed_prob >= 0.60 and result.determination != "SKIP":
@@ -47,6 +48,7 @@ class DecisionEngine:
                 conformal_set=list(fusion.conformal_set) if fusion.conformal_set is not None else None,
                 conformal_alpha=fusion.conformal_alpha,
                 fusion_mode=fusion.fusion_mode,
+                coverage_guarantee_applies=False,
             )
         abstention_reason = None
         coverage_applies = True
