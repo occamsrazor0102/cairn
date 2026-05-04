@@ -16,6 +16,8 @@ from cairn.evaluation.metrics import (
     auroc, ece, brier, tpr_at_fpr, summarize, confusion_at_threshold,
 )
 
+_SINGLE_CLASS_SENTINEL = "single-class slice"
+
 
 class PipelineLike(Protocol):
     def analyze(self, text: str, task_metadata: dict | None = None) -> Determination: ...
@@ -123,12 +125,15 @@ def run_eval(
         scores = [p["p_llm"] for p in preds]
         labels_ = [p["label"] for p in preds]
         block: dict = {"n_samples": len(preds)}
+        # brier is well-defined for single-class slices (it's just MSE between
+        # predicted probability and the binary label); compute it unconditionally
+        # so consumers can always read it. auroc requires both classes.
+        block["brier"] = brier(labels_, scores)
         if len(set(labels_)) >= 2:
-            # auroc/brier in cairn.evaluation.metrics expect (y_true, y_score).
+            # auroc in cairn.evaluation.metrics expects (y_true, y_score).
             block["auroc"] = auroc(labels_, scores)
-            block["brier"] = brier(labels_, scores)
         else:
-            block["auroc_unavailable"] = "single-class slice"
+            block["auroc_unavailable"] = _SINGLE_CLASS_SENTINEL
         per_source[src] = block
 
     return EvalReport(
@@ -183,7 +188,7 @@ def eval_report_to_dict(
         "metrics": _clean_metrics(report.metrics),
         "per_tier": {k: _clean_metrics(v) for k, v in report.per_tier.items()},
         "per_attack": {k: _clean_metrics(v) for k, v in report.per_attack.items()},
-        "per_source": dict(report.per_source),
+        "per_source": {k: _clean_metrics(v) for k, v in report.per_source.items()},
         "confusion": {
             "threshold": threshold,
             "tp": tp, "fp": fp, "tn": tn, "fn": fn,

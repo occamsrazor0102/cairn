@@ -25,10 +25,12 @@ def test_holdout_source_excludes_family_from_train(tmp_path):
     ds = tmp_path / "ds.jsonl"
     _write_dataset(ds)
     out = tmp_path / "ebm.pkl"
-    cfg = Path("configs/default.yaml")
+    # Resolve config relative to the repo root so the test does not silently
+    # break if pytest is invoked from a different cwd.
+    repo_root = Path(__file__).resolve().parent.parent
+    cfg = repo_root / "configs" / "default.yaml"
     # Ensure the subprocess can import `cairn` even when the editable install's
     # .pth file points elsewhere — fall back to the repo root on PYTHONPATH.
-    repo_root = Path(__file__).resolve().parent.parent
     env = os.environ.copy()
     existing_pp = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
@@ -38,7 +40,7 @@ def test_holdout_source_excludes_family_from_train(tmp_path):
         [sys.executable, "scripts/train_fusion.py",
          "--dataset", str(ds), "--config", str(cfg),
          "--out", str(out), "--holdout-source", "openai"],
-        capture_output=True, text=True, env=env,
+        capture_output=True, text=True, env=env, cwd=str(repo_root),
     )
     assert res.returncode == 0, res.stderr
     assert "trained on 30" in res.stdout
