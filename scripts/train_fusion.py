@@ -42,6 +42,10 @@ def main() -> None:
                          "scripts/cache_pipeline_features.py). When set, "
                          "the cache supplies detector outputs and the "
                          "config's calibrator is applied at read-time.")
+    ap.add_argument(
+        "--holdout-source", default=None,
+        help="LLM source to hold out entirely from training (zero-shot eval).",
+    )
     args = ap.parse_args()
 
     pipeline = (
@@ -60,9 +64,24 @@ def main() -> None:
         X.append(vec)
         y.append(int(s.label))
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=args.test_size, stratify=y, random_state=42
-    )
+    if args.holdout_source:
+        idx_train = [i for i, s in enumerate(samples)
+                     if (s.source or "").lower() != args.holdout_source.lower()]
+        idx_test = [i for i, s in enumerate(samples)
+                    if (s.source or "").lower() == args.holdout_source.lower()]
+        if not idx_train or not idx_test:
+            raise SystemExit(
+                f"--holdout-source {args.holdout_source!r} produced an empty split "
+                f"(train={len(idx_train)}, test={len(idx_test)})"
+            )
+        X_train = [X[i] for i in idx_train]
+        y_train = [y[i] for i in idx_train]
+        X_test = [X[i] for i in idx_test]
+        y_test = [y[i] for i in idx_test]
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=args.test_size, stratify=y, random_state=42
+        )
     model = train_ebm(X_train, y_train)
 
     dataset_bytes = args.dataset.read_bytes()
