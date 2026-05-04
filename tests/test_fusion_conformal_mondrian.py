@@ -117,3 +117,34 @@ def test_load_v2_artifact_with_empty_threshold_per_class_loads_empty(tmp_path):
     # Empty dict means we have NO per-class data; the wrapper should NOT silently invent
     # {0: t, 1: t} from the global threshold (that's the v1-lift behavior, only for v1 schema).
     assert w.threshold_per_class == {}
+
+
+# --- Phase 3: router-conditional Mondrian conformal -----------------------
+
+
+def test_calibrate_with_router_classes_populates_per_router_thresholds():
+    w = ConformalWrapper(alpha=0.1)
+    rng = np.random.default_rng(0)
+    n = 200
+    scores = np.concatenate([
+        rng.beta(2, 8, n), rng.beta(8, 2, n),
+        rng.beta(2, 6, n), rng.beta(6, 2, n),
+    ])
+    labels = np.concatenate([np.zeros(n), np.ones(n), np.zeros(n), np.ones(n)]).astype(int)
+    routers = np.array(["prose"]*(2*n) + ["prompt"]*(2*n))
+    w.calibrate(scores, labels, router_classes=routers)
+    assert w.threshold_per_router is not None
+    assert set(w.threshold_per_router.keys()) == {"prose", "prompt"}
+    for rc in ("prose", "prompt"):
+        assert set(w.threshold_per_router[rc].keys()) == {0, 1}
+
+
+def test_underpowered_router_cell_falls_back_to_class_only():
+    w = ConformalWrapper(alpha=0.1)
+    rng = np.random.default_rng(0)
+    n = 200
+    scores = np.concatenate([rng.beta(2, 8, n), rng.beta(8, 2, n), rng.beta(2, 8, 10)])
+    labels = np.concatenate([np.zeros(n), np.ones(n), np.zeros(10)]).astype(int)
+    routers = np.array(["prose"]*(2*n) + ["mixed"]*10)
+    w.calibrate(scores, labels, router_classes=routers)
+    assert "mixed" not in (w.threshold_per_router or {})

@@ -37,6 +37,7 @@ class ConformalWrapper:
     """Honest split-conformal for the binary LLM/human decision (Mondrian-capable)."""
 
     _MIN_PER_CLASS = 10
+    _MIN_PER_CELL = 30
 
     def __init__(self, alpha: float = 0.05):
         if not (0.0 < alpha < 1.0):
@@ -46,6 +47,8 @@ class ConformalWrapper:
         self._threshold_per_class: dict[int, float] | None = None
         self._n_calibration: int = 0
         self._n_per_class: dict[int, int] | None = None
+        self._threshold_per_router: dict[str, dict[int, float]] | None = None
+        self._n_per_router: dict[str, int] | None = None
 
     @property
     def alpha(self) -> float:
@@ -59,6 +62,10 @@ class ConformalWrapper:
     def threshold_per_class(self) -> dict[int, float] | None:
         return self._threshold_per_class
 
+    @property
+    def threshold_per_router(self) -> dict[str, dict[int, float]] | None:
+        return self._threshold_per_router
+
     def threshold_for(self, cls: int) -> float | None:
         if self._threshold_per_class is None:
             return self._threshold
@@ -70,17 +77,30 @@ class ConformalWrapper:
         q_level = min(q_level, 1.0)
         return float(np.quantile(nonconformity, q_level, method="higher"))
 
-    def calibrate(self, scores: np.ndarray, labels: np.ndarray) -> None:
+    def calibrate(
+        self,
+        scores: np.ndarray,
+        labels: np.ndarray,
+        router_classes: np.ndarray | None = None,
+    ) -> None:
         """Fit the conformal threshold on a held-out calibration set.
 
         scores: array of fused p(LLM) estimates, shape (n,), values in [0, 1].
         labels: array of ground-truth labels, shape (n,), 0 = human, 1 = LLM.
+        router_classes: optional array of per-sample router-domain strings,
+            shape (n,). When provided, builds an additional layer of
+            ``(router_class, class)`` thresholds. Cells with fewer than
+            ``_MIN_PER_CELL`` total samples or fewer than ``_MIN_PER_CLASS``
+            samples in either inner class are silently skipped — those
+            router classes fall back to the class-only thresholds at
+            inference time.
 
-        Atomicity: all four state fields (`_threshold`, `_n_calibration`,
+        Atomicity: all four core state fields (`_threshold`, `_n_calibration`,
         `_threshold_per_class`, `_n_per_class`) are written together only
         after every per-class check has passed. If any check raises, the
         wrapper retains its prior state (typically all-None, i.e.
-        ``calibrated == False``).
+        ``calibrated == False``). The optional per-router map is built
+        locally and only assigned when at least one router class qualifies.
         """
         scores = np.asarray(scores, dtype=float)
         labels = np.asarray(labels, dtype=int)
@@ -111,6 +131,33 @@ class ConformalWrapper:
         self._n_calibration = int(n)
         self._threshold_per_class = per_class
         self._n_per_class = n_per_class
+
+        if router_classes is not None:
+            router_classes = np.asarray(router_classes)
+            if router_classes.shape != labels.shape:
+                raise ValueError("router_classes must match labels shape")
+            per_router: dict[str, dict[int, float]] = {}
+            n_per_router: dict[str, int] = {}
+            for rc in np.unique(router_classes):
+                rc_mask = router_classes == rc
+                rc_total = int(rc_mask.sum())
+                if rc_total < self._MIN_PER_CELL:
+                    continue
+                rc_class_thresholds: dict[int, float] = {}
+                ok = True
+                for cls in (0, 1):
+                    inner = rc_mask & (labels == cls)
+                    if int(inner.sum()) < self._MIN_PER_CLASS:
+                        ok = False
+                        break
+                    nc_inner = (1.0 - scores[inner]) if cls == 1 else scores[inner]
+                    rc_class_thresholds[cls] = self._quantile_for(nc_inner)
+                if ok:
+                    per_router[str(rc)] = rc_class_thresholds
+                    n_per_router[str(rc)] = rc_total
+            if per_router:
+                self._threshold_per_router = per_router
+                self._n_per_router = n_per_router
 
     def predict_set(self, p_llm: float) -> list[str]:
         """Return the conformal prediction set for one fused score.
