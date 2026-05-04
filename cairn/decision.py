@@ -49,13 +49,27 @@ class DecisionEngine:
                 fusion_mode=fusion.fusion_mode,
             )
         abstention_reason = None
-        if self._abstain and fusion.conformal_set is not None and len(fusion.conformal_set) >= 2:
-            label = "UNCERTAIN"
-            reason = (
-                f"Conformal set is non-singleton ({', '.join(fusion.conformal_set)}); "
-                f"detector cannot rule out either class at α={fusion.conformal_alpha or 0:.2f}."
-            )
-            abstention_reason = "conformal_set"
+        coverage_applies = True
+        if self._abstain and fusion.conformal_set is not None:
+            if len(fusion.conformal_set) == 0:
+                label = "UNCERTAIN"
+                reason = (
+                    "Conformal set is empty — neither hypothesis is conformal at "
+                    f"α={fusion.conformal_alpha or 0:.2f}. Input is out-of-distribution "
+                    "relative to calibration; route to human review."
+                )
+                abstention_reason = "conformal_empty"
+                coverage_applies = False
+            elif len(fusion.conformal_set) >= 2:
+                label = "UNCERTAIN"
+                reason = (
+                    f"Conformal set is non-singleton ({', '.join(fusion.conformal_set)}); "
+                    f"detector cannot rule out either class at α={fusion.conformal_alpha or 0:.2f}."
+                )
+                abstention_reason = "conformal_set"
+            else:
+                label = self._p_llm_to_label(fusion.p_llm)
+                reason = self._generate_reason(label, fusion)
         elif self._abstain and fusion.conformal_set is None and len(fusion.prediction_set) >= self._max_pred_set:
             label = "UNCERTAIN"
             reason = f"Prediction set spans {len(fusion.prediction_set)} severity bands ({', '.join(fusion.prediction_set)}). Human review recommended."
@@ -71,7 +85,8 @@ class DecisionEngine:
             conformal_set=list(fusion.conformal_set) if fusion.conformal_set is not None else None,
             conformal_alpha=fusion.conformal_alpha,
             fusion_mode=fusion.fusion_mode,
-            abstention_reason=abstention_reason)
+            abstention_reason=abstention_reason,
+            coverage_guarantee_applies=coverage_applies)
 
     def _p_llm_to_label(self, p_llm: float) -> str:
         if p_llm >= self._red: return "RED"
