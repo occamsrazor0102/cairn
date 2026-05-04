@@ -148,3 +148,21 @@ def test_underpowered_router_cell_falls_back_to_class_only():
     routers = np.array(["prose"]*(2*n) + ["mixed"]*10)
     w.calibrate(scores, labels, router_classes=routers)
     assert "mixed" not in (w.threshold_per_router or {})
+
+
+def test_predict_set_with_router_class_uses_per_router_thresholds():
+    w = ConformalWrapper(alpha=0.1)
+    rng = np.random.default_rng(0)
+    n = 200
+    scores = np.concatenate([
+        rng.beta(2, 8, n), rng.beta(8, 2, n),
+        rng.beta(2, 6, n), rng.beta(6, 2, n),
+    ])
+    labels = np.concatenate([np.zeros(n), np.ones(n), np.zeros(n), np.ones(n)]).astype(int)
+    routers = np.array(["prose"]*(2*n) + ["prompt"]*(2*n))
+    w.calibrate(scores, labels, router_classes=routers)
+    s_prose = w.predict_set(0.5, router_class="prose")
+    s_prompt = w.predict_set(0.5, router_class="prompt")
+    assert isinstance(s_prose, list) and isinstance(s_prompt, list)
+    s_unknown = w.predict_set(0.5, router_class="atlantis")
+    assert isinstance(s_unknown, list)

@@ -66,10 +66,14 @@ class ConformalWrapper:
     def threshold_per_router(self) -> dict[str, dict[int, float]] | None:
         return self._threshold_per_router
 
-    def threshold_for(self, cls: int) -> float | None:
-        if self._threshold_per_class is None:
-            return self._threshold
-        return self._threshold_per_class.get(int(cls))
+    def threshold_for(self, cls: int, router_class: str | None = None) -> float | None:
+        if router_class is not None and self._threshold_per_router is not None:
+            inner = self._threshold_per_router.get(str(router_class))
+            if inner is not None:
+                return inner.get(int(cls))
+        if self._threshold_per_class is not None:
+            return self._threshold_per_class.get(int(cls))
+        return self._threshold
 
     def _quantile_for(self, nonconformity: np.ndarray) -> float:
         n = len(nonconformity)
@@ -159,7 +163,7 @@ class ConformalWrapper:
                 self._threshold_per_router = per_router
                 self._n_per_router = n_per_router
 
-    def predict_set(self, p_llm: float) -> list[str]:
+    def predict_set(self, p_llm: float, router_class: str | None = None) -> list[str]:
         """Return the conformal prediction set for one fused score.
 
         Returns a list drawn from ["human", "LLM"]. Possible values:
@@ -168,16 +172,30 @@ class ConformalWrapper:
           - ["human", "LLM"]   — abstain; both hypotheses are conformal
         When uncalibrated, always returns ["human", "LLM"] (honest
         maximum-uncertainty set, not a coverage guarantee).
+
+        Threshold resolution order when calibrated:
+          1. ``(router_class, class)`` per-router-per-class — used when
+             ``router_class`` is supplied AND that key exists in
+             ``_threshold_per_router``.
+          2. ``class``-only — used when per-router data is unavailable
+             for this router class (or none was supplied).
+          3. Marginal global ``_threshold`` — last-resort fallback when
+             neither per-router nor per-class data is available.
         """
         p_llm = max(0.0, min(1.0, float(p_llm)))
         if self._threshold is None:
             return list(_LABELS)
-        if self._threshold_per_class is not None:
+        per_class: dict[int, float] | None = None
+        if router_class is not None and self._threshold_per_router is not None:
+            per_class = self._threshold_per_router.get(str(router_class))
+        if per_class is None:
+            per_class = self._threshold_per_class
+        if per_class is not None:
             out: list[str] = []
             nc = {0: p_llm, 1: 1.0 - p_llm}
             idx_to_label = {0: "human", 1: "LLM"}
             for cls in (0, 1):
-                if nc[cls] <= self._threshold_per_class[cls]:
+                if nc[cls] <= per_class[cls]:
                     out.append(idx_to_label[cls])
             return out
         nc_named = {"human": p_llm, "LLM": 1.0 - p_llm}
