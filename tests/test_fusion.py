@@ -126,6 +126,58 @@ def test_ebm_fuse_passes_domain_to_conformal():
     assert fr.conformal_set == ["LLM"]
 
 
+def test_naive_fusion_with_no_conformal_returns_wide_ci():
+    from cairn.fusion.ebm import EBMFusion
+    from cairn.contracts import LayerResult
+    f = EBMFusion(model=None, conformal=None)
+    fr = f.fuse(
+        [LayerResult(layer_id="preamble", domain="universal", raw_score=0.9, p_llm=0.9,
+                     confidence=0.5, signals={}, determination="RED", attacker_tiers=[],
+                     compute_cost="trivial", min_text_length=0)],
+        word_count=200, domain="prose",
+    )
+    assert fr.confidence_interval == (0.0, 1.0)
+
+
+def test_ebm_fusion_ci_uses_conformal_threshold():
+    import pytest
+    from cairn.fusion.ebm import EBMFusion, ASSEMBLER_FEATURE_NAMES
+    from cairn.contracts import LayerResult
+
+    class _FakeConformal:
+        calibrated = True
+        alpha = 0.1
+        def predict_set(self, p, router_class=None):
+            return ["LLM"] if p > 0.5 else ["human"]
+        def threshold_for(self, cls, router_class=None):
+            return {0: 0.42, 1: 0.18}.get(cls)
+        threshold_per_class = {0: 0.42, 1: 0.18}
+        threshold_per_router = None
+
+    class _FakeModel:
+        _cairn_feature_names = list(ASSEMBLER_FEATURE_NAMES)
+        _cairn_column_means = {n: 0.5 for n in _cairn_feature_names}
+        def predict_proba(self, X):
+            import numpy as np
+            return np.array([[0.1, 0.9]])
+        def explain_local(self, X):
+            class _L:
+                def data(self_inner, _):
+                    return {"scores": [0.0] * len(_FakeModel._cairn_feature_names)}
+            return _L()
+
+    f = EBMFusion(model=_FakeModel(), conformal=_FakeConformal())
+    fr = f.fuse(
+        [LayerResult(layer_id="preamble", domain="universal", raw_score=0.9, p_llm=0.9,
+                     confidence=0.5, signals={"severity": "HIGH", "n_matches": 1},
+                     determination="RED", attacker_tiers=[], compute_cost="trivial",
+                     min_text_length=0)],
+        word_count=200, domain="prose",
+    )
+    assert fr.confidence_interval[0] == pytest.approx(0.72, abs=1e-6)
+    assert fr.confidence_interval[1] == 1.0
+
+
 def test_ebm_fuse_with_domain_none_warns_and_defaults_to_prose(caplog):
     """_ebm_fuse with domain=None must surface a warning, not silently emit OOD features."""
     import logging

@@ -194,6 +194,38 @@ class EBMFusion:
             return self._naive_fuse(layer_results, domain=domain)
         return self._ebm_fuse(layer_results, word_count, domain)
 
+    def _conformal_ci(
+        self, p_llm: float, router_class: str | None = None
+    ) -> tuple[float, float] | None:
+        """Conformal-derived CI half-width when calibrated, else ``None``.
+
+        Half-width is the calibrated nonconformity threshold for the
+        predicted class (``threshold_for(cls, router_class)``). This is the
+        smallest deviation between ``p_llm`` and the class boundary at which
+        the calibrated wrapper would still cover the true label with
+        probability ``1 - alpha`` — i.e. an honest, coverage-guaranteed
+        uncertainty band rather than a hardcoded ±0.10.
+
+        Returns ``None`` when the wrapper isn't loaded, isn't calibrated,
+        or fails to produce a threshold (legacy wrappers without
+        ``threshold_for``, or per-class data missing). Callers fall back
+        to the path-appropriate default in that case.
+        """
+        if self._conformal is None or not getattr(self._conformal, "calibrated", False):
+            return None
+        cls = 1 if p_llm >= 0.5 else 0
+        try:
+            hw = self._conformal.threshold_for(cls, router_class=router_class)
+        except (TypeError, AttributeError):
+            try:
+                hw = self._conformal.threshold_for(cls)
+            except (TypeError, AttributeError):
+                return None
+        if hw is None:
+            return None
+        hw = float(hw)
+        return (max(0.0, p_llm - hw), min(1.0, p_llm + hw))
+
     def _maybe_conformal(
         self, p_llm: float, router_class: str | None = None
     ) -> tuple[list[str] | None, float | None]:
@@ -248,7 +280,9 @@ class EBMFusion:
             contribs = {}
             top = []
 
-        ci = (max(0.0, p_llm - 0.10), min(1.0, p_llm + 0.10))
+        ci = self._conformal_ci(p_llm, router_class=domain) or (
+            max(0.0, p_llm - 0.10), min(1.0, p_llm + 0.10)
+        )
         prediction_set = _p_llm_to_labels(p_llm, 0.10)
         conformal_set, conformal_alpha = self._maybe_conformal(p_llm, router_class=domain)
         return FusionResult(p_llm=p_llm, confidence_interval=ci,
@@ -270,7 +304,7 @@ class EBMFusion:
         p_llm = sum(r.p_llm * r.confidence for r in active) / w_sum
         spread = max(r.p_llm for r in active) - min(r.p_llm for r in active)
         hw = max(0.05, spread / 2)
-        ci = (max(0.0, p_llm - hw), min(1.0, p_llm + hw))
+        ci = self._conformal_ci(p_llm, router_class=domain) or (0.0, 1.0)
         contribs = {r.layer_id: (r.p_llm - 0.5) * r.confidence for r in active}
         top = sorted(contribs.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
         prediction_set = _p_llm_to_labels(p_llm, hw)
