@@ -136,6 +136,20 @@ class CairnPipeline:
                 Path(config["monitoring"].get("store_path", "data/monitoring")),
                 config,
             )
+        self._retrieval_index = None
+        rcfg = (config or {}).get("retrieval", {})
+        if rcfg.get("enabled"):
+            try:
+                from cairn.index.store import PersistentRetrievalIndex
+                self._retrieval_index = PersistentRetrievalIndex(
+                    db_path=rcfg.get("db_path", "data/retrieval.db"),
+                )
+            except ImportError:
+                logger.warning(
+                    "retrieval extra not installed; cross_similarity falls back to batch."
+                )
+            except Exception:
+                logger.warning("retrieval index init failed; continuing without", exc_info=True)
         missing = detector_registry.get_missing_detectors()
         for name, err in missing.items():
             logger.info(f"Detector '{name}' unavailable: {err}")
@@ -227,6 +241,13 @@ class CairnPipeline:
                 self._monitor.record(determination.p_llm, determination.label, vec)
             except Exception as e:
                 logger.warning(f"drift monitor record failed: {e}")
+        if self._retrieval_index is not None:
+            try:
+                import hashlib
+                sid = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+                self._retrieval_index.add(sid, text)
+            except Exception:
+                logger.warning("retrieval index add failed", exc_info=True)
         return determination, results, router_decision
 
     def analyze_batch(
@@ -300,6 +321,8 @@ class CairnPipeline:
             if task_metadata:
                 for k, v in task_metadata.items():
                     det_config.setdefault(k, v)
+            if det_id == "cross_similarity" and self._retrieval_index is not None:
+                det_config = {**det_config, "_index_handle": self._retrieval_index, "use_retrieval_index": True}
             detector = self._detectors.get(det_id)
             if detector is None:
                 # Enabled in config but not importable (missing extras). Record
