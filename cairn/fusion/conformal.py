@@ -34,14 +34,18 @@ _LABELS = ["human", "LLM"]  # index 0 = label 0 = human; index 1 = LLM
 
 
 class ConformalWrapper:
-    """Honest split-conformal for the binary LLM/human decision."""
+    """Honest split-conformal for the binary LLM/human decision (Mondrian-capable)."""
+
+    _MIN_PER_CLASS = 10
 
     def __init__(self, alpha: float = 0.05):
         if not (0.0 < alpha < 1.0):
             raise ValueError(f"alpha must be in (0, 1), got {alpha}")
         self._alpha = alpha
         self._threshold: float | None = None
+        self._threshold_per_class: dict[int, float] | None = None
         self._n_calibration: int = 0
+        self._n_per_class: dict[int, int] | None = None
 
     @property
     def alpha(self) -> float:
@@ -50,6 +54,21 @@ class ConformalWrapper:
     @property
     def calibrated(self) -> bool:
         return self._threshold is not None
+
+    @property
+    def threshold_per_class(self) -> dict[int, float] | None:
+        return self._threshold_per_class
+
+    def threshold_for(self, cls: int) -> float | None:
+        if self._threshold_per_class is None:
+            return self._threshold
+        return self._threshold_per_class.get(int(cls))
+
+    def _quantile_for(self, nonconformity: np.ndarray) -> float:
+        n = len(nonconformity)
+        q_level = math.ceil((n + 1) * (1.0 - self._alpha)) / n
+        q_level = min(q_level, 1.0)
+        return float(np.quantile(nonconformity, q_level, method="higher"))
 
     def calibrate(self, scores: np.ndarray, labels: np.ndarray) -> None:
         """Fit the conformal threshold on a held-out calibration set.
@@ -64,22 +83,23 @@ class ConformalWrapper:
         if scores.ndim != 1:
             raise ValueError("scores and labels must be 1-D arrays")
         n = len(scores)
-        if n < 10:
-            raise ValueError(
-                f"too few calibration points ({n}); split-conformal needs at "
-                "least ~10 and usually many more for a useful interval"
-            )
-        # Nonconformity = 1 - p(true class).  For LLM-labelled points, the
-        # true-class probability is p_llm itself; for human-labelled points
-        # it is 1 - p_llm.
+        if n < self._MIN_PER_CLASS:
+            raise ValueError(f"too few calibration points ({n})")
         nonconformity = np.where(labels == 1, 1.0 - scores, scores)
-        # Finite-sample split-conformal quantile (Vovk et al.).
-        q_level = math.ceil((n + 1) * (1.0 - self._alpha)) / n
-        # For very small n and very small alpha, q_level can exceed 1 —
-        # clamp so np.quantile doesn't raise.
-        q_level = min(q_level, 1.0)
-        self._threshold = float(np.quantile(nonconformity, q_level, method="higher"))
+        self._threshold = self._quantile_for(nonconformity)
         self._n_calibration = int(n)
+        per_class: dict[int, float] = {}
+        n_per_class: dict[int, int] = {}
+        for cls in (0, 1):
+            mask = labels == cls
+            n_cls = int(mask.sum())
+            if n_cls < self._MIN_PER_CLASS:
+                raise ValueError(f"too few class-{cls} calibration points ({n_cls})")
+            nc_cls = (1.0 - scores[mask]) if cls == 1 else scores[mask]
+            per_class[cls] = self._quantile_for(nc_cls)
+            n_per_class[cls] = n_cls
+        self._threshold_per_class = per_class
+        self._n_per_class = n_per_class
 
     def predict_set(self, p_llm: float) -> list[str]:
         """Return the conformal prediction set for one fused score.

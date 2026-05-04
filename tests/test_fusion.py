@@ -90,11 +90,11 @@ def test_naive_fusion_contributions_are_signed_and_weighted():
 
 
 def test_conformal_wrapper():
-    # Calibrate with 20 examples
+    # Calibrate with 20 examples (Mondrian needs >=10 per class)
     cal_scores = np.array([0.1, 0.2, 0.15, 0.05, 0.3, 0.25, 0.8, 0.7, 0.9, 0.85,
                            0.12, 0.18, 0.22, 0.08, 0.35, 0.75, 0.65, 0.95, 0.88, 0.78])
     cal_labels = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-                           0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+                           0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
     wrapper = ConformalWrapper(alpha=0.05)
     wrapper.calibrate(cal_scores, cal_labels)
     pset = wrapper.predict_set(0.82)
