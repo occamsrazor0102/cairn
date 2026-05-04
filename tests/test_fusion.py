@@ -140,7 +140,6 @@ def test_naive_fusion_with_no_conformal_returns_wide_ci():
 
 
 def test_ebm_fusion_ci_uses_conformal_threshold():
-    import pytest
     from cairn.fusion.ebm import EBMFusion, ASSEMBLER_FEATURE_NAMES
     from cairn.contracts import LayerResult
 
@@ -176,6 +175,39 @@ def test_ebm_fusion_ci_uses_conformal_threshold():
     )
     assert fr.confidence_interval[0] == pytest.approx(0.72, abs=1e-6)
     assert fr.confidence_interval[1] == 1.0
+
+
+def test_conformal_ci_returns_none_for_zero_width_threshold():
+    """A degenerate threshold_for == 0.0 must yield None, not a zero-width CI."""
+    from cairn.fusion.ebm import EBMFusion
+
+    class _ZeroWidthConformal:
+        calibrated = True
+        alpha = 0.99
+        def threshold_for(self, cls, router_class=None):
+            return 0.0
+        def predict_set(self, p, router_class=None):
+            return ["human", "LLM"]
+
+    f = EBMFusion(model=None, conformal=_ZeroWidthConformal())
+    assert f._conformal_ci(0.5) is None, (
+        "threshold_for returning 0.0 should yield None, not (0.5, 0.5)"
+    )
+
+    # Negative threshold (mathematically impossible but defensive — would
+    # produce inverted bounds (0.5+x, 0.5-x). Same guard handles it.
+    class _NegativeConformal:
+        calibrated = True
+        alpha = 0.99
+        def threshold_for(self, cls, router_class=None):
+            return -0.5
+        def predict_set(self, p, router_class=None):
+            return ["human", "LLM"]
+
+    f2 = EBMFusion(model=None, conformal=_NegativeConformal())
+    assert f2._conformal_ci(0.5) is None, (
+        "threshold_for returning a negative value should yield None"
+    )
 
 
 def test_ebm_fuse_with_domain_none_warns_and_defaults_to_prose(caplog):

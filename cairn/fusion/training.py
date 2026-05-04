@@ -81,7 +81,14 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
             random_state=42,
             monotone_constraints=monotone,
         )
-    except TypeError:
+    except TypeError as exc:
+        # Only swallow the specific "unknown kwarg monotone_constraints" TypeError
+        # raised by Python's argument dispatch on legacy interpret-ml builds.
+        # Unrelated TypeErrors (numpy dtype mismatch, malformed feature_names,
+        # etc.) must propagate so they don't masquerade as a missing-feature
+        # warning.
+        if "monotone_constraints" not in str(exc):
+            raise
         import interpret
         logger.warning(
             "monotone_constraints unsupported in interpret-ml=%s; training without",
@@ -97,8 +104,11 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
     model.fit(X_arr, y_arr)
     model._cairn_feature_names = feature_names  # attach for later use
     model._cairn_column_means = col_means
-    if monotone is not None:
-        model._cairn_monotone_constraints = monotone
+    # Always attach: None on the legacy-fallback path is the explicit
+    # "constraints not applied by design" sentinel. Without this,
+    # `getattr(model, "_cairn_monotone_constraints", None)` cannot
+    # distinguish "trained-without-by-design" from "pre-Phase-5 artifact".
+    model._cairn_monotone_constraints = monotone
     return model
 
 

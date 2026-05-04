@@ -224,6 +224,9 @@ class EBMFusion:
         if hw is None:
             return None
         hw = float(hw)
+        # Reject degenerate zero-width thresholds — return None so caller's fallback fires.
+        if hw <= 0.0:
+            return None
         return (max(0.0, p_llm - hw), min(1.0, p_llm + hw))
 
     def _maybe_conformal(
@@ -283,6 +286,7 @@ class EBMFusion:
         ci = self._conformal_ci(p_llm, router_class=domain) or (
             max(0.0, p_llm - 0.10), min(1.0, p_llm + 0.10)
         )
+        # prediction_set uses fixed 0.10 band; only confidence_interval comes from the conformal threshold.
         prediction_set = _p_llm_to_labels(p_llm, 0.10)
         conformal_set, conformal_alpha = self._maybe_conformal(p_llm, router_class=domain)
         return FusionResult(p_llm=p_llm, confidence_interval=ci,
