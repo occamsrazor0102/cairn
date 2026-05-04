@@ -40,12 +40,12 @@ Paste text, click Analyze. The result panel shows:
 
 ### Detectors
 
-Sixteen detectors organised into four cascade phases:
+Seventeen detectors organised into four cascade phases:
 
 | Phase | Cost | Detectors |
 |------:|------|-----------|
 | 1 | trivial / cheap | `preamble`, `fingerprint_vocab`, `prompt_structure`, `voice_spec`, `instruction_density`, `nssi` |
-| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `token_cohesiveness`, `mixed_boundary` |
+| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `token_cohesiveness`, `mixed_boundary`, `semantic_kinematics` |
 | 3 | expensive (LLM-backed) | `perturbation`, `contrastive_gen`, `dna_gpt` |
 | 4 | batch-only | `cross_similarity` (and `contributor_graph` via `pipeline.analyze_contributors`) |
 
