@@ -157,6 +157,7 @@ class EBMFusion:
         self._conformal = conformal
         self._assembler = FeatureAssembler()
         self._feature_names: list[str] | None = None
+        self._column_means: dict[str, float] = {}
         if model is not None:
             names = getattr(model, "_cairn_feature_names", None) or getattr(model, "_beet_feature_names", None)
             if names:
@@ -169,6 +170,9 @@ class EBMFusion:
                     logger.warning("EBM artifact expects features not in assembler: %s", sorted(extra_in_artifact))
                 if extra_in_assembler:
                     logger.info("Assembler produces features not in EBM artifact (ignored until retrain): %s", sorted(extra_in_assembler))
+            cm = getattr(model, "_cairn_column_means", None)
+            if cm:
+                self._column_means = dict(cm)
 
     def fuse(self, layer_results: list[LayerResult], word_count: int = 0, domain: str = "prose") -> FusionResult:
         if self._model is None:
@@ -186,8 +190,12 @@ class EBMFusion:
         vec = self._assembler.assemble(results, word_count, domain)
         features = self._feature_names or list(vec.keys())
         X = np.array([[vec.get(f, _NAN) for f in features]])
-        # Replace NaN with column means (fitted during training) or 0.5
-        X = np.where(np.isnan(X), 0.5, X)
+        # Replace NaN per-column using means stored on the artifact at training
+        # time (`_cairn_column_means`). Legacy artifacts without that attribute
+        # fall back to the historical 0.5 default.
+        for j, name in enumerate(features):
+            if np.isnan(X[0, j]):
+                X[0, j] = self._column_means.get(name, 0.5)
         proba = self._model.predict_proba(X)[0]
         p_llm = float(proba[1]) if len(proba) > 1 else float(proba[0])
 

@@ -18,6 +18,11 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
     X: list of feature dicts (from FeatureAssembler.assemble)
     y: list of labels (1=LLM, 0=human)
     Returns: trained EBM model
+
+    Computes per-column means from finite training values and imputes
+    NaNs with those means (instead of a global 0.5). The means are
+    attached to the model as `_cairn_column_means` so inference can
+    reuse the same imputation contract.
     """
     if not _HAS_INTERPRET:
         raise ImportError("interpretML not installed. Run: pip install 'cairn[fusion]'")
@@ -26,7 +31,15 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
         feature_names = list(X[0].keys())
 
     X_arr = np.array([[row.get(f, float("nan")) for f in feature_names] for row in X])
-    X_arr = np.where(np.isnan(X_arr), 0.5, X_arr)
+    col_means: dict[str, float] = {}
+    for j, name in enumerate(feature_names):
+        col = X_arr[:, j]
+        finite = col[~np.isnan(col)]
+        col_means[name] = float(finite.mean()) if finite.size else 0.5
+    for j, name in enumerate(feature_names):
+        col = X_arr[:, j]
+        col[np.isnan(col)] = col_means[name]
+        X_arr[:, j] = col
     y_arr = np.array(y)
 
     model = ExplainableBoostingClassifier(
@@ -41,6 +54,7 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
     )
     model.fit(X_arr, y_arr)
     model._cairn_feature_names = feature_names  # attach for later use
+    model._cairn_column_means = col_means
     return model
 
 
