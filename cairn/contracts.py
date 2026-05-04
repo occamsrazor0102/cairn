@@ -38,6 +38,11 @@ class FusionResult:
     # weighted-mean fallback did. Surfaced so the UI can caveat
     # "feature contributions" when they're really deviations-from-prior.
     fusion_mode: str = "naive"
+    # False when the result came from a path that voids the conformal
+    # coverage guarantee — empty conformal set, hard override, or any
+    # rule that supersedes the calibrated set. UI / downstream consumers
+    # should not advertise α-coverage when this is False.
+    coverage_guarantee_applies: bool = True
 
 @dataclass
 class Determination:
@@ -61,8 +66,13 @@ class Determination:
     # about reduced coverage instead of silently hiding the drop.
     detector_errors: list[dict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    abstention_reason: Literal["conformal_set", "prediction_set", "mixed_authorship"] | None = None
+    abstention_reason: Literal["conformal_set", "prediction_set", "mixed_authorship", "conformal_empty"] | None = None
     calibration_status: str = "heuristic"
+    # False when this Determination came from a path that voids the
+    # conformal α-coverage guarantee (empty conformal set, hard override,
+    # heuristic fallback). True only when the calibrated singleton
+    # conformal set drove the label.
+    coverage_guarantee_applies: bool = True
 
 @dataclass
 class RouterDecision:

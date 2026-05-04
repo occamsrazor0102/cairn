@@ -15,7 +15,7 @@ from cairn.evaluation.metrics import (
     per_attack_breakdown,
     summarize,
 )
-from cairn.evaluation.runner import EvalReport, run_eval
+from cairn.evaluation.runner import EvalReport, eval_report_to_dict, run_eval
 from cairn.evaluation.ablation import AblationReport, run_ablation, verdict_for
 from cairn.evaluation.robustness import RobustnessReport, run_robustness_eval
 from cairn.evaluation.fairness import FairnessReport, run_fairness_eval
@@ -34,6 +34,7 @@ __all__ = [
     "per_attack_breakdown",
     "summarize",
     "EvalReport",
+    "eval_report_to_dict",
     "run_eval",
     "AblationReport",
     "run_ablation",

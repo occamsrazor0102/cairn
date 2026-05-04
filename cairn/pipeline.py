@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import logging
 import math
@@ -94,6 +95,12 @@ def detector_availability(config: dict) -> list[dict]:
                 row["reason"] = "requires cairn[tier2] (transformers + torch)"
                 out.append(row)
                 continue
+        if det_id in {"semantic_kinematics"}:
+            row["requires"] = ["sentence_transformers"]
+            if not _has_module("sentence_transformers"):
+                row["reason"] = "requires cairn[retrieval] (sentence-transformers)"
+                out.append(row)
+                continue
         if det_id in ("contrastive_gen", "dna_gpt"):
             provider = (det_cfg or {}).get("provider", "anthropic")
             row["requires"] = [f"{provider} API key"]
@@ -136,9 +143,38 @@ class CairnPipeline:
                 Path(config["monitoring"].get("store_path", "data/monitoring")),
                 config,
             )
+        self._retrieval_index = None
+        rcfg = (config or {}).get("retrieval", {})
+        if rcfg.get("enabled"):
+            try:
+                from cairn.index.store import PersistentRetrievalIndex
+                self._retrieval_index = PersistentRetrievalIndex(
+                    db_path=rcfg.get("db_path", "data/retrieval.db"),
+                )
+            except ImportError:
+                logger.warning(
+                    "retrieval extra not installed; cross_similarity falls back to batch."
+                )
+            except Exception:
+                logger.warning("retrieval index init failed; continuing without", exc_info=True)
         missing = detector_registry.get_missing_detectors()
         for name, err in missing.items():
             logger.info(f"Detector '{name}' unavailable: {err}")
+
+    def close(self) -> None:
+        """Close the pipeline cleanly, flushing any persistent state."""
+        if self._retrieval_index is not None:
+            try:
+                self._retrieval_index.close()
+            except Exception:
+                logger.warning("retrieval index close failed", exc_info=True)
+            self._retrieval_index = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     @staticmethod
     def _build_fusion(config: dict) -> EBMFusion:
@@ -148,8 +184,8 @@ class CairnPipeline:
         model_path = fusion_cfg.get("model_path")
         if model_path and Path(model_path).exists():
             try:
-                from cairn.fusion.training import load_model
-                model = load_model(Path(model_path))
+                from cairn.fusion.serialization import load_model
+                model, _meta = load_model(Path(model_path))
             except Exception as e:
                 logger.warning(f"Failed to load EBM model at {model_path}: {e}")
         elif model_path:
@@ -227,6 +263,12 @@ class CairnPipeline:
                 self._monitor.record(determination.p_llm, determination.label, vec)
             except Exception as e:
                 logger.warning(f"drift monitor record failed: {e}")
+        if self._retrieval_index is not None:
+            try:
+                sid = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+                self._retrieval_index.add(sid, text)
+            except Exception:
+                logger.warning("retrieval index add failed", exc_info=True)
         return determination, results, router_decision
 
     def analyze_batch(
@@ -300,6 +342,8 @@ class CairnPipeline:
             if task_metadata:
                 for k, v in task_metadata.items():
                     det_config.setdefault(k, v)
+            if det_id == "cross_similarity" and self._retrieval_index is not None:
+                det_config = {**det_config, "_index_handle": self._retrieval_index, "use_retrieval_index": True}
             detector = self._detectors.get(det_id)
             if detector is None:
                 # Enabled in config but not importable (missing extras). Record

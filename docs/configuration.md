@@ -203,6 +203,24 @@ privacy:
 Consumed by `cairn.privacy.retention` (purge CLI) and
 `cairn.privacy.store.PrivacyStore` (access log).
 
+> **Privacy / history caveat.** The privacy retention purge governs
+> the access log under `cairn.privacy.store`. It does **not** purge
+> SQLite history text written by the GUI's history store
+> (`gui.history.db_path`) when `gui.history.retain_text` is `true`.
+> If you need both purges, run the privacy purge AND clear the
+> history database — the two retention policies are independent.
+> Set `gui.history.retain_text: false` to store only the sha256
+> hash and avoid this gap entirely.
+
+> **Privacy / history caveat.** The privacy retention purge governs
+> the access log under `cairn.privacy.store`. It does **not** purge
+> SQLite history text written by the GUI's history store
+> (`gui.history.db_path`) when `gui.history.retain_text` is `true`.
+> If you need both purges, run the privacy purge AND clear the
+> history database — the two retention policies are independent.
+> Set `gui.history.retain_text: false` to store only the sha256
+> hash and avoid this gap entirely.
+
 ## Runtime profile switching
 
 The GUI's Settings tab includes a profile dropdown. Clicking **Switch**
