@@ -23,15 +23,27 @@ class PersistentRetrievalIndex(RetrievalIndex):
     def _open_db(self) -> None:
         try:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
-            self._conn = sqlite3.connect(str(self._db_path))
-            self._conn.execute(
-                "CREATE TABLE IF NOT EXISTS submissions ("
-                " sid TEXT PRIMARY KEY, text TEXT NOT NULL, "
-                " ts REAL DEFAULT (strftime('%s','now')))"
-            )
-            self._conn.commit()
+            conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+            try:
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS submissions ("
+                    " sid TEXT PRIMARY KEY, text TEXT NOT NULL, "
+                    " ts REAL DEFAULT (strftime('%s','now')))"
+                )
+                conn.commit()
+            except sqlite3.Error:
+                try:
+                    conn.close()
+                except sqlite3.Error:
+                    pass
+                raise
+            self._conn = conn
         except sqlite3.Error:
-            logger.warning("PersistentRetrievalIndex: db open failed at %s", self._db_path, exc_info=True)
+            logger.warning(
+                "PersistentRetrievalIndex: db open failed at %s",
+                self._db_path,
+                exc_info=True,
+            )
             self._conn = None
 
     def _rebuild_from_db(self) -> None:
@@ -62,5 +74,5 @@ class PersistentRetrievalIndex(RetrievalIndex):
             try:
                 self._conn.close()
             except sqlite3.Error:
-                pass
+                logger.debug("PersistentRetrievalIndex.close failed", exc_info=True)
             self._conn = None

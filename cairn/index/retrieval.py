@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import threading
 
 logger = logging.getLogger("cairn.index")
 
@@ -22,28 +23,31 @@ class RetrievalIndex:
         self._index = faiss.IndexFlatIP(self._dim)
         self._ids: list[str] = []
         self._texts: dict[str, str] = {}
+        self._lock = threading.RLock()
 
     def add(self, sid: str, text: str) -> None:
-        emb = self._embed(text)
-        self._index.add(emb)
-        self._ids.append(sid)
-        self._texts[sid] = text
+        with self._lock:
+            emb = self._embed(text)
+            self._index.add(emb)
+            self._ids.append(sid)
+            self._texts[sid] = text
 
     def query(self, sid_or_text: str, k: int = 5) -> list[tuple[str, float]]:
-        text = self._texts.get(sid_or_text, sid_or_text)
-        if self._index.ntotal == 0:
-            return []
-        emb = self._embed(text)
-        k_eff = min(k, self._index.ntotal)
-        scores, idx = self._index.search(emb, k_eff)
-        out: list[tuple[str, float]] = []
-        for s, i in zip(scores[0], idx[0]):
-            if i < 0:
-                continue
-            out.append((self._ids[i], float(s)))
-        return out
+        with self._lock:
+            text = self._texts.get(sid_or_text, sid_or_text)
+            if self._index.ntotal == 0:
+                return []
+            emb = self._embed(text)
+            k_eff = min(k, self._index.ntotal)
+            scores, idx = self._index.search(emb, k_eff)
+            out: list[tuple[str, float]] = []
+            for s, i in zip(scores[0], idx[0]):
+                if i < 0:
+                    continue
+                out.append((self._ids[i], float(s)))
+            return out
 
-    def _embed(self, text: str):
+    def _embed(self, text: str) -> "np.ndarray":
         import numpy as np
         emb = self._model.encode([text], normalize_embeddings=True, show_progress_bar=False)
         return np.asarray(emb, dtype="float32")

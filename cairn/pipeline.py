@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import logging
 import math
@@ -154,6 +155,21 @@ class CairnPipeline:
         for name, err in missing.items():
             logger.info(f"Detector '{name}' unavailable: {err}")
 
+    def close(self) -> None:
+        """Close the pipeline cleanly, flushing any persistent state."""
+        if self._retrieval_index is not None:
+            try:
+                self._retrieval_index.close()
+            except Exception:
+                logger.warning("retrieval index close failed", exc_info=True)
+            self._retrieval_index = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
     @staticmethod
     def _build_fusion(config: dict) -> EBMFusion:
         fusion_cfg = config.get("fusion", {}) or {}
@@ -243,7 +259,6 @@ class CairnPipeline:
                 logger.warning(f"drift monitor record failed: {e}")
         if self._retrieval_index is not None:
             try:
-                import hashlib
                 sid = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
                 self._retrieval_index.add(sid, text)
             except Exception:

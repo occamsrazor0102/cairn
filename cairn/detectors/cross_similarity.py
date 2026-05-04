@@ -64,10 +64,14 @@ class CrossSimilarityDetector:
             )
         top_id, top_score = neighbours[0]
         p_llm = self._heuristic_p_llm(top_score, threshold)
-        if p_llm >= 0.75: determination = "RED"
-        elif p_llm >= 0.50: determination = "AMBER"
-        elif p_llm >= 0.25: determination = "YELLOW"
-        else: determination = "GREEN"
+        if p_llm >= 0.75:
+            determination = "RED"
+        elif p_llm >= 0.50:
+            determination = "AMBER"
+        elif p_llm >= 0.25:
+            determination = "YELLOW"
+        else:
+            determination = "GREEN"
         return LayerResult(
             layer_id=self.id, domain=self.domain,
             raw_score=float(top_score), p_llm=float(p_llm),
@@ -87,9 +91,12 @@ class CrossSimilarityDetector:
     @staticmethod
     def _heuristic_p_llm(score: float, threshold: float) -> float:
         # _HEURISTIC_ score → p_llm map (CLAUDE.md naming convention).
+        # Below threshold: 0.2 .. 0.5 linear in score/threshold.
+        # At/above threshold: 0.5 .. 0.95 linear in (score - threshold) / (1 - threshold).
+        # Continuous at score = threshold (both branches give p_llm = 0.5).
         if score < threshold:
             return max(0.2, 0.5 * (score / max(threshold, 1e-6)))
-        return min(0.95, 0.7 + (score - threshold) * (0.25 / max(1e-6, 1.0 - threshold)))
+        return min(0.95, 0.5 + (score - threshold) * (0.45 / max(1e-6, 1.0 - threshold)))
 
     def analyze_batch(
         self, texts: dict[str, str], config: dict
