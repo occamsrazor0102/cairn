@@ -9,6 +9,9 @@ class DecisionEngine:
         abstention = decision.get("abstention", {})
         self._abstain = abstention.get("enabled", True)
         self._max_pred_set = abstention.get("max_prediction_set_size", 3)
+        mixed = decision.get("mixed", {})
+        self._mixed_enabled = bool(mixed.get("enabled", True))
+        self._mixed_threshold = float(mixed.get("min_mixed_probability", 0.60))
 
     def decide(self, fusion: FusionResult, layer_results: list[LayerResult]) -> Determination:
         mixed_report: dict | None = None
@@ -26,7 +29,11 @@ class DecisionEngine:
                     coverage_guarantee_applies=False)
             if result.layer_id == "mixed_boundary":
                 mixed_prob = float(result.signals.get("mixed_probability", 0.0) or 0.0)
-                if mixed_prob >= 0.60 and result.determination != "SKIP":
+                if (
+                    self._mixed_enabled
+                    and mixed_prob >= self._mixed_threshold
+                    and result.determination != "SKIP"
+                ):
                     mixed_report = {
                         "mixed_probability": mixed_prob,
                         "n_boundaries": result.signals.get("n_boundaries", 0),

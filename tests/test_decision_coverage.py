@@ -67,3 +67,35 @@ def test_mixed_override_marks_coverage_off():
     det = eng.decide(_fr(0.5, ["human", "LLM"]), layer_results=[mb])
     assert det.label == "MIXED"
     assert det.coverage_guarantee_applies is False
+
+
+def test_mixed_threshold_respects_config_lower():
+    cfg = {"decision": {"red_threshold": 0.75, "amber_threshold": 0.50,
+                        "yellow_threshold": 0.25,
+                        "abstention": {"enabled": True, "max_prediction_set_size": 3},
+                        "mixed": {"enabled": True, "min_mixed_probability": 0.30}}}
+    eng = DecisionEngine(cfg)
+    mb = LayerResult(
+        layer_id="mixed_boundary", domain="universal", raw_score=0.4, p_llm=0.4,
+        confidence=0.5, signals={"mixed_probability": 0.40, "n_boundaries": 2,
+                                 "segment_determinations": []},
+        determination="AMBER", attacker_tiers=[], compute_cost="moderate", min_text_length=0,
+    )
+    det = eng.decide(_fr(0.5, ["LLM"]), layer_results=[mb])
+    assert det.label == "MIXED"
+
+
+def test_mixed_threshold_respects_config_disabled():
+    cfg = {"decision": {"red_threshold": 0.75, "amber_threshold": 0.50,
+                        "yellow_threshold": 0.25,
+                        "abstention": {"enabled": True, "max_prediction_set_size": 3},
+                        "mixed": {"enabled": False, "min_mixed_probability": 0.60}}}
+    eng = DecisionEngine(cfg)
+    mb = LayerResult(
+        layer_id="mixed_boundary", domain="universal", raw_score=0.7, p_llm=0.7,
+        confidence=0.7, signals={"mixed_probability": 0.85, "n_boundaries": 3,
+                                 "segment_determinations": []},
+        determination="AMBER", attacker_tiers=[], compute_cost="moderate", min_text_length=0,
+    )
+    det = eng.decide(_fr(0.82, ["LLM"]), layer_results=[mb])
+    assert det.label == "RED"
