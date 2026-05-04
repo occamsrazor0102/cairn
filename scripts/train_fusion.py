@@ -17,7 +17,8 @@ from cairn.dotenv import load_dotenv
 from cairn.evaluation.dataset import load_dataset
 from cairn.feature_cache import CachedPipeline
 from cairn.fusion.ebm import FeatureAssembler
-from cairn.fusion.training import save_model, train_ebm
+from cairn.fusion.serialization import save_model as save_model_skops
+from cairn.fusion.training import train_ebm
 from cairn.pipeline import CairnPipeline
 
 try:
@@ -61,8 +62,25 @@ def main() -> None:
         X, y, test_size=args.test_size, stratify=y, random_state=42
     )
     model = train_ebm(X_train, y_train)
+
+    import hashlib
+    from datetime import datetime, timezone
+    dataset_bytes = args.dataset.read_bytes()
+    dataset_hash = hashlib.sha256(dataset_bytes).hexdigest()[:16]
+    metadata = {
+        "dataset_path": str(args.dataset),
+        "dataset_hash": dataset_hash,
+        "n_train": len(X_train),
+        "n_test": len(X_test),
+        "label_balance_train": sum(y_train) / max(1, len(y_train)),
+        "label_balance_test": sum(y_test) / max(1, len(y_test)),
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "interactions": 15,
+        "max_rounds": 300,
+        "schema_version": "ebm-v8",
+    }
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    save_model(model, args.out)
+    save_model_skops(model, args.out, metadata=metadata)
     print(f"trained on {len(X_train)}, held out {len(X_test)}, wrote {args.out}")
 
 

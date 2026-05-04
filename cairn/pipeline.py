@@ -148,8 +148,8 @@ class CairnPipeline:
         model_path = fusion_cfg.get("model_path")
         if model_path and Path(model_path).exists():
             try:
-                from cairn.fusion.training import load_model
-                model = load_model(Path(model_path))
+                from cairn.fusion.serialization import load_model
+                model, _meta = load_model(Path(model_path))
             except Exception as e:
                 logger.warning(f"Failed to load EBM model at {model_path}: {e}")
         elif model_path:
