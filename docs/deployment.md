@@ -44,7 +44,10 @@ docker compose up --build
 
 Endpoints:
 
-- `GET  /health`   — liveness + model info
+- `GET  /health`   — liveness + model info + `calibration_status` (one of
+  `heuristic`, `fusion-only`, `calibrated`, `calibrated-router-conditional`);
+  see [`docs/calibration.md`](calibration.md) for what each tier means and
+  which profiles produce it.
 - `GET  /config`   — current (redacted) config
 - `POST /analyze`  — `{text, task_metadata?, submission_id?}`
 - `POST /batch`    — `{items: [{id, text}], cross_similarity?: bool}`
