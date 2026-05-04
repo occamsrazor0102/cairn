@@ -208,11 +208,24 @@ class EBMFusion:
         try:
             cs = self._conformal.predict_set(p_llm, router_class=router_class)
         except TypeError:
+            logger.debug(
+                "Legacy ConformalWrapper detected — predict_set does not accept router_class; "
+                "falling back to marginal call"
+            )
             cs = self._conformal.predict_set(p_llm)
         return cs, float(getattr(self._conformal, "alpha", 0.0))
 
     def _ebm_fuse(self, results: list[LayerResult], word_count: int, domain: str | None) -> FusionResult:
         import numpy as np
+        if domain is None:
+            # _ebm_fuse called without a router decision — surface this rather than
+            # silently emitting domain_prompt=0.0, domain_prose=0.0 to the model
+            # (a feature combination the EBM was never trained on).
+            logger.warning(
+                "_ebm_fuse called with domain=None; defaulting to 'prose' (out-of-distribution "
+                "for prompt inputs). Pass an explicit domain via fuse(..., domain=...)."
+            )
+            domain = "prose"
         vec = self._assembler.assemble(results, word_count, domain)
         features = self._feature_names or list(vec.keys())
         X = np.array([[vec.get(f, _NAN) for f in features]])

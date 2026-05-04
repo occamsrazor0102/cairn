@@ -124,3 +124,32 @@ def test_ebm_fuse_passes_domain_to_conformal():
     )
     assert captured["router_class"] == "prose"
     assert fr.conformal_set == ["LLM"]
+
+
+def test_ebm_fuse_with_domain_none_warns_and_defaults_to_prose(caplog):
+    """_ebm_fuse with domain=None must surface a warning, not silently emit OOD features."""
+    import logging
+    from cairn.fusion.ebm import EBMFusion
+    from cairn.contracts import LayerResult
+
+    # Minimal fake EBM model so we exercise _ebm_fuse, not _naive_fuse.
+    class _FakeEBM:
+        def predict_proba(self, X):
+            return np.array([[0.5, 0.5]])
+
+        def explain_local(self, X):
+            class _L:
+                def data(self, _):
+                    return {"scores": [0.0] * X.shape[1]}
+            return _L()
+
+    fusion = EBMFusion(model=_FakeEBM(), conformal=None)
+    lr = LayerResult(
+        layer_id="preamble", domain="universal", raw_score=0.5, p_llm=0.5,
+        confidence=0.5, signals={}, determination="AMBER",
+        attacker_tiers=[], compute_cost="trivial", min_text_length=0,
+    )
+    with caplog.at_level(logging.WARNING, logger="cairn.fusion"):
+        fusion.fuse([lr], word_count=200, domain=None)
+    assert any("domain=None" in m for m in caplog.messages), \
+        "fuse(domain=None) must emit a WARNING; saw " + repr(caplog.messages)

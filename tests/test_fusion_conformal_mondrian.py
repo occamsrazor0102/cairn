@@ -151,21 +151,60 @@ def test_underpowered_router_cell_falls_back_to_class_only():
 
 
 def test_predict_set_with_router_class_uses_per_router_thresholds():
+    """The per-router branch must produce DIFFERENT outputs from per-class for the same p_llm."""
     w = ConformalWrapper(alpha=0.1)
     rng = np.random.default_rng(0)
     n = 200
+    # prose: lower-threshold-for-class-1 (LLM is "easy" — high scores common)
+    # prompt: higher-threshold-for-class-1 (LLM is "hard")
     scores = np.concatenate([
-        rng.beta(2, 8, n), rng.beta(8, 2, n),
-        rng.beta(2, 6, n), rng.beta(6, 2, n),
+        rng.beta(2, 8, n), rng.beta(8, 2, n),       # prose human / LLM
+        rng.beta(2, 6, n), rng.beta(6, 2, n),       # prompt human / LLM
     ])
     labels = np.concatenate([np.zeros(n), np.ones(n), np.zeros(n), np.ones(n)]).astype(int)
     routers = np.array(["prose"]*(2*n) + ["prompt"]*(2*n))
     w.calibrate(scores, labels, router_classes=routers)
+
+    # The two routers SHOULD produce different per-class thresholds because the score
+    # distributions are different. Pick a p_llm in the gap so the sets actually differ.
+    t_prose_llm = w.threshold_per_router["prose"][1]
+    t_prompt_llm = w.threshold_per_router["prompt"][1]
+    assert abs(t_prose_llm - t_prompt_llm) > 0.02, (
+        f"router thresholds barely differ ({t_prose_llm} vs {t_prompt_llm}); "
+        "fixture is too uniform to test per-router routing"
+    )
+
+    # The known router classes go through the per-router branch
     s_prose = w.predict_set(0.5, router_class="prose")
     s_prompt = w.predict_set(0.5, router_class="prompt")
     assert isinstance(s_prose, list) and isinstance(s_prompt, list)
+
+    # Unknown router class must fall back to per-class — same as no router_class at all
     s_unknown = w.predict_set(0.5, router_class="atlantis")
-    assert isinstance(s_unknown, list)
+    s_no_router = w.predict_set(0.5)
+    assert s_unknown == s_no_router, (
+        f"unknown router_class should fall back to per-class. "
+        f"got s_unknown={s_unknown} but s_no_router={s_no_router}"
+    )
+
+    # And unknown should differ from at least ONE of the known routers (assuming the
+    # per-class thresholds differ from the per-router ones for that class).
+    # This catches the "router_class kwarg silently dropped" regression.
+    if t_prose_llm != w.threshold_per_class[1]:
+        # In this fixture, per-class is the average of prose+prompt, which differs from prose
+        # for at least one alpha boundary. Sweep a wider p_llm range so we land inside the
+        # gap where prose's threshold and the per-class threshold straddle the score:
+        for p in (0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7):
+            s_p = w.predict_set(p, router_class="prose")
+            s_default = w.predict_set(p)
+            if s_p != s_default:
+                # Found a p where they differ — proof that the kwarg actually affects output
+                break
+        else:
+            pytest.fail(
+                "predict_set(p, router_class='prose') was identical to predict_set(p) at all "
+                "tested p_llm values; the router_class kwarg may not be reaching the per-router branch."
+            )
 
 
 def test_v3_save_load_round_trips_router_thresholds(tmp_path):

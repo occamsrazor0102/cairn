@@ -24,10 +24,14 @@ Math:
 from __future__ import annotations
 
 import json
+import logging
 import math
 from pathlib import Path
 
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 _LABELS = ["human", "LLM"]  # index 0 = label 0 = human; index 1 = LLM
@@ -159,6 +163,12 @@ class ConformalWrapper:
                 if ok:
                     per_router[str(rc)] = rc_class_thresholds
                     n_per_router[str(rc)] = rc_total
+            if router_classes is not None and not per_router:
+                logger.warning(
+                    "conformal: no router cell met min-size thresholds (_MIN_PER_CELL=%d, "
+                    "_MIN_PER_CLASS=%d); falling back to class-only Mondrian",
+                    self._MIN_PER_CELL, self._MIN_PER_CLASS,
+                )
             if per_router:
                 self._threshold_per_router = per_router
                 self._n_per_router = n_per_router
@@ -247,14 +257,14 @@ class ConformalWrapper:
         else:
             # schema == _SCHEMA_V2/V3 but threshold_per_class is missing — malformed.
             raise ValueError(
-                f"ConformalWrapper.load: schema {self._SCHEMA_V2!r} requires threshold_per_class"
+                f"ConformalWrapper.load: schema {schema!r} requires threshold_per_class"
             )
         npc = data.get("n_per_class")
         self._n_per_class = (
             {int(k): int(v) for k, v in npc.items()} if npc is not None else None
         )
         tpr = data.get("threshold_per_router")
-        if tpr:
+        if tpr is not None:
             self._threshold_per_router = {
                 rc: {int(k): float(v) for k, v in inner.items()}
                 for rc, inner in tpr.items()
