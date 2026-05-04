@@ -35,11 +35,12 @@ def test_load_detects_tampering(tmp_path):
         load_model(out, verify_hmac=True)
 
 
-def test_legacy_pickle_load_warns_then_works(tmp_path):
+def test_legacy_pickle_load_warns_then_works(tmp_path, monkeypatch):
     pytest.importorskip("interpret")
     import pickle
     from cairn.fusion.training import train_ebm
     from cairn.fusion.serialization import load_model
+    monkeypatch.setenv("CAIRN_ALLOW_LEGACY_PICKLE", "1")
     X = [{"a": float(i), "b": 1.0} for i in range(20)]
     y = [i % 2 for i in range(20)]
     model = train_ebm(X, y, feature_names=["a", "b"])
@@ -49,3 +50,20 @@ def test_legacy_pickle_load_warns_then_works(tmp_path):
     with pytest.warns(DeprecationWarning, match="legacy pickle"):
         loaded, metadata = load_model(out, verify_hmac=False)
     assert loaded is not None
+
+
+def test_legacy_pickle_load_refuses_without_opt_in(tmp_path, monkeypatch):
+    """Legacy pickle path must refuse without CAIRN_ALLOW_LEGACY_PICKLE=1 set."""
+    pytest.importorskip("interpret")
+    import pickle
+    from cairn.fusion.training import train_ebm
+    from cairn.fusion.serialization import load_model
+    monkeypatch.delenv("CAIRN_ALLOW_LEGACY_PICKLE", raising=False)
+    X = [{"a": float(i), "b": 1.0} for i in range(20)]
+    y = [i % 2 for i in range(20)]
+    model = train_ebm(X, y, feature_names=["a", "b"])
+    out = tmp_path / "legacy.pkl"
+    with open(out, "wb") as f:
+        pickle.dump(model, f)
+    with pytest.raises(RuntimeError, match="CAIRN_ALLOW_LEGACY_PICKLE"):
+        load_model(out, verify_hmac=False)

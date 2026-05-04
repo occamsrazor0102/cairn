@@ -9,6 +9,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sklearn.model_selection import train_test_split
@@ -63,8 +65,6 @@ def main() -> None:
     )
     model = train_ebm(X_train, y_train)
 
-    import hashlib
-    from datetime import datetime, timezone
     dataset_bytes = args.dataset.read_bytes()
     dataset_hash = hashlib.sha256(dataset_bytes).hexdigest()[:16]
     metadata = {
@@ -75,8 +75,8 @@ def main() -> None:
         "label_balance_train": sum(y_train) / max(1, len(y_train)),
         "label_balance_test": sum(y_test) / max(1, len(y_test)),
         "trained_at": datetime.now(timezone.utc).isoformat(),
-        "interactions": 15,
-        "max_rounds": 300,
+        "interactions": getattr(model, "interactions", 15),
+        "max_rounds": getattr(model, "max_rounds", 300),
         "schema_version": "ebm-v8",
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
