@@ -28,6 +28,7 @@ fusion = [
     "scipy>=1.12",
     "numpy>=1.26",
     "tqdm>=4.66",
+    "skops>=0.10",
 ]
 batch = [
     "networkx>=3.3",
