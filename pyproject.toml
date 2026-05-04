@@ -34,6 +34,10 @@ batch = [
     "networkx>=3.3",
     "scikit-learn>=1.4",
 ]
+retrieval = [
+    "sentence-transformers>=2.7",
+    "faiss-cpu>=1.7",
+]
 api = [
     "fastapi>=0.111",
     "uvicorn>=0.29",
