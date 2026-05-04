@@ -46,6 +46,9 @@ detectors:
   mixed_boundary:
     enabled: true
     weight: 0.80
+  semantic_kinematics:
+    enabled: true
+    model: "sentence-transformers/all-MiniLM-L6-v2"
   cross_similarity:
     enabled: false
     weight: 0.70

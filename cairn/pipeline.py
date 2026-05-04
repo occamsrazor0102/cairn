@@ -95,6 +95,12 @@ def detector_availability(config: dict) -> list[dict]:
                 row["reason"] = "requires cairn[tier2] (transformers + torch)"
                 out.append(row)
                 continue
+        if det_id in {"semantic_kinematics"}:
+            row["requires"] = ["sentence_transformers"]
+            if not _has_module("sentence_transformers"):
+                row["reason"] = "requires cairn[retrieval] (sentence-transformers)"
+                out.append(row)
+                continue
         if det_id in ("contrastive_gen", "dna_gpt"):
             provider = (det_cfg or {}).get("provider", "anthropic")
             row["requires"] = [f"{provider} API key"]
