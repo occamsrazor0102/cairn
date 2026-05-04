@@ -203,6 +203,7 @@ class ConformalWrapper:
 
     _SCHEMA_V1 = "binary-split-conformal-v1"
     _SCHEMA_V2 = "binary-mondrian-conformal-v2"
+    _SCHEMA_V3 = "binary-split-conformal-v3"
 
     def save(self, path: Path) -> None:
         if self._threshold is None:
@@ -219,12 +220,19 @@ class ConformalWrapper:
             }
         if self._n_per_class is not None:
             payload["n_per_class"] = {str(k): v for k, v in self._n_per_class.items()}
+        if self._threshold_per_router is not None:
+            payload["threshold_per_router"] = {
+                rc: {str(k): v for k, v in inner.items()}
+                for rc, inner in self._threshold_per_router.items()
+            }
+            payload["n_per_router"] = dict(self._n_per_router or {})
+            payload["schema"] = self._SCHEMA_V3
         Path(path).write_text(json.dumps(payload))
 
     def load(self, path: Path) -> None:
         data = json.loads(Path(path).read_text())
         schema = data.get("schema")
-        if schema not in (None, self._SCHEMA_V1, self._SCHEMA_V2):
+        if schema not in (None, self._SCHEMA_V1, self._SCHEMA_V2, self._SCHEMA_V3):
             raise ValueError(
                 f"ConformalWrapper.load: unknown schema {schema!r}"
             )
@@ -237,7 +245,7 @@ class ConformalWrapper:
         elif schema == self._SCHEMA_V1 or schema is None:
             self._threshold_per_class = {0: self._threshold, 1: self._threshold}
         else:
-            # schema == _SCHEMA_V2 but threshold_per_class is missing — malformed.
+            # schema == _SCHEMA_V2/V3 but threshold_per_class is missing — malformed.
             raise ValueError(
                 f"ConformalWrapper.load: schema {self._SCHEMA_V2!r} requires threshold_per_class"
             )
@@ -245,3 +253,12 @@ class ConformalWrapper:
         self._n_per_class = (
             {int(k): int(v) for k, v in npc.items()} if npc is not None else None
         )
+        tpr = data.get("threshold_per_router")
+        if tpr:
+            self._threshold_per_router = {
+                rc: {int(k): float(v) for k, v in inner.items()}
+                for rc, inner in tpr.items()
+            }
+        else:
+            self._threshold_per_router = None
+        self._n_per_router = data.get("n_per_router") or None

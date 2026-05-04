@@ -166,3 +166,23 @@ def test_predict_set_with_router_class_uses_per_router_thresholds():
     assert isinstance(s_prose, list) and isinstance(s_prompt, list)
     s_unknown = w.predict_set(0.5, router_class="atlantis")
     assert isinstance(s_unknown, list)
+
+
+def test_v3_save_load_round_trips_router_thresholds(tmp_path):
+    w = ConformalWrapper(alpha=0.1)
+    rng = np.random.default_rng(0)
+    n = 200
+    scores = np.concatenate([
+        rng.beta(2, 8, n), rng.beta(8, 2, n),
+        rng.beta(2, 6, n), rng.beta(6, 2, n),
+    ])
+    labels = np.concatenate([np.zeros(n), np.ones(n), np.zeros(n), np.ones(n)]).astype(int)
+    routers = np.array(["prose"]*(2*n) + ["prompt"]*(2*n))
+    w.calibrate(scores, labels, router_classes=routers)
+    p = tmp_path / "cal.json"
+    w.save(p)
+    payload = json.loads(p.read_text())
+    assert payload["schema"] == "binary-split-conformal-v3"
+    w2 = ConformalWrapper()
+    w2.load(p)
+    assert w2.threshold_per_router is not None
