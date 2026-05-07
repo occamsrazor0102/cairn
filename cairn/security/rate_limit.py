@@ -41,6 +41,7 @@ import abc
 import hashlib
 import os
 import sqlite3
+import sys
 import threading
 import time
 from collections import deque
@@ -215,19 +216,39 @@ class SqliteRateLimiter(RateLimiter):
         store_key = _maybe_hash(key, hash_keys=self._cfg.hash_keys)
         now = time.time()
         cutoff = now - self._cfg.window_seconds
-        with self._connect() as conn:
-            conn.execute(
-                "DELETE FROM events WHERE key=? AND ts<?",
-                (store_key, cutoff),
+        try:
+            with self._connect() as conn:
+                # BEGIN IMMEDIATE acquires the writer lock up front so the
+                # DELETE / INSERT / SELECT-COUNT execute as a single
+                # transaction. Without this, two concurrent workers can
+                # each DELETE expired rows, INSERT, then both SELECT a
+                # count under the cap — letting bursts slip past the
+                # configured limit. WAL alone serialises commits but does
+                # NOT serialise this read-after-write within a connection.
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(
+                    "DELETE FROM events WHERE key=? AND ts<?",
+                    (store_key, cutoff),
+                )
+                conn.execute(
+                    "INSERT INTO events (key, ts) VALUES (?, ?)",
+                    (store_key, now),
+                )
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM events WHERE key=? AND ts>=?",
+                    (store_key, cutoff),
+                ).fetchone()[0]
+                conn.execute("COMMIT")
+        except sqlite3.Error as e:
+            # Storage failure: fail-CLOSED for a security gate. An
+            # operator who enabled rate-limiting should see a 429-storm
+            # over a sqlite outage rather than have the limiter silently
+            # turn off. Log loudly so the failure is visible.
+            sys.stderr.write(
+                f"[rate_limit] sqlite check failed ({e!r}); "
+                f"failing closed (denying request)\n"
             )
-            conn.execute(
-                "INSERT INTO events (key, ts) VALUES (?, ?)",
-                (store_key, now),
-            )
-            count = conn.execute(
-                "SELECT COUNT(*) FROM events WHERE key=? AND ts>=?",
-                (store_key, cutoff),
-            ).fetchone()[0]
+            return False
         return int(count) <= self._cfg.max_per_window
 
 

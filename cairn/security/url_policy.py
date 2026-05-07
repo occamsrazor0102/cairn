@@ -43,6 +43,30 @@ def validate_public_https_base_url(url: str) -> str:
     ------
     ValueError
         If the URL fails any of the checks below.
+
+    Known limitations (best-effort, not a complete SSRF defense)
+    ------------------------------------------------------------
+    * **DNS rebinding.** :func:`socket.gethostbyname` resolves the
+      hostname once at validation time. The HTTP client used by the
+      detector resolves the same hostname AGAIN at connect time. An
+      adversary controlling the DNS for the hostname can rotate the A
+      record between the two resolutions — `api.evil.example` resolves
+      to a public IP at validate time and to ``169.254.169.254`` at
+      connect time. Closing this hole requires either short-circuiting
+      the connect-time resolution (substituting the validated IP into
+      the URL host) or pinning resolution at the HTTP-client layer; both
+      are out of scope here. Treat this guard as "stops accidental
+      misconfiguration and naive SSRF," not "stops a determined
+      adversary controlling DNS."
+    * **IPv4-mapped IPv6 / dual-stack.** Only the first A record is
+      checked (``gethostbyname`` is IPv4-only). A hostname that resolves
+      to a public IPv4 plus a private IPv6 will pass validation but the
+      HTTP client may pick the IPv6 address depending on platform. For
+      strict SSRF, switch to :func:`socket.getaddrinfo` and validate
+      every returned address.
+    * **Single-A lookup.** Multi-record DNS (round-robin) is not
+      enumerated here; we trust the first answer. A poisoned authoritative
+      response could mix categories.
     """
     parsed = urlparse(url)
 

@@ -29,9 +29,17 @@ empty header) is treated as unauthenticated.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import os
+import sys
 from dataclasses import dataclass, field
+
+# Fixed key used only to make the bearer-check comparison fixed-length
+# (HMAC-SHA256 outputs 32 bytes regardless of input length). Security
+# still rests on the configured tokens being secrets — this key is for
+# digest uniformity only, not for token authentication.
+_BEARER_COMPARE_KEY = b"cairn-bearer-compare-v1"
 
 
 @dataclass(frozen=True)
@@ -104,6 +112,18 @@ def auth_config_from_dict(cfg: dict | None) -> AuthConfig:
             deduped.append(tok)
 
     explicit_enabled = auth_section.get("enabled")
+    if explicit_enabled is True and not deduped:
+        # Operator set `enabled: true` but supplied no tokens via either
+        # source. Silently leaving auth disabled is a misconfiguration
+        # foot-gun on production exposure; warn loudly so operators see it
+        # in startup logs without breaking the existing default-disabled
+        # contract.
+        sys.stderr.write(
+            "[auth] config has 'enabled: true' but no tokens are "
+            "configured (neither CAIRN_API_TOKEN env var nor "
+            "auth.tokens list). Auth will remain DISABLED. Set tokens "
+            "or remove 'enabled: true' to silence this warning.\n"
+        )
     enabled = bool(deduped) if explicit_enabled is None else bool(explicit_enabled) and bool(deduped)
 
     header_name = str(auth_section.get("header_name") or "Authorization")
@@ -162,12 +182,20 @@ def check_bearer(provided_header: str | None, cfg: AuthConfig) -> bool:
     if token is None:
         return False
 
-    token_bytes = token.encode("utf-8")
+    # Hash both candidate and each configured token via HMAC-SHA256 against
+    # a fixed key BEFORE comparison. This forces every comparison through
+    # hmac.compare_digest at a fixed 32-byte width, eliminating the
+    # length-side-channel that the prior `len() != len()` short-circuit
+    # leaked. Cost is two HMACs per request — negligible compared to
+    # network/handler overhead, and we are not in a tight loop here.
+    candidate_digest = hmac.new(
+        _BEARER_COMPARE_KEY, token.encode("utf-8"), hashlib.sha256,
+    ).digest()
     for valid in cfg.tokens:
-        valid_bytes = valid.encode("utf-8")
-        if len(token_bytes) != len(valid_bytes):
-            continue
-        if hmac.compare_digest(token_bytes, valid_bytes):
+        valid_digest = hmac.new(
+            _BEARER_COMPARE_KEY, valid.encode("utf-8"), hashlib.sha256,
+        ).digest()
+        if hmac.compare_digest(candidate_digest, valid_digest):
             return True
     return False
 

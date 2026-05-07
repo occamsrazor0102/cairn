@@ -107,6 +107,13 @@ def _redact(config: dict) -> dict:
 
     def _is_sensitive_key(key: str, value) -> bool:
         lk = str(key).lower()
+        # Whole-key match for the bare identifier "key" — a top-level
+        # `key: "sk-..."` config entry would not be caught by substring
+        # matching ("key" is intentionally NOT in _SENSITIVE_TOKENS
+        # because it would over-match common words like "monkey" or
+        # "keyword"), so we special-case the exact equality.
+        if lk == "key":
+            return True
         if any(t in lk for t in _SENSITIVE_TOKENS):
             return True
         if any(lk.startswith(p) for p in _PROVIDER_PREFIXES):

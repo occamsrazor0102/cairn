@@ -105,9 +105,16 @@ def test_concurrent_writes_do_not_corrupt(tmp_path):
     assert completed == n_threads * per_thread
 
     out = store.recent(n_threads * per_thread + 50)
-    # Best-effort: writes may drop under contention, but the rows that did
-    # land must hydrate cleanly — no partial / null-feature corruption.
-    assert 0 < len(out) <= n_threads * per_thread
+    # Best-effort: a small fraction of writes may drop under contention,
+    # but a healthy store must land at least 90% of attempted writes.
+    # The earlier `0 < len(out) <= ...` bound was vacuous — even a single
+    # surviving row passed it, masking a regression where every write
+    # beyond the first was silently dropped.
+    expected_min = int(n_threads * per_thread * 0.9)
+    assert expected_min <= len(out) <= n_threads * per_thread, (
+        f"expected at least {expected_min} of {n_threads * per_thread} "
+        f"concurrent writes to land, got {len(out)}"
+    )
     for o in out:
         assert set(o["features"].keys()) == {"x", "y"}
         assert isinstance(o["p_llm"], float)

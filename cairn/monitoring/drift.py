@@ -144,11 +144,20 @@ class DriftMonitor:
                 # Best-effort: failure here must not fail analyze. DriftStore
                 # already swallows sqlite.Error, but wrap defensively because
                 # an exotic exception (OSError on permission flip, etc.) must
-                # not surface to callers.
+                # not surface to callers. On failure, fall back to the
+                # in-memory list so the observation is NOT silently lost —
+                # the drift analysis on the next window-fill will at least
+                # see it. Include enough context (p_llm + determination) so
+                # operators can diagnose persistent failures from logs alone.
                 try:
                     self._store.record(obs)
                 except Exception as e:
-                    sys.stderr.write(f"[drift] store.record raised: {e}\n")
+                    sys.stderr.write(
+                        f"[drift] store.record raised: {e}; "
+                        f"falling back to in-memory for "
+                        f"p_llm={p_llm:.3f} determination={determination!r}\n"
+                    )
+                    self._observations.append(obs)
             else:
                 self._observations.append(obs)
             alerts: list[str] = []
@@ -177,12 +186,14 @@ class DriftMonitor:
 
     def check_drift(self) -> list[str]:
         alerts: list[str] = []
-        # When sqlite-backed, hydrate the in-memory list from the most-recent
-        # window so the existing analysis logic (which iterates
-        # self._observations) keeps working unmodified. Tests that prime
-        # `_observations` directly continue to work because we only hydrate
-        # when the store is configured AND the in-memory list is empty.
-        if self._store is not None and not self._observations:
+        # When sqlite-backed, ALWAYS hydrate from the most-recent window.
+        # The previous "hydrate only when empty" cache was a bug: after the
+        # first cycle the in-memory list stayed populated and subsequent
+        # cycles ran analysis against stale data instead of the fresh
+        # window. Test priming of `_observations` works in in-memory mode
+        # only (no db_path); tests that want sqlite-mode priming must
+        # write through the store directly.
+        if self._store is not None:
             try:
                 self._observations = list(self._store.recent(self._window))
             except Exception as e:
