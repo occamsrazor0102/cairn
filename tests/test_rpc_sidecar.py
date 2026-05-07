@@ -276,3 +276,61 @@ def test_jobregistry_finish_completes():
     assert job.status == "completed"
     assert job.done == 3
     assert job.result == {"ok": True}
+
+
+# --- recommend_profile (B3) -------------------------------------------------
+
+def test_recommend_profile_returns_dict_with_expected_keys(sidecar):
+    """Round-trip the new RPC and verify the dict shape callers will see."""
+    sc, _ = sidecar
+    long_prose = (
+        "The afternoon sun filtered through the leaded glass windows, "
+        "casting fractured rainbows across the worn parquet floor. "
+        "She paused at the threshold, listening to the muted ticking of "
+        "the grandfather clock in the foyer. Memories crowded in: the "
+        "smell of beeswax polish, the sound of her grandmother humming "
+        "in the kitchen, the cold brass of the doorknob under her palm. "
+        "Years had passed since she last stood here, and the house felt "
+        "both intimately familiar and strangely diminished, as though "
+        "every room had shrunk to fit the proportions of a child's memory."
+    )
+    res = sc.handle("recommend_profile", {"text": long_prose})
+    assert isinstance(res, dict)
+    # All four ProfileRecommendation fields must serialise.
+    assert {"profile", "confidence", "reason", "caveats"} <= set(res.keys())
+    assert isinstance(res["profile"], str)
+    assert 0.0 <= float(res["confidence"]) <= 1.0
+    assert isinstance(res["caveats"], (list, tuple))
+
+
+def test_recommend_profile_rejects_empty_text(sidecar):
+    """Validation: empty / whitespace text raises ERR_BAD_PARAMS."""
+    sc, _ = sidecar
+    with pytest.raises(SidecarError) as ex:
+        sc.handle("recommend_profile", {"text": "   "})
+    assert ex.value.code == "ERR_BAD_PARAMS"
+
+
+def test_recommend_profile_rejects_non_dict_metadata(sidecar):
+    """Validation: task_metadata must be an object or null."""
+    sc, _ = sidecar
+    with pytest.raises(SidecarError) as ex:
+        sc.handle(
+            "recommend_profile",
+            {"text": "some sample text here", "task_metadata": "not-a-dict"},
+        )
+    assert ex.value.code == "ERR_BAD_PARAMS"
+
+
+def test_recommend_profile_passes_language_metadata(sidecar):
+    """task_metadata.language='es' should surface a non-english caveat."""
+    sc, _ = sidecar
+    text = (
+        "Esta es una prueba de un texto en espanol que deberia activar "
+        "el caveat de idioma no ingles en la recomendacion de perfil."
+    )
+    res = sc.handle(
+        "recommend_profile",
+        {"text": text, "task_metadata": {"language": "es"}},
+    )
+    assert "non-english" in res["caveats"]

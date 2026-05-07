@@ -606,3 +606,62 @@ def test_rate_limit_health_reports_window(rate_limit_server):
     assert body["rate_limit"]["max_per_window"] == 2
     assert body["rate_limit"]["window_seconds"] == 60
     assert body["rate_limit"]["store"] == "memory"
+
+
+# --- recommend_profile (B3) -------------------------------------------------
+
+def test_recommend_profile_round_trip(server):
+    """POST /recommend_profile returns the dict-form ProfileRecommendation."""
+    url, _ = server
+    long_prose = (
+        "The afternoon sun filtered through the leaded glass windows, "
+        "casting fractured rainbows across the worn parquet floor. "
+        "She paused at the threshold, listening to the muted ticking of "
+        "the grandfather clock in the foyer. Memories crowded in: the "
+        "smell of beeswax polish, the sound of her grandmother humming "
+        "in the kitchen, the cold brass of the doorknob under her palm. "
+        "Years had passed since she last stood here, and the house felt "
+        "both intimately familiar and strangely diminished."
+    )
+    status, body = _post(url, "/recommend_profile", {"text": long_prose})
+    assert status == 200
+    assert {"profile", "confidence", "reason", "caveats"} <= set(body.keys())
+    assert isinstance(body["profile"], str)
+    assert 0.0 <= float(body["confidence"]) <= 1.0
+    assert isinstance(body["caveats"], list)
+
+
+def test_recommend_profile_rejects_empty_text(server):
+    """Empty text returns 400."""
+    url, _ = server
+    status, body = _post(url, "/recommend_profile", {"text": "   "})
+    assert status == 400
+    assert "error" in body
+
+
+def test_recommend_profile_passes_language_metadata(server):
+    """task_metadata.language='es' surfaces a non-english caveat."""
+    url, _ = server
+    text = (
+        "Esta es una prueba de un texto en espanol con suficiente "
+        "longitud para evitar el caveat de short_text."
+    )
+    status, body = _post(
+        url,
+        "/recommend_profile",
+        {"text": text, "task_metadata": {"language": "es"}},
+    )
+    assert status == 200
+    assert "non-english" in body["caveats"]
+
+
+def test_recommend_profile_rejects_non_dict_metadata(server):
+    """Non-object task_metadata returns 400."""
+    url, _ = server
+    status, body = _post(
+        url,
+        "/recommend_profile",
+        {"text": "some sample text", "task_metadata": "not-a-dict"},
+    )
+    assert status == 400
+    assert "error" in body

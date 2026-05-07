@@ -208,3 +208,17 @@ pub async fn monitoring_set_baseline(
 ) -> Result<Value, SidecarError> {
     manager.send_request("monitoring_set_baseline", params).await
 }
+
+#[tauri::command]
+pub async fn recommend_profile(
+    text: String,
+    task_metadata: Option<Value>,
+    manager: State<'_, Arc<SidecarManager>>,
+) -> Result<Value, SidecarError> {
+    manager
+        .send_request(
+            "recommend_profile",
+            json!({ "text": text, "task_metadata": task_metadata }),
+        )
+        .await
+}

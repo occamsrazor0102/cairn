@@ -39,12 +39,14 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any
 
+from cairn.auto_routing import recommend_profile
 from cairn.config import list_profiles, load_config
 from cairn.history import HistoryStore, mint_submission_id
 from cairn.monitoring.drift import DriftMonitor
 from cairn.monitoring.meta_detector import MetaDetector
 from cairn.pipeline import BatchCancelled, CairnPipeline
 from cairn.report import build_json_report
+from cairn.router import TextRouter
 from cairn.runtime import RuntimeContext
 
 
@@ -460,6 +462,8 @@ class Sidecar:
             return self._monitoring_drift()
         if method == "monitoring_set_baseline":
             return self._monitoring_set_baseline(params)
+        if method == "recommend_profile":
+            return self._recommend_profile(params)
         if method == "shutdown":
             self._running = False
             return {"ok": True}
@@ -844,6 +848,27 @@ class Sidecar:
             "n_samples": n,
             "baseline_features": list(self._drift._baseline_hist.keys()),
         }
+
+    def _recommend_profile(self, params: dict) -> dict:
+        """Return an auto-routing profile recommendation for ``text``.
+
+        Pure compute — does not switch the runtime profile. Callers wire
+        this into ``RuntimeContext.switch_profile`` themselves when
+        ``runtime.auto_route`` is on.
+        """
+        text = params.get("text")
+        if not isinstance(text, str) or not text.strip():
+            raise SidecarError("ERR_BAD_PARAMS", "text required (non-empty string)")
+        task_metadata = params.get("task_metadata")
+        if task_metadata is not None and not isinstance(task_metadata, dict):
+            raise SidecarError(
+                "ERR_BAD_PARAMS", "task_metadata must be an object or null"
+            )
+        router = TextRouter(self._ctx.config or {})
+        decision = router.route(text)
+        available = [p["name"] for p in list_profiles()]
+        recommendation = recommend_profile(decision, task_metadata, available)
+        return asdict(recommendation)
 
 
 def _write(obj: dict, stream=None) -> None:

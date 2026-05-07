@@ -51,6 +51,7 @@ fn main() {
             commands::run_eval,
             commands::monitoring_drift,
             commands::monitoring_set_baseline,
+            commands::recommend_profile,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

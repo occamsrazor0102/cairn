@@ -21,16 +21,19 @@ import sys
 import threading
 import traceback
 import webbrowser
+from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from cairn.auto_routing import recommend_profile
 from cairn.config import list_profiles
 from cairn.history import HistoryStore, mint_submission_id
 from cairn.monitoring.drift import DriftMonitor
 from cairn.monitoring.meta_detector import MetaDetector
 from cairn.pipeline import BatchCancelled, CairnPipeline
 from cairn.report import build_json_report
+from cairn.router import TextRouter
 from cairn.runtime import RuntimeContext
 from cairn.security.auth import (
     AuthConfig,
@@ -277,6 +280,8 @@ def _make_handler(
                 self._handle_monitoring_drift(body)
             elif path == "/monitoring/set-baseline":
                 self._handle_monitoring_set_baseline(body)
+            elif path == "/recommend_profile":
+                self._handle_recommend_profile(body)
             else:
                 self.send_error(404)
 
@@ -654,6 +659,27 @@ def _make_handler(
                     "n_samples": n,
                     "baseline_features": list(drift._baseline_hist.keys()),
                 })
+            except Exception as e:
+                traceback.print_exc()
+                self._send_json(500, {"error": str(e)})
+
+        def _handle_recommend_profile(self, body: dict) -> None:
+            text = body.get("text", "")
+            if not isinstance(text, str) or not text.strip():
+                self._send_json(400, {"error": "text required"})
+                return
+            task_metadata = body.get("task_metadata")
+            if task_metadata is not None and not isinstance(task_metadata, dict):
+                self._send_json(
+                    400, {"error": "task_metadata must be an object or null"}
+                )
+                return
+            try:
+                router = TextRouter(ctx.config or {})
+                decision = router.route(text)
+                available = [p["name"] for p in list_profiles()]
+                rec = recommend_profile(decision, task_metadata, available)
+                self._send_json(200, asdict(rec))
             except Exception as e:
                 traceback.print_exc()
                 self._send_json(500, {"error": str(e)})

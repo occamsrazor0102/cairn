@@ -642,6 +642,7 @@ const cairnApi = (() => {
       runEval: (items, max_samples) => invoke("run_eval", { params: { items, max_samples } }),
       monitoringDrift: () => invoke("monitoring_drift", {}),
       monitoringSetBaseline: (limit) => invoke("monitoring_set_baseline", { params: { limit: limit || 500 } }),
+      recommendProfile: (text, taskMetadata) => invoke("recommend_profile", { text, taskMetadata: taskMetadata || null }),
     };
   }
   const post = async (path, body) => {
@@ -683,6 +684,7 @@ const cairnApi = (() => {
     runEval: (items, max_samples) => post("/evaluation/run", { items, max_samples }),
     monitoringDrift: () => post("/monitoring/drift", {}),
     monitoringSetBaseline: (limit) => post("/monitoring/set-baseline", { limit: limit || 500 }),
+    recommendProfile: (text, taskMetadata) => post("/recommend_profile", { text, task_metadata: taskMetadata || null }),
   };
 })();
 $("modeIndicator").textContent = cairnApi.mode;
