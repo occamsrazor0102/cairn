@@ -69,7 +69,7 @@ def _hash_text(text: str) -> str:
 class HistoryStore:
     """Thin SQLite wrapper. One connection per call — short-lived, thread-safe."""
 
-    def __init__(self, db_path: Path, *, retain_text: bool = True):
+    def __init__(self, db_path: Path, *, retain_text: bool = False):
         self._path = Path(db_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._retain_text = retain_text

@@ -1,9 +1,12 @@
 """Drift monitor + meta-detector tests."""
+import sqlite3
+
 import pytest
 
 from cairn.contracts import LayerResult
 from cairn.monitoring.drift import DriftMonitor, _kl_symmetric
 from cairn.monitoring.meta_detector import MetaDetector
+from cairn.monitoring.store import DriftStore
 
 
 def _layer(p, det_id="preamble", det="AMBER"):
@@ -106,3 +109,56 @@ def test_meta_detector_ignores_skip():
     meta = MetaDetector()
     meta.record(_layer(0.5, det="SKIP"))
     assert meta.health() == {}
+
+
+# --- Persistent DriftMonitor (B2) -----------------------------------------
+
+def test_drift_observations_survive_reinstantiation(tmp_path):
+    """Sidecar restart simulation: recorded observations persist across DriftMonitor instances."""
+    db_path = tmp_path / "drift.sqlite3"
+    cfg = {"drift_monitoring": {"window_size": 1000}}
+
+    mon1 = DriftMonitor(tmp_path, cfg, db_path=db_path)
+    for i in range(50):
+        mon1.record(0.5 + (i % 5) * 0.01, "AMBER", {"x": 0.4 + (i % 3) * 0.05})
+    # Sanity: first instance sees its writes back through check_drift hydration.
+    mon1._observations = []  # force hydration path
+    alerts1 = mon1.check_drift()
+    assert mon1._observations, "first DriftMonitor should hydrate from sqlite"
+    assert len(mon1._observations) == 50
+    # Hand-control over to a freshly-constructed monitor against the same db.
+    mon2 = DriftMonitor(tmp_path, cfg, db_path=db_path)
+    assert mon2._observations == [], "fresh monitor starts with empty in-memory list"
+    # check_drift hydrates from sqlite before evaluating; no new records.
+    mon2.check_drift()
+    assert len(mon2._observations) == 50, (
+        "fresh monitor must see the 50 persisted observations before any new record()"
+    )
+    # And the alerts logic still runs over the persisted window.
+    _ = alerts1  # alerts may or may not fire; the persistence is the contract.
+
+
+def test_failed_drift_write_does_not_raise(tmp_path, monkeypatch):
+    """Best-effort: a sqlite OperationalError inside the store must not surface."""
+    db_path = tmp_path / "drift.sqlite3"
+    mon = DriftMonitor(tmp_path, {"drift_monitoring": {"window_size": 1000}}, db_path=db_path)
+
+    def _boom(self, observation):
+        raise sqlite3.OperationalError("synthetic disk error")
+
+    monkeypatch.setattr(DriftStore, "record", _boom)
+    # Must not raise.
+    alerts = mon.record(0.7, "AMBER", {"x": 0.42})
+    assert isinstance(alerts, list)
+
+
+def test_in_memory_fallback_when_store_path_none(tmp_path):
+    """Regression: db_path=None preserves the original list-backed behavior."""
+    mon = DriftMonitor(tmp_path, {"drift_monitoring": {"window_size": 1000}})
+    assert mon._store is None
+    for i in range(10):
+        mon.record(0.5, "AMBER", {"x": 0.1 * i})
+    assert len(mon._observations) == 10
+    # check_drift reads directly from the list — no hydration step.
+    mon.check_drift()
+    assert len(mon._observations) == 10

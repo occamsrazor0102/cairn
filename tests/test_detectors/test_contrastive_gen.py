@@ -147,7 +147,7 @@ def test_never_sends_submission_to_provider(detector):
     never the submission text."""
     captured = {}
 
-    def fake_gen(task_description, api_key, provider, model, n):
+    def fake_gen(task_description, api_key, provider, model, n, config=None):
         captured["task"] = task_description
         return (["baseline one", "baseline two"], [])
 
@@ -161,3 +161,58 @@ def test_never_sends_submission_to_provider(detector):
     assert captured["task"] == "summarize a meeting"
     assert submission not in captured["task"]
     assert "confidential" not in captured["task"]
+
+
+def test_openai_compat_without_base_url_does_not_crash(detector):
+    """Regression: openai-compat path with missing base_url must return a
+    friendly error, not NameError. The original bug was that _generate_baselines
+    referenced `config` without it being a parameter, so the path crashed on
+    `config.get("base_url")` with NameError before any base_url check ran."""
+    baselines, errors = detector._generate_baselines(
+        task_description="summarize a meeting",
+        api_key="test-key",
+        provider="openai-compat",
+        model="gpt-4o-mini",
+        n=2,
+        config={},
+    )
+    assert baselines == []
+    assert errors  # either "openai package not installed" or the base_url message — both fine
+
+
+def test_openai_compat_omitted_config_kwarg_does_not_crash(detector):
+    """Regression: _generate_baselines must accept an omitted config kwarg
+    (defaults to None) without NameError. Guards the case where any future
+    caller forgets to thread config through — the helper degrades gracefully
+    rather than crashing."""
+    baselines, errors = detector._generate_baselines(
+        task_description="summarize a meeting",
+        api_key="test-key",
+        provider="openai-compat",
+        model="gpt-4o-mini",
+        n=2,
+    )
+    assert baselines == []
+    assert errors
+
+
+def test_analyze_threads_config_into_baseline_generation(detector):
+    """Regression: analyze() must thread the full config dict through to
+    _generate_baselines so the openai-compat base_url (and any future provider
+    options) reaches the helper. The original bug elided this entirely."""
+    captured = {}
+
+    def fake_gen(task_description, api_key, provider, model, n, config=None):
+        captured["config"] = config
+        return [], ["mocked"]
+
+    with patch.object(detector, "_generate_baselines", side_effect=fake_gen):
+        detector.analyze(
+            "Some long enough submission text " * 20,
+            {"task_description": "summarize a meeting",
+             "provider": "openai-compat",
+             "api_key": "test-key",
+             "base_url": "https://api.example.com/v1"},
+        )
+    assert captured["config"] is not None
+    assert captured["config"].get("base_url") == "https://api.example.com/v1"

@@ -24,8 +24,10 @@ def _discover() -> None:
             if hasattr(mod, "DETECTOR"):
                 d = mod.DETECTOR
                 _registry[d.id] = d
-        except ImportError as e:
-            _missing[module_info.name] = str(e)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as e:
+            _missing[module_info.name] = f"{type(e).__name__}: {e}"
     _discovered = True
 
 

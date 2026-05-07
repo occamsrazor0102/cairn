@@ -310,3 +310,94 @@ the code:
   difficulty varies by provider (Gemini AUROC 0.996; OpenAI 0.936
   with reasoning hidden). For coverage of a new provider, regenerate
   *the same* prompts rather than adding new ones.
+
+## Feedback corpus export
+
+`cairn/history.py::HistoryStore.record_feedback` writes reviewer-confirmed
+labels to a `feedback_log` table in the history sqlite — one row per
+"this submission was actually human / actually LLM" annotation made
+through the GUI. By itself this table is just an audit trail; the
+`scripts/export_feedback_corpus.py` script bridges those rows back into
+the calibration pipeline as `EvalSample` JSONL.
+
+### Why most operators see zero training-ready feedback rows
+
+The privacy default is `gui.history.retain_text: false` (hash-only
+submission storage). Under that default, `submissions.text` is `NULL`
+for every row, so feedback annotations cannot be replayed as labeled
+training data — only as an audit signal. To collect feedback usable
+for retraining, set `gui.history.retain_text: true` in the operator
+config *before* the feedback is recorded. Toggling it later does not
+recover already-dropped text.
+
+This is an intentional privacy/utility tradeoff. The exporter honours
+either choice without complaint, but emits a stderr warning whenever
+text-null rows land in the output so the gap is visible:
+
+```
+WARNING: 14 rows have text=null because retain_text was disabled at
+write time. These rows cannot be used for retraining.
+```
+
+### CLI
+
+```bash
+# Whole-history export — audit + (any) training-ready rows.
+python scripts/export_feedback_corpus.py \
+    --history-path ~/.cairn/history.sqlite3 \
+    --out data/feedback_2026-05.jsonl
+
+# Monthly window for the C2 retrain runner.
+python scripts/export_feedback_corpus.py \
+    --history-path ~/.cairn/history.sqlite3 \
+    --out data/feedback_2026-05.jsonl \
+    --since 2026-05-01 \
+    --until 2026-06-01 \
+    --profile master_minus_arxiv
+
+# Drop privacy-redacted rows entirely — output is training-ready.
+python scripts/export_feedback_corpus.py \
+    --history-path ~/.cairn/history.sqlite3 \
+    --out data/feedback_2026-05.jsonl \
+    --include-text-only
+```
+
+The output JSONL matches the `EvalSample` schema in
+`cairn/evaluation/dataset.py` and loads via `load_dataset` without
+schema errors. Each row carries `tier="feedback"` and a `metadata`
+dict with `source: "feedback_log"`, `recorded_at`, `profile`, and
+`reviewer_notes` for downstream stratification.
+
+### Feeding feedback into the training pipeline
+
+For the monthly retrain (Track C2 in
+[`docs/superpowers/specs/2026-05-07-post-honest-calibration-roadmap.md`](superpowers/specs/2026-05-07-post-honest-calibration-roadmap.md)),
+concatenate the feedback file into the master training corpus and
+re-run Stages 2–3:
+
+```bash
+# 1. Export this month's feedback (training-ready).
+python scripts/export_feedback_corpus.py \
+    --history-path ~/.cairn/history.sqlite3 \
+    --out data/feedback_2026-05.jsonl \
+    --since 2026-05-01 --until 2026-06-01 \
+    --include-text-only
+
+# 2. Concatenate to the master training corpus. De-dup by id is the
+#    monthly runner's job; the export itself is idempotent only
+#    against the current sqlite contents.
+cat data/feedback_2026-05.jsonl >> data/calib2000_v6_train.jsonl
+
+# 3. Re-cache features for the new rows + retrain the profile.
+python scripts/cache_pipeline_features.py \
+    --dataset data/calib2000_v6_train.jsonl \
+    --config configs/default.yaml \
+    --out data/all_features_v6.jsonl
+python scripts/calibrate_detectors.py ...   # as in Stage 3 above
+python scripts/train_fusion.py ...
+python scripts/calibrate_conformal.py ...
+```
+
+The retraining step is gated on the in-domain / OOD / `verb_low`
+benchmarks not regressing — see Track C2 of the post-honest-calibration
+roadmap for the promotion gate, rollback path, and retrain failure log.

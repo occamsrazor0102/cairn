@@ -27,7 +27,11 @@ def _report(det="AMBER", p=0.62, sid=""):
 
 @pytest.fixture
 def store(tmp_path):
-    return HistoryStore(tmp_path / "history.sqlite3")
+    # Default fixture retains text so that text-content / search tests
+    # below can assert behavior. The privacy default (retain_text=False)
+    # is exercised explicitly by test_retain_text_default_is_false and
+    # test_retain_text_false_drops_text.
+    return HistoryStore(tmp_path / "history.sqlite3", retain_text=True)
 
 
 def test_mint_id_is_unique_and_time_ordered():
@@ -70,6 +74,28 @@ def test_retain_text_false_drops_text(tmp_path):
     got = store.get(sid)
     assert got["text"] is None
     assert got["text_hash"] != ""  # hash still stored
+
+
+def test_retain_text_default_is_false(tmp_path):
+    # Privacy default: HistoryStore() with no retain_text kwarg must NOT
+    # persist submission text. Hash is still stored for dedup / lookup.
+    store = HistoryStore(tmp_path / "h.sqlite3")
+    assert store._retain_text is False
+    sid = store.record(_report(), source="analyze", text="sensitive content")
+    got = store.get(sid)
+    assert got["text"] is None
+    assert got["text_hash"] != ""  # hash still stored
+
+
+def test_omitted_config_key_yields_hash_only_via_sidecar_factory(tmp_path):
+    # A config that omits gui.history.retain_text must default to hash-only.
+    # Regression guard for the privacy default documented in CLAUDE.md.
+    from cairn.sidecar import history_from_config
+
+    config = {"gui": {"history": {"db_path": str(tmp_path / "x.sqlite3")}}}
+    store = history_from_config(config)
+    assert store is not None
+    assert store._retain_text is False
 
 
 def test_list_filters_by_determination(store):

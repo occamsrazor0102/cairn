@@ -1,0 +1,27 @@
+{
+  "_fixture_note": "Synthetic Originality.ai v1 response shape. URLs use IETF-reserved example.com. No real API key, no real text scanned.",
+  "_source_url": "https://api.example.com/api/v1/scan/ai",
+  "success": true,
+  "score": {
+    "ai": 0.92,
+    "original": 0.08
+  },
+  "total_words": 187,
+  "confidence": "high",
+  "credits_used": 100,
+  "credits": {
+    "used": 100,
+    "available": 49900
+  },
+  "blocks": [
+    {
+      "result": {
+        "fake": 0.95,
+        "real": 0.05
+      },
+      "text": "The quick brown fox jumps over the lazy dog. It does so with the unhurried grace of an animal that has nowhere in particular to be.",
+      "ai_score": 0.95,
+      "human_score": 0.05
+    }
+  ]
+}

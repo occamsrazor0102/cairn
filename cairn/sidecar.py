@@ -90,7 +90,7 @@ def _curated_config_view(profile: str | None, config: dict) -> dict:
         "detectors": detectors,
         "history": {
             "enabled": bool(history.get("enabled", True)),
-            "retain_text": bool(history.get("retain_text", True)),
+            "retain_text": bool(history.get("retain_text", False)),
             "db_path": history.get("db_path", "data/cairn_history.sqlite3"),
         },
     }
@@ -115,8 +115,14 @@ def drift_from_config(config: dict | None) -> DriftMonitor | None:
             top_level[k] = drift_cfg[k]
     if top_level:
         merged["drift_monitoring"] = top_level
+    # Optional sqlite-backed persistent observation window. When unset, the
+    # DriftMonitor falls back to its in-memory list (preserving prior
+    # behavior). Operators set `gui.drift.db_path` to enable persistence so
+    # the in-flight window survives sidecar restart.
+    db_path_raw = drift_cfg.get("db_path")
+    db_path = Path(db_path_raw) if db_path_raw else None
     try:
-        return DriftMonitor(store_path, merged)
+        return DriftMonitor(store_path, merged, db_path=db_path)
     except Exception as e:
         log.warning("drift monitor disabled: %s", e)
         return None
@@ -146,7 +152,7 @@ def history_from_config(config: dict | None) -> HistoryStore | None:
     if hist.get("enabled", True) is False:
         return None
     db_path = Path(hist.get("db_path", "data/cairn_history.sqlite3"))
-    retain = bool(hist.get("retain_text", True))
+    retain = bool(hist.get("retain_text", False))
     try:
         return HistoryStore(db_path, retain_text=retain)
     except Exception as e:

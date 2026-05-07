@@ -4,15 +4,23 @@ Alerts fire when the current window diverges materially from a stored baseline:
 - Population drift: mean P(LLM) drift > threshold
 - Feature distribution drift: symmetric KL divergence between baseline and current histogram
 - Calibration drift: ECE between predicted p_llm and confirmed labels above threshold
+
+The in-flight observation window may be backed by an in-memory list (default,
+preserves prior behavior) or by a sqlite-backed `DriftStore` so it survives
+sidecar restart. Pass `db_path` to opt in. All store I/O is best-effort:
+a failed write must never fail `pipeline.analyze`.
 """
 from __future__ import annotations
 
 import logging
 import math
+import sys
 import threading
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+from cairn.monitoring.store import DriftStore
 
 _logger = logging.getLogger("cairn")
 
@@ -64,14 +72,34 @@ def _ece(y_true: list[int], y_score: list[float], n_bins: int = 10) -> float:
 
 
 class DriftMonitor:
-    def __init__(self, store_path: Path, config: dict):
+    def __init__(
+        self,
+        store_path: Path,
+        config: dict,
+        *,
+        db_path: Path | None = None,
+    ):
         self._path = Path(store_path)
         self._path.mkdir(parents=True, exist_ok=True)
         drift_cfg = config.get("drift_monitoring", {}) if isinstance(config, dict) else {}
         self._window = drift_cfg.get("window_size", 1000)
         self._kl_threshold = drift_cfg.get("kl_threshold", 0.20)
         self._ece_threshold = drift_cfg.get("ece_threshold", 0.15)
+        # In-flight window: list-backed by default, sqlite-backed when
+        # db_path is set. The list still backs `_observations` access from
+        # existing tests (which directly append/inspect it for fixture
+        # priming); when DriftStore is in use, we hydrate from sqlite into
+        # this list inside `check_drift`.
         self._observations: list[dict] = []
+        self._store: DriftStore | None = None
+        if db_path is not None:
+            try:
+                self._store = DriftStore(Path(db_path))
+            except Exception as e:
+                # Best-effort: store init failure must not break the pipeline.
+                # Fall back to the in-memory list path.
+                sys.stderr.write(f"[drift] store init failed ({e}); falling back to in-memory\n")
+                self._store = None
         self._baseline_features: dict[str, list[float]] = {}
         self._baseline_hist: dict[str, list[float]] = {}
         self._feature_bounds: dict[str, tuple[float, float]] = {}
@@ -107,20 +135,59 @@ class DriftMonitor:
     def record(self, p_llm: float, determination: str, feature_vector: dict,
                confirmed_label: int | None = None) -> list[str]:
         with self._lock:
-            self._observations.append({
+            obs = {
                 "p_llm": p_llm, "determination": determination,
                 "features": feature_vector, "confirmed": confirmed_label,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            }
+            if self._store is not None:
+                # Best-effort: failure here must not fail analyze. DriftStore
+                # already swallows sqlite.Error, but wrap defensively because
+                # an exotic exception (OSError on permission flip, etc.) must
+                # not surface to callers.
+                try:
+                    self._store.record(obs)
+                except Exception as e:
+                    sys.stderr.write(f"[drift] store.record raised: {e}\n")
+            else:
+                self._observations.append(obs)
             alerts: list[str] = []
-            if len(self._observations) >= self._window:
+            if self._observation_count() >= self._window:
                 alerts = self.check_drift()
                 self._flush_alerts(alerts)
-                self._observations = []
+                if self._store is None:
+                    # In-memory mode: clear the window the way it always did.
+                    # In sqlite-backed mode we keep history and rely on the
+                    # natural N-most-recent semantics of `recent(N)`; an
+                    # operator can call `purge_older_than` to compact.
+                    self._observations = []
             return alerts
+
+    def _observation_count(self) -> int:
+        if self._store is not None:
+            # Cap the read at one window's worth — we only need to know whether
+            # the window is full, not the exact total. recent() groups by
+            # observation so this is the comparable count.
+            try:
+                return len(self._store.recent(self._window))
+            except Exception as e:
+                sys.stderr.write(f"[drift] store.recent raised: {e}\n")
+                return 0
+        return len(self._observations)
 
     def check_drift(self) -> list[str]:
         alerts: list[str] = []
+        # When sqlite-backed, hydrate the in-memory list from the most-recent
+        # window so the existing analysis logic (which iterates
+        # self._observations) keeps working unmodified. Tests that prime
+        # `_observations` directly continue to work because we only hydrate
+        # when the store is configured AND the in-memory list is empty.
+        if self._store is not None and not self._observations:
+            try:
+                self._observations = list(self._store.recent(self._window))
+            except Exception as e:
+                sys.stderr.write(f"[drift] store.recent raised: {e}\n")
+                self._observations = []
         n = len(self._observations)
         if n < 10:
             return alerts

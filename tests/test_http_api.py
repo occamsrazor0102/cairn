@@ -15,6 +15,11 @@ from cairn.monitoring.drift import DriftMonitor
 from cairn.monitoring.meta_detector import MetaDetector
 from cairn.pipeline import CairnPipeline
 from cairn.runtime import RuntimeContext
+from cairn.security.auth import AuthConfig
+from cairn.security.rate_limit import (
+    RateLimitConfig,
+    make_rate_limiter,
+)
 
 
 @pytest.fixture
@@ -24,7 +29,7 @@ def server(tmp_path):
     ctx = RuntimeContext(CairnPipeline(cfg), "screening", cfg)
     meta = MetaDetector()
     feedback_path = tmp_path / "feedback.jsonl"
-    history = HistoryStore(tmp_path / "history.sqlite3")
+    history = HistoryStore(tmp_path / "history.sqlite3", retain_text=True)
     drift = DriftMonitor(tmp_path / "drift", cfg)
     handler = _make_handler(
         meta=meta, feedback_path=feedback_path,
@@ -35,6 +40,75 @@ def server(tmp_path):
     thread.start()
     try:
         yield f"http://127.0.0.1:{httpd.server_address[1]}", history
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+
+
+def _make_secure_server(tmp_path, *, auth_cfg=None, rate_limit_cfg=None, rate_limiter=None):
+    """Spin up a live HTTP server with optional auth + rate-limit guards.
+
+    Returns ``(url, httpd, thread, history)`` so callers can clean up.
+    Used by the auth / rate-limit fixtures below so tests can exercise
+    each path independently of the default-off ``server`` fixture.
+    """
+    config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
+    cfg = load_config(config_path)
+    ctx = RuntimeContext(CairnPipeline(cfg), "screening", cfg)
+    meta = MetaDetector()
+    feedback_path = tmp_path / "feedback.jsonl"
+    history = HistoryStore(tmp_path / "history.sqlite3", retain_text=True)
+    drift = DriftMonitor(tmp_path / "drift", cfg)
+    handler = _make_handler(
+        meta=meta,
+        feedback_path=feedback_path,
+        history=history,
+        ctx=ctx,
+        drift=drift,
+        auth_cfg=auth_cfg,
+        rate_limit_cfg=rate_limit_cfg,
+        rate_limiter=rate_limiter,
+    )
+    httpd = HTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return f"http://127.0.0.1:{httpd.server_address[1]}", httpd, thread, history
+
+
+@pytest.fixture
+def auth_server(tmp_path):
+    """Server fixture with bearer-token auth enabled."""
+    auth_cfg = AuthConfig(
+        enabled=True,
+        tokens=("test-token-12345-abcdef-67890",),
+        header_name="Authorization",
+    )
+    url, httpd, thread, history = _make_secure_server(tmp_path, auth_cfg=auth_cfg)
+    try:
+        yield url, "test-token-12345-abcdef-67890", history
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+
+
+@pytest.fixture
+def rate_limit_server(tmp_path):
+    """Server fixture with a 2-per-window rate limit, no auth."""
+    rl_cfg = RateLimitConfig(
+        enabled=True,
+        window_seconds=60,
+        max_per_window=2,
+        store="memory",
+        hash_keys=False,
+    )
+    rl = make_rate_limiter(rl_cfg)
+    url, httpd, thread, history = _make_secure_server(
+        tmp_path, rate_limit_cfg=rl_cfg, rate_limiter=rl
+    )
+    try:
+        yield url, history
     finally:
         httpd.shutdown()
         httpd.server_close()
@@ -344,3 +418,191 @@ def test_jobs_cancel_unknown_returns_404(server):
     url, _ = server
     status, _ = _post(url, "/jobs/cancel", {"job_id": "no-such-job"})
     assert status == 404
+
+
+# ---------------------------------------------------------------------------
+# _redact() coverage - provider-prefix keys + structural-secret-suffix rule.
+# ---------------------------------------------------------------------------
+
+
+def test_redact_provider_prefix_keys():
+    from cairn.api import _redact
+    cfg = {
+        "anthropic_api_key": "sk-ant-aaaaaaaaaaaaaaaaaaaa",
+        "openai_endpoint_secret": "abc123",
+        "gemini_token": "xyz789",
+    }
+    out = _redact(cfg)
+    for k in cfg:
+        assert out[k] != cfg[k], f"{k} not redacted"
+
+
+def test_redact_structural_long_value_under_key_suffix():
+    from cairn.api import _redact
+    long_val = "x" * 64
+    cfg = {"my_custom_endpoint_key": long_val}
+    out = _redact(cfg)
+    assert out["my_custom_endpoint_key"] != long_val
+
+
+def test_redact_does_not_redact_short_value_under_key_suffix():
+    """Structural rule requires len(value) > 32 to avoid false positives
+    on short identifiers like `prefix_key: "k1"`."""
+    from cairn.api import _redact
+    cfg = {"my_custom_endpoint_key": "short"}
+    out = _redact(cfg)
+    assert out["my_custom_endpoint_key"] == "short"
+
+
+def test_redact_does_not_redact_unrelated_long_strings():
+    """Long string under a non-sensitive key suffix passes through."""
+    from cairn.api import _redact
+    long_description = "This is a long description with no sensitive content " * 5
+    cfg = {"description": long_description, "notes": long_description}
+    out = _redact(cfg)
+    assert out["description"] == long_description
+    assert out["notes"] == long_description
+
+
+def test_redact_existing_sensitive_tokens_still_redacted():
+    """Regression on existing _SENSITIVE_TOKENS coverage."""
+    from cairn.api import _redact
+    cfg = {
+        "secret": "topsecret",
+        "password": "hunter2",
+        "auth_header": "Bearer xyz",
+        "api_key": "sk-test",
+    }
+    out = _redact(cfg)
+    for k in cfg:
+        assert out[k] != cfg[k], f"{k} regression"
+
+
+def test_redact_recursive_walk_preserved():
+    """The recursive walk over nested dicts/lists must still work."""
+    from cairn.api import _redact
+    cfg = {
+        "providers": {
+            "anthropic_api_key": "sk-ant-xxxxxxxxxxxxxxxxxxxx",
+            "models": ["claude-sonnet", "claude-opus"],
+        }
+    }
+    out = _redact(cfg)
+    assert out["providers"]["anthropic_api_key"] != "sk-ant-xxxxxxxxxxxxxxxxxxxx"
+    assert out["providers"]["models"] == ["claude-sonnet", "claude-opus"]  # untouched
+
+
+# ---------------------------------------------------------------------------
+# Bearer-token auth + rate-limit integration tests.
+# These use the dedicated `auth_server` / `rate_limit_server` fixtures so
+# the existing tests on the open `server` fixture continue to pass.
+# ---------------------------------------------------------------------------
+
+
+def _post_with_header(url, path, body, header):
+    """POST helper that lets us add an Authorization header."""
+    headers = {"Content-Type": "application/json"}
+    if header is not None:
+        headers["Authorization"] = header
+    req = urllib.request.Request(
+        url + path, data=json.dumps(body).encode("utf-8"),
+        headers=headers, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status, json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read())
+
+
+def _get_with_header(url, path, header):
+    """GET helper with an optional Authorization header."""
+    headers = {}
+    if header is not None:
+        headers["Authorization"] = header
+    req = urllib.request.Request(url + path, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status, json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read())
+
+
+def test_health_default_off_reports_auth_disabled(server):
+    """The default-off fixture must honestly report `auth: disabled`."""
+    url, _ = server
+    status, body = _get_json(url, "/health")
+    assert status == 200
+    assert body["auth"] == "disabled"
+    assert body["rate_limit"] == "disabled"
+
+
+def test_auth_rejects_missing_header(auth_server):
+    """No Authorization header on a guarded endpoint must 401."""
+    url, _token, _ = auth_server
+    status, body = _post_with_header(
+        url, "/analyze", {"text": "Certainly! Here is a comprehensive overview."}, None
+    )
+    assert status == 401
+    assert body.get("code") == "ERR_AUTH_REQUIRED"
+
+
+def test_auth_rejects_wrong_token(auth_server):
+    """A bearer header with a non-matching token must 401."""
+    url, _token, _ = auth_server
+    status, body = _post_with_header(
+        url, "/analyze", {"text": "anything goes here"}, "Bearer wrong-token"
+    )
+    assert status == 401
+    assert body.get("code") == "ERR_AUTH_REQUIRED"
+
+
+def test_auth_accepts_correct_token(auth_server):
+    """A bearer header carrying the configured token must reach the handler."""
+    url, token, _ = auth_server
+    status, body = _post_with_header(
+        url, "/analyze",
+        {"text": "Certainly! Here is a comprehensive overview."},
+        f"Bearer {token}",
+    )
+    assert status == 200
+    assert "determination" in body
+
+
+def test_auth_health_open_without_token(auth_server):
+    """/health must remain unauthenticated so probes keep working."""
+    url, _token, _ = auth_server
+    status, body = _get_with_header(url, "/health", None)
+    assert status == 200
+    assert body["auth"] == "bearer-token"
+
+
+def test_auth_health_reports_bearer_token(auth_server):
+    """When auth is on, /health reports `auth: bearer-token`."""
+    url, _token, _ = auth_server
+    status, body = _get_with_header(url, "/health", None)
+    assert status == 200
+    assert body["auth"] == "bearer-token"
+
+
+def test_rate_limit_returns_429_after_threshold(rate_limit_server):
+    """Hammer 5 requests; first 2 succeed, last 3 must 429."""
+    url, _ = rate_limit_server
+    text_body = {"text": "Certainly! Here is a comprehensive overview."}
+    statuses = []
+    for _ in range(5):
+        status, _body = _post_with_header(url, "/analyze", text_body, None)
+        statuses.append(status)
+    # First 2 under the cap; the next 3 must each return 429.
+    assert statuses[:2] == [200, 200], f"unexpected pre-cap statuses: {statuses}"
+    assert statuses[2:] == [429, 429, 429], f"unexpected post-cap statuses: {statuses}"
+
+
+def test_rate_limit_health_reports_window(rate_limit_server):
+    """/health must surface the live rate-limit window honestly."""
+    url, _ = rate_limit_server
+    status, body = _get_with_header(url, "/health", None)
+    assert status == 200
+    assert body["rate_limit"]["max_per_window"] == 2
+    assert body["rate_limit"]["window_seconds"] == 60
+    assert body["rate_limit"]["store"] == "memory"

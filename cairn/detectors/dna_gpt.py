@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 
 from cairn.contracts import LayerResult
+from cairn.security.url_policy import validate_public_https_base_url
 
 
 # HEURISTIC weights mapping b-score statistics → p(LLM). Hand-picked, NOT
@@ -209,6 +210,10 @@ class DNAGPTDetector:
                     base_url = (config or {}).get("base_url")
                     if not base_url:
                         return "", "openai-compat provider requires base_url in config"
+                    try:
+                        base_url = validate_public_https_base_url(base_url)
+                    except ValueError as e:
+                        return "", f"openai-compat base_url rejected: {e}"
                     kwargs["base_url"] = base_url
                 client = OpenAI(**kwargs)
                 resp = client.chat.completions.create(

@@ -28,6 +28,7 @@ from typing import Iterable
 
 from cairn.contracts import LayerResult
 from cairn.detectors._utils import interpolate as _interpolate
+from cairn.security.url_policy import validate_public_https_base_url
 
 
 # HEURISTIC mapping from mean baseline similarity → p(LLM). The similarity
@@ -142,7 +143,7 @@ class ContrastiveGenDetector:
         model = config.get("model", default_models.get(provider, "gpt-4o-mini"))
 
         baselines, errors = self._generate_baselines(
-            task_description, api_key, provider, model, n_baselines
+            task_description, api_key, provider, model, n_baselines, config=config,
         )
         valid = [b for b in baselines if b.strip()]
         if not valid:
@@ -222,6 +223,7 @@ class ContrastiveGenDetector:
 
     def _generate_baselines(
         self, task_description: str, api_key: str, provider: str, model: str, n: int,
+        config: dict | None = None,
     ) -> tuple[list[str], list[str]]:
         """Generate `n` LLM responses to the task. Privacy: only the task
         description is sent — never the submission."""
@@ -259,9 +261,13 @@ class ContrastiveGenDetector:
             try:
                 kwargs: dict = {"api_key": api_key}
                 if provider == "openai-compat":
-                    base_url = config.get("base_url")
+                    base_url = (config or {}).get("base_url")
                     if not base_url:
                         return [], ["openai-compat provider requires base_url in config"]
+                    try:
+                        base_url = validate_public_https_base_url(base_url)
+                    except ValueError as e:
+                        return [], [f"openai-compat base_url rejected: {e}"]
                     kwargs["base_url"] = base_url
                 client = OpenAI(**kwargs)
                 for i in range(n):

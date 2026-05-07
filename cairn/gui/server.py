@@ -1,9 +1,21 @@
 """Minimal, self-contained HTTP server that serves the embedded SPA and
 proxies /analyze, /batch, /feedback, and /history/* to the local BEET
 pipeline. No external API dependency; calls the pipeline directly.
+
+Optional security layer:
+
+* Bearer-token auth via :mod:`cairn.security.auth` — gated on
+  ``auth.tokens`` config or ``CAIRN_API_TOKEN`` env var. Default off.
+* Sliding-window rate limiting via :mod:`cairn.security.rate_limit`
+  — gated on ``rate_limit.enabled``. Default off.
+
+Both run as a single per-request guard at the top of ``do_GET`` /
+``do_POST``; when both configs are disabled the guard short-circuits
+with zero overhead.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import threading
@@ -20,6 +32,19 @@ from cairn.monitoring.meta_detector import MetaDetector
 from cairn.pipeline import BatchCancelled, CairnPipeline
 from cairn.report import build_json_report
 from cairn.runtime import RuntimeContext
+from cairn.security.auth import (
+    AuthConfig,
+    auth_config_from_dict,
+    auth_status_for_health,
+    check_bearer,
+)
+from cairn.security.rate_limit import (
+    RateLimitConfig,
+    RateLimiter,
+    make_rate_limiter,
+    rate_limit_config_from_dict,
+    rate_limit_status_for_health,
+)
 from cairn.sidecar import (
     DEFAULT_FEEDBACK_PATH,
     JobRegistry,
@@ -40,7 +65,7 @@ def _history_from_config(config: dict | None) -> HistoryStore | None:
     if hist.get("enabled", True) is False:
         return None
     db_path = Path(hist.get("db_path", "data/cairn_history.sqlite3"))
-    retain = bool(hist.get("retain_text", True))
+    retain = bool(hist.get("retain_text", False))
     try:
         return HistoryStore(db_path, retain_text=retain)
     except Exception as e:
@@ -56,6 +81,9 @@ def _make_handler(
     profile: str | None = None,
     ctx: RuntimeContext | None = None,
     drift: DriftMonitor | None = None,
+    auth_cfg: AuthConfig | None = None,
+    rate_limit_cfg: RateLimitConfig | None = None,
+    rate_limiter: RateLimiter | None = None,
 ):
     if ctx is None:
         if pipeline is None:
@@ -64,10 +92,69 @@ def _make_handler(
     meta = meta or MetaDetector()
     feedback_path = feedback_path or DEFAULT_FEEDBACK_PATH
     jobs = JobRegistry()  # in-memory async-batch job tracking; mirrors sidecar
+    # Resolve auth + rate-limit lazily from the live config when callers
+    # didn't pass explicit values. Default-off behaviour is preserved
+    # because both `auth_config_from_dict` and `rate_limit_config_from_dict`
+    # return disabled configs when the keys are absent.
+    if auth_cfg is None:
+        auth_cfg = auth_config_from_dict(ctx.config)
+    if rate_limit_cfg is None:
+        rate_limit_cfg = rate_limit_config_from_dict(ctx.config)
+    if rate_limiter is None and rate_limit_cfg.enabled:
+        rate_limiter = make_rate_limiter(rate_limit_cfg)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
             sys.stdout.write("[gui] " + (format % args) + "\n")
+
+        def _security_guard(self) -> bool:
+            """Per-request bearer + rate-limit check.
+
+            Returns ``True`` when the request is allowed to proceed and
+            the handler can read on. Returns ``False`` when the guard
+            already wrote a 401 / 429 response — the handler must stop.
+
+            The /health endpoint is always allowed (matches the
+            FastAPI middleware) so liveness probes never get a 401.
+            """
+            path = urlparse(self.path).path
+            if path == "/health":
+                return True
+
+            if auth_cfg.enabled:
+                provided = self.headers.get(auth_cfg.header_name)
+                if not check_bearer(provided, auth_cfg):
+                    self._send_json(
+                        401,
+                        {"error": "unauthorized", "code": "ERR_AUTH_REQUIRED"},
+                    )
+                    return False
+
+            if rate_limiter is not None:
+                key = self._rate_limit_key()
+                if not rate_limiter.check(key):
+                    self._send_json(
+                        429,
+                        {
+                            "error": "rate limit exceeded",
+                            "code": "ERR_RATE_LIMIT",
+                            "window_seconds": rate_limit_cfg.window_seconds,
+                            "max_per_window": rate_limit_cfg.max_per_window,
+                        },
+                    )
+                    return False
+
+            return True
+
+        def _rate_limit_key(self) -> str:
+            """Pick a bucket key honouring ``auth_cfg.header_name``."""
+            if auth_cfg.enabled:
+                provided = self.headers.get(auth_cfg.header_name)
+                if provided:
+                    digest = hashlib.sha256(provided.encode("utf-8")).hexdigest()
+                    return f"token:{digest[:16]}"
+            ip = self.client_address[0] if self.client_address else "unknown"
+            return f"ip:{ip}"
 
         def _send_json(self, status: int, payload: dict) -> None:
             body = json.dumps(payload).encode("utf-8")
@@ -87,6 +174,8 @@ def _make_handler(
             self.wfile.write(body)
 
         def do_GET(self):
+            if not self._security_guard():
+                return
             parsed = urlparse(self.path)
             path = parsed.path
             if path in ("/", "/index.html"):
@@ -111,6 +200,8 @@ def _make_handler(
                     "calibration_status": cal_status,
                     "history_enabled": history is not None,
                     "profile": ctx.profile,
+                    "auth": auth_status_for_health(auth_cfg),
+                    "rate_limit": rate_limit_status_for_health(rate_limit_cfg),
                 })
             elif path == "/config/profiles":
                 self._send_json(200, {
@@ -141,6 +232,8 @@ def _make_handler(
                 self.send_error(404)
 
         def do_POST(self):
+            if not self._security_guard():
+                return
             path = urlparse(self.path).path
             length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(length).decode("utf-8") if length else "{}"
@@ -620,11 +713,28 @@ def serve(
     history = _history_from_config(config)
     drift = drift_from_config(config)
     ctx = RuntimeContext(pipeline, profile, config or {})
-    handler = _make_handler(meta=meta, feedback_path=fp, history=history, ctx=ctx, drift=drift)
+    auth_cfg = auth_config_from_dict(config or {})
+    rl_cfg = rate_limit_config_from_dict(config or {})
+    rate_limiter = make_rate_limiter(rl_cfg) if rl_cfg.enabled else None
+    handler = _make_handler(
+        meta=meta,
+        feedback_path=fp,
+        history=history,
+        ctx=ctx,
+        drift=drift,
+        auth_cfg=auth_cfg,
+        rate_limit_cfg=rl_cfg,
+        rate_limiter=rate_limiter,
+    )
     httpd = HTTPServer((host, port), handler)
     url = f"http://{host}:{port}/"
     hist_status = "enabled" if history is not None else "disabled"
-    print(f"[gui] serving on {url}  (history {hist_status}, Ctrl-C to stop)")
+    auth_status = "enabled" if auth_cfg.enabled else "disabled"
+    rl_status = "enabled" if rl_cfg.enabled else "disabled"
+    print(
+        f"[gui] serving on {url}  "
+        f"(history {hist_status}, auth {auth_status}, rate_limit {rl_status}, Ctrl-C to stop)"
+    )
     if open_browser:
         try:
             webbrowser.open(url)

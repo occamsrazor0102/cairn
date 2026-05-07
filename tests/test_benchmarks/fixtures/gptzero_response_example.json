@@ -1,0 +1,40 @@
+{
+  "_fixture_note": "Synthetic GPTZero v2 response shape. URLs use IETF-reserved example.com. No real API key, no real text scanned.",
+  "_source_url": "https://api.example.com/v2/predict/text",
+  "version": "2024-01-09",
+  "scanId": "synthetic-scan-0001",
+  "documents": [
+    {
+      "language": "en",
+      "predicted_class": "ai",
+      "completely_generated_prob": 0.97,
+      "average_generated_prob": 0.91,
+      "overall_burstiness": 12.3,
+      "confidence_category": "high",
+      "confidence_score": 0.95,
+      "result_message": "Our detector is highly confident that this text was AI generated.",
+      "sentences": [
+        {
+          "sentence": "The quick brown fox jumps over the lazy dog.",
+          "generated_prob": 0.94,
+          "perplexity": 28.5,
+          "highlight_sentence_for_ai": true
+        },
+        {
+          "sentence": "It does so with the unhurried grace of an animal that has nowhere in particular to be.",
+          "generated_prob": 0.96,
+          "perplexity": 22.1,
+          "highlight_sentence_for_ai": true
+        }
+      ],
+      "paragraphs": [
+        {
+          "start_sentence_index": 0,
+          "end_sentence_index": 2,
+          "completely_generated_prob": 0.95,
+          "num_sentences": 2
+        }
+      ]
+    }
+  ]
+}
