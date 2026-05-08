@@ -1,0 +1,57 @@
+_profile: full_coverage
+_extends: default
+
+# Forces every detector phase to fire on every sample, bypassing the
+# cascade short-circuit. Used for research experiments where you want
+# unbiased per-detector AUROC numbers across the full dataset rather
+# than the "ambiguous-subset" each detector sees under normal cascade.
+#
+# This is NOT a production profile. Two reasons:
+#   - it ignores the cascade's compute-budget design
+#   - an EBM trained on full-coverage features expects all features to
+#     be present at inference; deploying it into the cascade (which
+#     still short-circuits) creates a distribution-shift trap
+# Treat any model trained on this profile as a research artifact for
+# diagnosing detector behavior, not a replacement for master_minus_arxiv.
+
+cascade:
+  # `_low < agg < _high` in cairn/cascade.py:31-38 is always true when
+  # the bounds are strictly outside [0,1]. With `agg ∈ [0,1]` this
+  # forces phase 1 → 2 escalation on every sample.
+  phase1_short_circuit_high: 1.01
+  phase1_short_circuit_low: -0.01
+  phase2_short_circuit_high: 1.01
+  phase2_short_circuit_low: -0.01
+  # Bypass the phase 2 → 3 threshold check entirely. Phase 3 always
+  # runs.
+  phase3_always_run: true
+
+# Phase-3 detectors that are off in default.yaml but cheap to enable.
+# `perturbation` runs locally on transformers + torch — no API spend.
+detectors:
+  perturbation:
+    enabled: true
+    weight: 0.80
+
+# `contrastive_gen` and `dna_gpt` make per-sample LLM API calls.
+# Cost order: ~$0.005–0.02 per row per provider. On a 500-row holdout
+# that's ~$2.50–$10 per provider. Uncomment to include them; otherwise
+# they SKIP at runtime (no key) and the audit chain records that under
+# detector_errors.
+#
+#  contrastive_gen:
+#    enabled: true
+#    weight: 0.95
+#    provider: anthropic
+#    model: claude-sonnet-4-6
+#    n_baselines: 3
+#  dna_gpt:
+#    enabled: true
+#    weight: 0.85
+#    provider: anthropic
+#    model: claude-haiku-4-5-20251001
+
+# Inherit detector defaults, fusion config, decision thresholds,
+# privacy + router settings from default.yaml. Loader merges this
+# overlay on top of default.yaml; keys we don't override stay at
+# their default values.
