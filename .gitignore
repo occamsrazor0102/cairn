@@ -33,7 +33,11 @@ venv/
 # Local editor / IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
+
+# Claude Code — ephemeral runtime locks (session/machine specific)
+.claude/scheduled_tasks.lock
 
 # OS
 .DS_Store
