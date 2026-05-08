@@ -267,7 +267,36 @@ leaves the old context untouched.
 - `cairn/privacy/retention.py` — purge-by-age with a `--confirm` gate.
 - `cairn/provenance/chain.py::AuditChain` — hash-chained JSONL where
   each entry's `_hash` incorporates the previous entry's hash. Any
-  tamper breaks the chain and `validate()` surfaces it.
+  tamper breaks the chain and `validate()` surfaces it. Wired into
+  `CairnPipeline.analyze` as a best-effort append (default off; opt in
+  via `audit.enabled: true`). Each appended record carries:
+
+  ```json
+  {
+    "submission_id": "...",
+    "text_hash": "sha256:...",
+    "profile": "master_minus_arxiv",
+    "p_llm": 0.84,
+    "determination": "AMBER",
+    "calibration_status": "calibrated",
+    "model_artifact_hash": "sha256:...",
+    "timestamp": "2026-05-07T23:54:00Z"
+  }
+  ```
+
+  `calibration_status` mirrors the `/health` ladder exactly — one of
+  `"heuristic"`, `"fusion-only"`, or `"calibrated"` (with the same
+  `getattr(conformal, "calibrated", False)` guard so a loaded-but-unfit
+  conformal does not falsely promote records).
+
+  The submission text itself is never written — only `text_hash`
+  (`cairn/privacy/hashing.py::hash_text`, which NFKC-normalizes,
+  collapses whitespace, and lowercases before SHA-256, so two
+  submissions that differ only in casing or whitespace map to the
+  same hash). This holds even when `gui.history.retain_text=true`.
+  Validate with `cairn audit verify`. A failed chain-append never
+  fails analyze: same best-effort discipline as history and drift
+  writes.
 
 ## History store
 

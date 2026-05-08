@@ -1,3 +1,5 @@
+import datetime
+import hashlib
 import importlib
 import logging
 import math
@@ -12,6 +14,9 @@ from cairn.cascade import CascadeScheduler
 from cairn.fusion.ebm import EBMFusion, DEFAULT_FUSION
 from cairn.fusion.conformal import ConformalWrapper
 from cairn.decision import DecisionEngine
+from cairn.history import mint_submission_id
+from cairn.privacy.hashing import hash_text
+from cairn.provenance.chain import AuditChain
 import cairn.detectors as detector_registry
 
 logger = logging.getLogger("cairn")
@@ -136,9 +141,96 @@ class CairnPipeline:
                 Path(config["monitoring"].get("store_path", "data/monitoring")),
                 config,
             )
+        # Tamper-evident audit chain. Off by default; opt-in via `audit.enabled`.
+        # Computed once at init so analyze() doesn't re-stat the model file or
+        # re-derive calibration_status on every call.
+        self._audit_chain: AuditChain | None = None
+        self._calibration_status = self._compute_calibration_status()
+        self._model_artifact_hash = self._compute_model_artifact_hash(config)
+        audit_cfg = config.get("audit") or {}
+        if audit_cfg.get("enabled"):
+            log_path = Path(audit_cfg.get("log_path") or "data/audit/chain.jsonl")
+            try:
+                self._audit_chain = AuditChain(log_path)
+            except Exception as e:
+                logger.warning(f"audit chain init failed at {log_path}: {e}")
+                self._audit_chain = None
         missing = detector_registry.get_missing_detectors()
         for name, err in missing.items():
             logger.info(f"Detector '{name}' unavailable: {err}")
+
+    def _compute_calibration_status(self) -> str:
+        # Mirrors the /health computation in sidecar.py:637-647 and
+        # gui/server.py:188-198 exactly — including the `calibrated`
+        # attr guard, so a loaded-but-unfit ConformalWrapper does not
+        # falsely promote audit records to "calibrated". Pinned at init
+        # so the audit record reflects the artifact actually loaded, not
+        # whatever might be swapped in mid-process later.
+        model = getattr(self._fusion, "_model", None)
+        conformal = getattr(self._fusion, "_conformal", None)
+        conformal_loaded = (
+            conformal is not None
+            and getattr(conformal, "calibrated", False)
+        )
+        if model is not None and conformal_loaded:
+            return "calibrated"
+        if model is not None:
+            return "fusion-only"
+        return "heuristic"
+
+    @staticmethod
+    def _compute_model_artifact_hash(config: dict) -> str | None:
+        model_path = (config.get("fusion") or {}).get("model_path")
+        if not model_path:
+            return None
+        p = Path(model_path)
+        if not p.exists():
+            return None
+        try:
+            h = hashlib.sha256()
+            with open(p, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    h.update(chunk)
+            return f"sha256:{h.hexdigest()}"
+        except Exception as e:
+            # Audit records distinguish "no model" (None when no path
+            # configured) from "couldn't read it" — log so the latter
+            # shows up in operator logs even though both serialize as
+            # null in the manifest.
+            logger.warning(f"model artifact hash failed for {p}: {e}")
+            return None
+
+    def _audit_append(
+        self,
+        text: str,
+        determination: Determination,
+        task_metadata: dict | None,
+    ) -> None:
+        # Best-effort: a failed write must never fail analyze. Same discipline
+        # as history.py and monitoring/drift.py.
+        if self._audit_chain is None:
+            return
+        try:
+            sid = (task_metadata or {}).get("submission_id") or mint_submission_id()
+            now_iso = (
+                datetime.datetime.now(datetime.timezone.utc)
+                .replace(tzinfo=None)
+                .isoformat()
+                + "Z"
+            )
+            manifest = {
+                "submission_id": sid,
+                "text_hash": hash_text(text),
+                "profile": self._config.get("_profile", "default"),
+                "p_llm": round(determination.p_llm, 4),
+                "determination": determination.label,
+                "calibration_status": self._calibration_status,
+                "model_artifact_hash": self._model_artifact_hash,
+                "timestamp": now_iso,
+            }
+            self._audit_chain.append(manifest)
+        except Exception as e:
+            logger.warning(f"audit chain append failed: {e}")
 
     @staticmethod
     def _build_fusion(config: dict) -> EBMFusion:
@@ -227,6 +319,7 @@ class CairnPipeline:
                 self._monitor.record(determination.p_llm, determination.label, vec)
             except Exception as e:
                 logger.warning(f"drift monitor record failed: {e}")
+        self._audit_append(text, determination, task_metadata)
         return determination, results, router_decision
 
     def analyze_batch(
@@ -261,7 +354,12 @@ class CairnPipeline:
         for i, (sid, text) in enumerate(texts.items()):
             if cancel_check is not None and cancel_check():
                 raise BatchCancelled()
-            det, results, rd = self.analyze_detailed(text, task_metadata)
+            # Thread the per-submission sid into task_metadata so the audit
+            # chain stamps each batch entry with the correct submission_id
+            # rather than minting a fresh uuid per row or smearing one
+            # caller-supplied id across the whole batch.
+            sub_meta = {**(task_metadata or {}), "submission_id": sid}
+            det, results, rd = self.analyze_detailed(text, sub_meta)
             per_sub[sid] = (det, list(results), rd)
             if progress_cb is not None:
                 progress_cb(i + 1, total, sid)

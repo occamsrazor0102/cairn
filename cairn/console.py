@@ -94,5 +94,46 @@ def serve_cmd(host: str, port: int, profile: str, config: str | None) -> None:
     uvicorn.run(app, host=host, port=port)
 
 
+@main.group("audit")
+def audit_group() -> None:
+    """Inspect and verify the tamper-evident audit log."""
+
+
+@audit_group.command("verify")
+@click.option("--profile", "-p", default="default",
+              type=click.Choice(_PROFILE_CHOICES), show_default=True,
+              help="Profile to read audit.log_path from. Ignored when --log-path is given.")
+@click.option("--config", "-c", default=None, type=click.Path(exists=True),
+              help="Config YAML override (takes precedence over --profile).")
+@click.option("--log-path", default=None, type=click.Path(),
+              help="Path to the audit chain JSONL. Overrides config.")
+def audit_verify_cmd(profile: str, config: str | None, log_path: str | None) -> None:
+    """Validate the audit chain. Exits non-zero on tamper or chain break."""
+    from cairn.provenance.chain import AuditChain
+
+    if log_path is not None:
+        target = Path(log_path)
+    else:
+        # Same resolution path as `cairn gui` / `cairn serve`: explicit
+        # --config wins, otherwise <repo>/configs/<profile>.yaml.
+        config_path = Path(config) if config else (Path(__file__).parent.parent / "configs" / f"{profile}.yaml")
+        cfg = load_config(config_path)
+        audit_cfg = (cfg.get("audit") or {})
+        target = Path(audit_cfg.get("log_path") or "data/audit/chain.jsonl")
+
+    chain = AuditChain(target)
+    n = len(chain)
+    ok, errors = chain.validate()
+    click.echo(f"audit chain: {target}")
+    click.echo(f"entries={n} valid={ok}")
+    if errors:
+        for err in errors[:5]:
+            click.echo(f"  - {err}")
+        if len(errors) > 5:
+            click.echo(f"  ({len(errors) - 5} more)")
+    if not ok:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()

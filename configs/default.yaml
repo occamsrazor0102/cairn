@@ -1,6 +1,11 @@
 # configs/default.yaml
 _profile: default
 
+runtime:
+  auto_route: false   # opt-in. When true, the pipeline auto-picks
+                      # the calibrated profile via cairn/auto_routing.py
+                      # instead of using the explicitly-loaded profile.
+
 detectors:
   preamble:
     enabled: true
@@ -111,3 +116,59 @@ gui:
   drift:
     enabled: true
     store_path: data/drift_alerts
+    # Persistent observation window. When null (default), DriftMonitor uses
+    # an in-memory list and the in-flight window is lost on sidecar restart.
+    # Set to a path (e.g. data/drift_observations.sqlite3) to back the
+    # window with sqlite so it survives restart.
+    db_path: null
+
+# ---------------------------------------------------------------------------
+# Production hardening — auth + rate limiting
+# ---------------------------------------------------------------------------
+# CAIRN binds to loopback by default (127.0.0.1). When operators expose
+# `cairn serve` or `cairn gui` past loopback, enable bearer-token auth
+# AND rate limiting. Both default to disabled so the local-dev experience
+# does not regress.
+
+auth:
+  # Master switch. When false (default) every request is allowed.
+  # When true, every request must carry `Authorization: Bearer <token>`
+  # matching one of the tokens below or the CAIRN_API_TOKEN env var.
+  enabled: false
+  # List of accepted bearer tokens. Populate via `auth.tokens` in a
+  # production override profile, or rely on CAIRN_API_TOKEN env var.
+  # Tokens are merged from both sources (env + config), de-duplicated.
+  tokens: []
+  # Header name to read the bearer credential from. Rarely overridden;
+  # left here for proxies that rewrite the canonical name.
+  header_name: Authorization
+
+rate_limit:
+  # Master switch. When false (default) the limiter is bypassed entirely
+  # — zero overhead. When true, a sliding-window limiter is applied per
+  # token (when authed) or per client IP (otherwise).
+  enabled: false
+  window_seconds: 60
+  max_per_window: 60
+  # `memory` keeps counters in process RAM (lost on restart, fine for a
+  # single-process deployment). `sqlite` persists the events table to
+  # disk and is safe across worker restarts. Override at runtime via
+  # the CAIRN_RATE_LIMIT_STORE env var.
+  store: memory
+  # When true, hash limiter keys via SHA-256 before storing. Useful if
+  # the sqlite store is shared and you want to keep raw IPs out of disk.
+  hash_keys: false
+
+# ---------------------------------------------------------------------------
+# Tamper-evident audit chain
+# ---------------------------------------------------------------------------
+# When enabled, every CairnPipeline.analyze() best-effort appends one record
+# to a hash-chained JSONL log. Each entry stores submission_id, text_hash
+# (sha256, never the raw text), profile, p_llm, determination,
+# calibration_status, model_artifact_hash, and a timestamp, plus the prior
+# entry's hash so any tampering invalidates everything downstream.
+# Verify with `cairn audit verify`. Default is OFF — local dev does not
+# accumulate an audit log unless the operator opts in.
+audit:
+  enabled: false
+  log_path: data/audit/chain.jsonl
