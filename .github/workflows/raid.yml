@@ -1,0 +1,50 @@
+name: RAID benchmark
+
+on:
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'cairn/fusion/**'
+      - 'cairn/detectors/**'
+      - 'configs/.profile_master_minus_arxiv.yaml'
+      - 'models/calib2000/**'
+      - '.github/workflows/raid.yml'
+
+jobs:
+  raid-mini:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[fusion]'
+      - name: Run RAID-mini against calibrated profile
+        # NOTE: tests/fixtures/raid_mini.jsonl is currently a synthetic_placeholder
+        # (real RAID is not licensed for redistribution; see fixture README).
+        # The synthetic fixture achieves TPR ~ 0.20 at FPR <= 0.01, so the gate
+        # is set to 0.10 — enough to verify the runner + pipeline work, but not
+        # the production threshold. When the real RAID corpus is provisioned
+        # (e.g. via `gh release download` of an authorised sample), raise
+        # --min-tpr back to 0.40 per the plan's Phase 9 spec.
+        run: |
+          python scripts/run_raid_benchmark.py \
+            --dataset tests/fixtures/raid_mini.jsonl \
+            --config configs/.profile_master_minus_arxiv.yaml \
+            --fpr-ceiling 0.01 \
+            --min-tpr 0.10 \
+            --out raid-mini-report.json
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raid-mini-report
+          path: raid-mini-report.json

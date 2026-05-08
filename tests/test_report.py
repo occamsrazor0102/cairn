@@ -48,3 +48,73 @@ def test_json_report_serializes_layer_results():
     assert layer["spans"] == [{"start": 0, "end": 10, "kind": "preamble", "note": "match"}]
     assert report["feature_contributions"]["preamble"] == 1.0
     assert report["feature_contributions"]["fingerprint_vocab"] == 0.2
+
+
+def test_json_report_emits_calibration_fields_for_calibrated_singleton():
+    """Calibrated singleton: coverage applies, no abstention, calibrated status."""
+    det = Determination(
+        label="RED",
+        p_llm=0.91,
+        confidence_interval=(0.85, 0.96),
+        prediction_set=["RED"],
+        reason="calibrated singleton",
+        top_features=[("ebm_score", 1.2)],
+        override_applied=False,
+        detectors_run=["preamble", "fingerprint_vocab"],
+        cascade_phases=[1, 2],
+        mixed_report=None,
+        conformal_set=["LLM"],
+        conformal_alpha=0.1,
+        fusion_mode="ebm",
+        coverage_guarantee_applies=True,
+        abstention_reason=None,
+        calibration_status="calibrated",
+        warnings=[],
+    )
+    report = build_json_report(det, submission_id="sub_calibrated")
+    # The fix: all four honesty fields must reach the JSON envelope.
+    assert "coverage_guarantee_applies" in report
+    assert "abstention_reason" in report
+    assert "calibration_status" in report
+    assert "warnings" in report
+    assert report["coverage_guarantee_applies"] is True
+    assert report["abstention_reason"] is None
+    assert report["calibration_status"] == "calibrated"
+    assert report["warnings"] == []
+    # Round-trips through json.dumps without coercion surprises.
+    assert json.loads(json.dumps(report))["abstention_reason"] is None
+
+
+def test_json_report_emits_calibration_fields_for_conformal_empty():
+    """Conformal-empty (OOD) path: coverage voided, abstention reason populated."""
+    det = Determination(
+        label="UNCERTAIN",
+        p_llm=0.5,
+        confidence_interval=(0.4, 0.6),
+        prediction_set=["UNCERTAIN"],
+        reason="empty conformal set - OOD",
+        top_features=[],
+        override_applied=False,
+        detectors_run=["preamble"],
+        cascade_phases=[1],
+        mixed_report=None,
+        conformal_set=[],
+        conformal_alpha=0.1,
+        fusion_mode="ebm",
+        coverage_guarantee_applies=False,
+        abstention_reason="conformal_empty",
+        calibration_status="heuristic",
+        warnings=["empty conformal set; abstaining"],
+    )
+    report = build_json_report(det, submission_id="sub_ood")
+    assert "coverage_guarantee_applies" in report
+    assert "abstention_reason" in report
+    assert "calibration_status" in report
+    assert "warnings" in report
+    assert report["coverage_guarantee_applies"] is False
+    assert report["abstention_reason"] == "conformal_empty"
+    assert report["calibration_status"] == "heuristic"
+    assert report["warnings"] == ["empty conformal set; abstaining"]
+    # Defensive copy: mutating the input list must not bleed into the report.
+    det.warnings.append("mutated after build")
+    assert report["warnings"] == ["empty conformal set; abstaining"]

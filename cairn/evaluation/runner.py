@@ -16,6 +16,8 @@ from cairn.evaluation.metrics import (
     auroc, ece, brier, tpr_at_fpr, summarize, confusion_at_threshold,
 )
 
+_SINGLE_CLASS_SENTINEL = "single-class slice"
+
 
 class PipelineLike(Protocol):
     def analyze(self, text: str, task_metadata: dict | None = None) -> Determination: ...
@@ -30,6 +32,7 @@ class EvalReport:
     config_hash: str
     failed_samples: list[dict] = field(default_factory=list)
     per_attack: dict[str, dict] = field(default_factory=dict)
+    per_source: dict[str, dict] = field(default_factory=dict)
 
 
 def _config_hash(config: dict | None) -> str:
@@ -113,6 +116,26 @@ def run_eval(
         ys = [p["p_llm"] for p in preds]
         per_attack[attack] = summarize(yt, ys)
 
+    by_source: dict[str, list[dict]] = defaultdict(list)
+    for pred, sample in zip(predictions, kept):
+        if sample.source:
+            by_source[sample.source].append(pred)
+    per_source: dict[str, dict] = {}
+    for src, preds in by_source.items():
+        scores = [p["p_llm"] for p in preds]
+        labels_ = [p["label"] for p in preds]
+        block: dict = {"n_samples": len(preds)}
+        # brier is well-defined for single-class slices (it's just MSE between
+        # predicted probability and the binary label); compute it unconditionally
+        # so consumers can always read it. auroc requires both classes.
+        block["brier"] = brier(labels_, scores)
+        if len(set(labels_)) >= 2:
+            # auroc in cairn.evaluation.metrics expects (y_true, y_score).
+            block["auroc"] = auroc(labels_, scores)
+        else:
+            block["auroc_unavailable"] = _SINGLE_CLASS_SENTINEL
+        per_source[src] = block
+
     return EvalReport(
         predictions=predictions,
         metrics=metrics,
@@ -121,6 +144,7 @@ def run_eval(
         config_hash=_config_hash(_extract_config(pipeline)),
         failed_samples=failed,
         per_attack=per_attack,
+        per_source=per_source,
     )
 
 
@@ -164,6 +188,7 @@ def eval_report_to_dict(
         "metrics": _clean_metrics(report.metrics),
         "per_tier": {k: _clean_metrics(v) for k, v in report.per_tier.items()},
         "per_attack": {k: _clean_metrics(v) for k, v in report.per_attack.items()},
+        "per_source": {k: _clean_metrics(v) for k, v in report.per_source.items()},
         "confusion": {
             "threshold": threshold,
             "tp": tp, "fp": fp, "tn": tn, "fn": fn,

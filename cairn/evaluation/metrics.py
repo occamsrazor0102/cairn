@@ -152,3 +152,20 @@ def summarize(y_true: Sequence[int], y_score: Sequence[float]) -> dict:
         "brier": brier(y_true, y_score),
         "tpr_at_fpr_01": tpr_at_fpr(y_true, y_score, target_fpr=0.01),
     }
+
+
+def tpr_at_fpr_ceiling(
+    scores: list[float], labels: list[int], *, ceiling: float = 0.01
+) -> tuple[float, float, float]:
+    """Lowest threshold t s.t. FPR(t) <= ceiling; return (TPR, t, FPR)."""
+    import numpy as np
+    s = np.asarray(scores, dtype=float)
+    y = np.asarray(labels, dtype=int)
+    human = s[y == 0]
+    llm = s[y == 1]
+    if human.size == 0 or llm.size == 0:
+        raise ValueError("tpr_at_fpr_ceiling requires both classes")
+    threshold = float(np.quantile(human, 1.0 - ceiling, method="higher"))
+    achieved_fpr = float((human >= threshold).mean())
+    tpr = float((llm >= threshold).mean())
+    return tpr, threshold, achieved_fpr

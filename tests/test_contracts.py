@@ -59,3 +59,20 @@ def test_determination_fields():
     )
     assert d.label == "AMBER"
     assert not d.override_applied
+
+
+def test_determination_default_coverage_flag():
+    from cairn.contracts import Determination
+    d = Determination(
+        label="GREEN", p_llm=0.1, confidence_interval=(0.0, 0.2),
+        prediction_set=["GREEN"], reason="ok", top_features=[],
+        override_applied=False, detectors_run=[], cascade_phases=[], mixed_report=None,
+    )
+    assert d.coverage_guarantee_applies is True
+
+
+def test_fusion_result_default_coverage_flag():
+    from cairn.contracts import FusionResult
+    fr = FusionResult(p_llm=0.5, confidence_interval=(0.4, 0.6), prediction_set=["YELLOW"],
+                     feature_contributions={}, top_contributors=[])
+    assert fr.coverage_guarantee_applies is True

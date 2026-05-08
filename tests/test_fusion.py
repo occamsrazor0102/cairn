@@ -90,13 +90,150 @@ def test_naive_fusion_contributions_are_signed_and_weighted():
 
 
 def test_conformal_wrapper():
-    # Calibrate with 20 examples
+    # Calibrate with 20 examples (Mondrian needs >=10 per class)
     cal_scores = np.array([0.1, 0.2, 0.15, 0.05, 0.3, 0.25, 0.8, 0.7, 0.9, 0.85,
                            0.12, 0.18, 0.22, 0.08, 0.35, 0.75, 0.65, 0.95, 0.88, 0.78])
     cal_labels = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-                           0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+                           0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
     wrapper = ConformalWrapper(alpha=0.05)
     wrapper.calibrate(cal_scores, cal_labels)
     pset = wrapper.predict_set(0.82)
     assert isinstance(pset, list)
     assert len(pset) >= 1
+
+
+def test_ebm_fuse_passes_domain_to_conformal():
+    from cairn.fusion.ebm import EBMFusion
+    from cairn.contracts import LayerResult
+
+    captured: dict = {}
+
+    class _FakeConformal:
+        calibrated = True
+        alpha = 0.1
+        def predict_set(self, p, router_class=None):
+            captured["router_class"] = router_class
+            return ["LLM"]
+
+    f = EBMFusion(model=None, conformal=_FakeConformal())
+    fr = f.fuse(
+        [LayerResult(layer_id="preamble", domain="universal", raw_score=0.9, p_llm=0.9,
+                     confidence=0.8, signals={}, determination="RED", attacker_tiers=[],
+                     compute_cost="trivial", min_text_length=0)],
+        word_count=200, domain="prose",
+    )
+    assert captured["router_class"] == "prose"
+    assert fr.conformal_set == ["LLM"]
+
+
+def test_naive_fusion_with_no_conformal_returns_wide_ci():
+    from cairn.fusion.ebm import EBMFusion
+    from cairn.contracts import LayerResult
+    f = EBMFusion(model=None, conformal=None)
+    fr = f.fuse(
+        [LayerResult(layer_id="preamble", domain="universal", raw_score=0.9, p_llm=0.9,
+                     confidence=0.5, signals={}, determination="RED", attacker_tiers=[],
+                     compute_cost="trivial", min_text_length=0)],
+        word_count=200, domain="prose",
+    )
+    assert fr.confidence_interval == (0.0, 1.0)
+
+
+def test_ebm_fusion_ci_uses_conformal_threshold():
+    from cairn.fusion.ebm import EBMFusion, ASSEMBLER_FEATURE_NAMES
+    from cairn.contracts import LayerResult
+
+    class _FakeConformal:
+        calibrated = True
+        alpha = 0.1
+        def predict_set(self, p, router_class=None):
+            return ["LLM"] if p > 0.5 else ["human"]
+        def threshold_for(self, cls, router_class=None):
+            return {0: 0.42, 1: 0.18}.get(cls)
+        threshold_per_class = {0: 0.42, 1: 0.18}
+        threshold_per_router = None
+
+    class _FakeModel:
+        _cairn_feature_names = list(ASSEMBLER_FEATURE_NAMES)
+        _cairn_column_means = {n: 0.5 for n in _cairn_feature_names}
+        def predict_proba(self, X):
+            import numpy as np
+            return np.array([[0.1, 0.9]])
+        def explain_local(self, X):
+            class _L:
+                def data(self_inner, _):
+                    return {"scores": [0.0] * len(_FakeModel._cairn_feature_names)}
+            return _L()
+
+    f = EBMFusion(model=_FakeModel(), conformal=_FakeConformal())
+    fr = f.fuse(
+        [LayerResult(layer_id="preamble", domain="universal", raw_score=0.9, p_llm=0.9,
+                     confidence=0.5, signals={"severity": "HIGH", "n_matches": 1},
+                     determination="RED", attacker_tiers=[], compute_cost="trivial",
+                     min_text_length=0)],
+        word_count=200, domain="prose",
+    )
+    assert fr.confidence_interval[0] == pytest.approx(0.72, abs=1e-6)
+    assert fr.confidence_interval[1] == 1.0
+
+
+def test_conformal_ci_returns_none_for_zero_width_threshold():
+    """A degenerate threshold_for == 0.0 must yield None, not a zero-width CI."""
+    from cairn.fusion.ebm import EBMFusion
+
+    class _ZeroWidthConformal:
+        calibrated = True
+        alpha = 0.99
+        def threshold_for(self, cls, router_class=None):
+            return 0.0
+        def predict_set(self, p, router_class=None):
+            return ["human", "LLM"]
+
+    f = EBMFusion(model=None, conformal=_ZeroWidthConformal())
+    assert f._conformal_ci(0.5) is None, (
+        "threshold_for returning 0.0 should yield None, not (0.5, 0.5)"
+    )
+
+    # Negative threshold (mathematically impossible but defensive — would
+    # produce inverted bounds (0.5+x, 0.5-x). Same guard handles it.
+    class _NegativeConformal:
+        calibrated = True
+        alpha = 0.99
+        def threshold_for(self, cls, router_class=None):
+            return -0.5
+        def predict_set(self, p, router_class=None):
+            return ["human", "LLM"]
+
+    f2 = EBMFusion(model=None, conformal=_NegativeConformal())
+    assert f2._conformal_ci(0.5) is None, (
+        "threshold_for returning a negative value should yield None"
+    )
+
+
+def test_ebm_fuse_with_domain_none_warns_and_defaults_to_prose(caplog):
+    """_ebm_fuse with domain=None must surface a warning, not silently emit OOD features."""
+    import logging
+    from cairn.fusion.ebm import EBMFusion
+    from cairn.contracts import LayerResult
+
+    # Minimal fake EBM model so we exercise _ebm_fuse, not _naive_fuse.
+    class _FakeEBM:
+        def predict_proba(self, X):
+            return np.array([[0.5, 0.5]])
+
+        def explain_local(self, X):
+            class _L:
+                def data(self, _):
+                    return {"scores": [0.0] * X.shape[1]}
+            return _L()
+
+    fusion = EBMFusion(model=_FakeEBM(), conformal=None)
+    lr = LayerResult(
+        layer_id="preamble", domain="universal", raw_score=0.5, p_llm=0.5,
+        confidence=0.5, signals={}, determination="AMBER",
+        attacker_tiers=[], compute_cost="trivial", min_text_length=0,
+    )
+    with caplog.at_level(logging.WARNING, logger="cairn.fusion"):
+        fusion.fuse([lr], word_count=200, domain=None)
+    assert any("domain=None" in m for m in caplog.messages), \
+        "fuse(domain=None) must emit a WARNING; saw " + repr(caplog.messages)

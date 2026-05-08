@@ -40,12 +40,12 @@ Paste text, click Analyze. The result panel shows:
 
 ### Detectors
 
-Sixteen detectors organised into four cascade phases:
+Seventeen detectors organised into four cascade phases:
 
 | Phase | Cost | Detectors |
 |------:|------|-----------|
 | 1 | trivial / cheap | `preamble`, `fingerprint_vocab`, `prompt_structure`, `voice_spec`, `instruction_density`, `nssi` |
-| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `token_cohesiveness`, `mixed_boundary` |
+| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `token_cohesiveness`, `mixed_boundary`, `semantic_kinematics` |
 | 3 | expensive (LLM-backed) | `perturbation`, `contrastive_gen`, `dna_gpt` |
 | 4 | batch-only | `cross_similarity` (and `contributor_graph` via `pipeline.analyze_contributors`) |
 
@@ -182,13 +182,22 @@ restarted by the Tauri shell on relaunch.
 CAIRN now ships trained EBM + isotonic + split-conformal artifacts
 for several profiles, but several caveats still apply:
 
-- **Two fusion modes coexist.** With a calibrated profile loaded
-  (`fusion.model_path` set), the EBM produces a calibrated `p_llm`
-  with additive feature contributions. With no model loaded, fusion
-  falls back to naive weighted-mean aggregation across detector
-  `p_llm` values and `/health` reports `calibration_status:
-  "heuristic"`; the GUI shows a banner. The `default` /
-  `screening` / `strict` profiles all run in heuristic mode.
+- **Four fusion tiers coexist.** `/health` reports
+  `calibration_status` as one of:
+  - `heuristic` — no trained EBM, no conformal. Fusion falls back to
+    naive weighted-mean across detector `p_llm` values; the GUI shows
+    an "untrained" banner. The `default` / `screening` / `strict` /
+    `no-api` / `production` profiles run in this tier.
+  - `fusion-only` — trained EBM is loaded but the conformal artifact
+    is missing or uncalibrated. `p_llm` is calibrated, `conformal_set`
+    is empty.
+  - `calibrated` — EBM + split-conformal both loaded. `conformal_set`
+    is populated with marginal coverage at the calibrated alpha.
+  - `calibrated-router-conditional` — additionally, the conformal
+    artifact carries per-router-class thresholds (Phase 3 v3 schema),
+    so coverage is class- *and* router-stratified. The
+    `master_minus_arxiv`, `prompts_only`, and other production
+    profiles under `models/calib2000/profiles/` ship at this tier.
 - **Heuristic mode uses hand-picked detector tables.** When no
   `detector_calibration_path` is loaded, the `_HEURISTIC_*` constants
   in `preamble`, `fingerprint_vocab`, `instruction_density`,

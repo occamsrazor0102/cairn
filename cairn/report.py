@@ -32,6 +32,10 @@ def build_json_report(determination: Determination, submission_id: str = "") -> 
         "conformal_alpha": determination.conformal_alpha,
         "fusion_mode": determination.fusion_mode,
         "detector_errors": [dict(e) for e in determination.detector_errors],
+        "abstention_reason": determination.abstention_reason,
+        "coverage_guarantee_applies": determination.coverage_guarantee_applies,
+        "calibration_status": determination.calibration_status,
+        "warnings": list(determination.warnings),
     }
 
 def build_text_report(determination: Determination) -> str:

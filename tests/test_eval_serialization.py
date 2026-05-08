@@ -74,3 +74,38 @@ def test_nan_metrics_become_none():
 def test_include_predictions_false_empties_list():
     out = eval_report_to_dict(_mk_report(_preds()), include_predictions=False)
     assert out["predictions"] == []
+
+
+def test_eval_report_to_dict_includes_per_source():
+    from cairn.evaluation.runner import EvalReport
+    from cairn.evaluation import eval_report_to_dict
+    import json
+    rep = EvalReport(
+        predictions=[], metrics={}, per_tier={}, n_samples=0,
+        config_hash="abc", per_source={"anthropic": {"n_samples": 10, "auroc": 0.95}},
+    )
+    out = eval_report_to_dict(rep)
+    assert "per_source" in out
+    assert out["per_source"]["anthropic"]["auroc"] == 0.95
+    # NEW: NaN-safe JSON round-trip — catches a future regression where per_source
+    # values bypass _clean_metrics and let NaN/Inf reach json.dumps.
+    serialized = json.dumps(out)
+    assert "NaN" not in serialized, f"per_source values must be JSON-safe; saw NaN in: {serialized}"
+
+
+def test_per_source_nan_values_are_json_safe():
+    """A NaN auroc in per_source must be sanitized to a JSON-safe value before serialization."""
+    from cairn.evaluation.runner import EvalReport
+    from cairn.evaluation import eval_report_to_dict
+    import json
+    rep = EvalReport(
+        predictions=[], metrics={}, per_tier={}, n_samples=0,
+        config_hash="abc",
+        per_source={"degenerate": {"n_samples": 5, "auroc": float("nan"), "brier": 0.5}},
+    )
+    out = eval_report_to_dict(rep)
+    # The serializer must produce valid JSON regardless of NaN floats.
+    serialized = json.dumps(out)
+    assert "NaN" not in serialized
+    # And the value should still be present in some sanitized form (depends on _clean_metrics).
+    assert "auroc" in out["per_source"]["degenerate"]

@@ -1,4 +1,6 @@
 """Cross-submission similarity detector tests."""
+import pytest
+
 from cairn.detectors.cross_similarity import DETECTOR
 
 
@@ -43,3 +45,33 @@ def test_high_similarity_promotes_to_red_or_amber():
     for sid, r in out.items():
         assert r.p_llm >= 0.75
         assert r.determination in ("RED", "AMBER")
+
+
+def test_cross_similarity_uses_retrieval_index_when_present():
+    pytest.importorskip("sentence_transformers")
+    pytest.importorskip("faiss")
+    from cairn.detectors.cross_similarity import CrossSimilarityDetector
+    from cairn.index.retrieval import RetrievalIndex
+
+    rx = RetrievalIndex()
+    rx.add("historical_llm_1", "Once upon a time the model produced text. " * 10)
+    rx.add("historical_human_1", "I remember when I was a kid playing in the garden. " * 10)
+
+    det = CrossSimilarityDetector()
+    config = {
+        "use_retrieval_index": True,
+        "_index_handle": rx,
+        "neighbor_score_threshold": 0.85,
+    }
+    text = "Once upon a time the model produced text. " * 10
+    res = det.analyze(text, config)
+    assert res.determination != "SKIP"
+    assert res.signals["top_neighbor_id"] == "historical_llm_1"
+    assert res.signals["top_neighbor_score"] > 0.85
+
+
+def test_cross_similarity_falls_back_to_skip_when_no_index():
+    from cairn.detectors.cross_similarity import CrossSimilarityDetector
+    det = CrossSimilarityDetector()
+    res = det.analyze("Some text. " * 30, {"use_retrieval_index": False})
+    assert res.determination == "SKIP"

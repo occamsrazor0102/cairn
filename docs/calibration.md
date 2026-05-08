@@ -42,6 +42,26 @@ see [`docs/benchmarks/README.md`](benchmarks/README.md).
                        docs/benchmarks/calib2000/
 ```
 
+## Calibration tiers — what `/health` reports
+
+The pipeline above produces artifacts that the loader classifies into
+one of four `calibration_status` tiers, surfaced by `/health` and the
+GUI banner:
+
+| Tier | Stage 3 artifacts present | Coverage guarantee |
+|------|---------------------------|--------------------|
+| `heuristic` | none — no EBM, no conformal | none; naive weighted-mean fusion |
+| `fusion-only` | EBM `model_path` only | none; calibrated `p_llm` but no conformal sets |
+| `calibrated` | EBM + split-conformal (v1/v2 schema) | marginal coverage at calibrated alpha |
+| `calibrated-router-conditional` | EBM + split-conformal v3 schema with per-router thresholds | class- *and* router-stratified coverage (Phase 3) |
+
+A profile is "complete" once Stage 3 finishes with all three
+artifacts populated and `calibrate_conformal.py` was run with
+`--router-classes` (the default for the production profile recipes
+under `models/calib2000/profiles/`). Profiles trained without
+router-classes land at the `calibrated` tier; production profiles
+land at `calibrated-router-conditional`.
+
 ## Stage 1 — Corpus generation
 
 ### Multi-provider HC3 corpus (calib2000)

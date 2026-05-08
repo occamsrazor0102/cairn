@@ -190,7 +190,13 @@ def _make_handler(
                     pipe._fusion._conformal is not None
                     and getattr(pipe._fusion._conformal, "calibrated", False)
                 )
-                if model_loaded and conformal_loaded:
+                router_conditional = (
+                    conformal_loaded
+                    and getattr(pipe._fusion._conformal, "threshold_per_router", None)
+                )
+                if model_loaded and router_conditional:
+                    cal_status = "calibrated-router-conditional"
+                elif model_loaded and conformal_loaded:
                     cal_status = "calibrated"
                 elif model_loaded:
                     cal_status = "fusion-only"

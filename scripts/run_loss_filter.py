@@ -35,7 +35,7 @@ from cairn.calibration import DetectorCalibrator
 from cairn.dotenv import load_dotenv
 from cairn.feature_cache import load_cache, text_hash
 from cairn.fusion.ebm import FeatureAssembler
-from cairn.fusion.training import load_model
+from cairn.fusion.serialization import load_model
 from cairn.pipeline import normalize_text
 
 
@@ -132,7 +132,7 @@ def main() -> None:
     scorer_dir = Path("models/calib2000/profiles") / args.scorer_profile
     cal = DetectorCalibrator()
     cal.load(scorer_dir / "detector_calibration.json")
-    ebm = load_model(scorer_dir / "ebm.pkl")
+    ebm, _meta = load_model(scorer_dir / "ebm.pkl")
     cache = load_cache(Path(args.features_cache))
     print(f"  cache: {len(cache)} records", flush=True)
 

@@ -88,3 +88,30 @@ class TestRunEval:
         p = report.predictions[0]
         for k in ("id", "label", "p_llm", "determination", "tier"):
             assert k in p
+
+
+def test_per_source_breakdown_in_report():
+    from cairn.evaluation.dataset import EvalSample
+    from cairn.evaluation.runner import run_eval
+
+    class _FakePipeline:
+        def analyze(self, text, task_metadata=None):
+            from cairn.contracts import Determination
+            p = 0.9 if "Anthropic" in text else 0.6
+            return Determination(
+                label="RED" if p > 0.75 else "AMBER",
+                p_llm=p, confidence_interval=(p - 0.1, p + 0.1),
+                prediction_set=["RED"], reason="", top_features=[],
+                override_applied=False, detectors_run=[], cascade_phases=[],
+                mixed_report=None,
+            )
+
+    samples = (
+        [EvalSample(id=f"a{i}", text="Anthropic sample.", label=1, source="anthropic") for i in range(20)] +
+        [EvalSample(id=f"o{i}", text="OpenAI sample.", label=1, source="openai") for i in range(20)] +
+        [EvalSample(id=f"h{i}", text="Human writing.", label=0, source="hc3") for i in range(20)]
+    )
+    rep = run_eval(_FakePipeline(), samples)
+    assert "anthropic" in rep.per_source
+    assert rep.per_source["anthropic"]["n_samples"] == 20
+    assert "auroc" in rep.per_source["anthropic"] or rep.per_source["anthropic"].get("auroc_unavailable")

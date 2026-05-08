@@ -110,3 +110,18 @@ class TestSummarize:
         for k in ("auroc", "ece", "brier", "tpr_at_fpr_01"):
             assert k in out
         assert out["auroc"] == pytest.approx(1.0)
+
+
+def test_tpr_at_fpr_ceiling_returns_threshold_and_tpr():
+    from cairn.evaluation.metrics import tpr_at_fpr_ceiling
+    import numpy as np
+    rng = np.random.default_rng(0)
+    human = rng.beta(2, 8, 100).tolist()
+    llm = rng.beta(8, 2, 100).tolist()
+    scores = human + llm
+    labels = [0] * 100 + [1] * 100
+    tpr, threshold, achieved_fpr = tpr_at_fpr_ceiling(scores, labels, ceiling=0.01)
+    assert 0.0 <= tpr <= 1.0
+    assert 0.0 <= achieved_fpr <= 0.01 + 1e-6
+    flagged_humans = sum(1 for s in human if s >= threshold) / len(human)
+    assert flagged_humans <= 0.01 + 1e-6

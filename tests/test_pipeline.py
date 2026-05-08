@@ -99,3 +99,40 @@ def test_missing_detectors_api_exists():
     import cairn.detectors as registry
     missing = registry.get_missing_detectors()
     assert isinstance(missing, dict)
+
+
+def test_pipeline_instantiates_index_when_configured(tmp_path):
+    pytest.importorskip("sentence_transformers")
+    pytest.importorskip("faiss")
+    config = {
+        "router": {"minimum_words": {"prompt": 30, "prose": 150}},
+        "fusion": {},
+        "decision": {"red_threshold": 0.75, "amber_threshold": 0.50, "yellow_threshold": 0.25,
+                     "abstention": {"enabled": True, "max_prediction_set_size": 3},
+                     "mixed": {"enabled": True, "min_mixed_probability": 0.60}},
+        "detectors": {"cross_similarity": {"enabled": True, "use_retrieval_index": True}},
+        "retrieval": {"enabled": True, "db_path": str(tmp_path / "ix.db")},
+    }
+    from cairn.pipeline import CairnPipeline
+    p = CairnPipeline(config)
+    assert getattr(p, "_retrieval_index", None) is not None
+
+
+def test_pipeline_close_releases_retrieval_index(tmp_path):
+    """CairnPipeline.close() must release the persistent index."""
+    pytest.importorskip("sentence_transformers")
+    pytest.importorskip("faiss")
+    config = {
+        "router": {"minimum_words": {"prompt": 30, "prose": 150}},
+        "fusion": {},
+        "decision": {"red_threshold": 0.75, "amber_threshold": 0.50, "yellow_threshold": 0.25,
+                     "abstention": {"enabled": True, "max_prediction_set_size": 3},
+                     "mixed": {"enabled": True, "min_mixed_probability": 0.60}},
+        "detectors": {"cross_similarity": {"enabled": True, "use_retrieval_index": True}},
+        "retrieval": {"enabled": True, "db_path": str(tmp_path / "ix.db")},
+    }
+    from cairn.pipeline import CairnPipeline
+    p = CairnPipeline(config)
+    assert p._retrieval_index is not None
+    p.close()
+    assert p._retrieval_index is None

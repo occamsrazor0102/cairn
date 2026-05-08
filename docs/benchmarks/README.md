@@ -11,6 +11,11 @@ The current production-grade calibration is the **calib2000 v6**
 corpus + profile family — see [the calib2000 results](#calib2000-six-provider-master-corpus--profile-grid)
 section below for the production numbers and
 [`docs/calibration.md`](../calibration.md) for the training pipeline.
+All `models/calib2000/profiles/*` artifacts ship at the
+`calibrated-router-conditional` tier (the strongest of the four
+`/health::calibration_status` values), meaning the conformal coverage
+guarantee is class- *and* router-stratified.
+
 The earlier per-corpus profiles (`calibrated`, `calibrated_all`,
 `calibrated_regen`, `calibrated_union`, `calibrated_full`) remain in
 `configs/` for reproducibility but are superseded.
