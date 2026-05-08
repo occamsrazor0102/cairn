@@ -324,3 +324,31 @@ def test_cli_audit_verify_handles_missing_log(tmp_path):
     # An empty/missing chain is vacuously valid; entries=0.
     assert result.exit_code == 0, result.output
     assert "entries=0" in result.output
+
+
+# ---------------------------------------------------------------------------
+# D1 — audit chain records overlay's `_profile` after `_deep_merge`
+# ---------------------------------------------------------------------------
+# Pre-fix `_deep_merge` stripped every `_`-prefixed key from the override,
+# so an extending profile (`_profile: overlay`, `_extends: default`) merged
+# into a base produced a config that still reported `_profile: default` —
+# and the audit chain logged the wrong profile name on every analyze call.
+
+def test_pipeline_audit_records_extending_profile_name(tmp_path):
+    from cairn.config import _deep_merge
+    log_path = tmp_path / "audit.jsonl"
+    base = _audit_config(log_path, enabled=True)
+    overlay = {
+        "_profile": "profile_master_minus_arxiv",
+        "audit": {"enabled": True, "log_path": str(log_path)},
+    }
+    merged = _deep_merge(base, overlay)
+    assert merged["_profile"] == "profile_master_minus_arxiv"
+
+    pipeline = CairnPipeline(merged)
+    pipeline.analyze(_SAMPLE_TEXT)
+    entry = AuditChain(log_path)._read_all()[0]
+    assert entry["profile"] == "profile_master_minus_arxiv", (
+        f"audit chain logged the base's profile instead of the overlay's "
+        f"after _deep_merge: got {entry['profile']!r}"
+    )

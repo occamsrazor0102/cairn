@@ -73,9 +73,12 @@ detectors:
 ```
 
 `cairn.config.load_config` deep-merges the child into the parent:
-scalars overwrite, dicts merge recursively, lists replace. Keys
-starting with `_` (like `_profile`, `_extends`) are metadata only and
-don't survive the merge into the active config dict.
+scalars overwrite, dicts merge recursively, lists replace. Identity
+metadata from the overlay — `_profile` and `_description` — survives
+the merge so audit chains and `/health` report the active profile's
+name rather than its base. `_extends` is one-shot: it triggers the
+expansion and is then stripped, so a merged dict reloaded as a base
+won't re-trigger the chain.
 
 ## Required top-level keys
 
@@ -131,6 +134,31 @@ aggressively (faster, fewer Tier-2/3 calls, less accurate on
 ambiguous inputs). `phase3_always_run: true` is useful for evaluation
 runs where you want every detector's raw output regardless of
 confidence.
+
+### Full-coverage research profile
+
+`configs/.profile_full_coverage.yaml` is the research overlay that
+forces every cascade phase to fire on every sample by setting the
+short-circuit thresholds outside `[0, 1]` and `phase3_always_run:
+true`. It is the recommended input profile when you want unbiased
+per-detector AUROC numbers across an entire holdout — production
+benchmarks under the default cascade only see each detector's
+"ambiguous-middle" slice, which understates phase-2 and phase-3
+detector strength (see
+[`docs/benchmarks/full_coverage_holdout_500.md`](benchmarks/full_coverage_holdout_500.md)
+for the calibrated experiment that motivated this overlay).
+
+The dot-prefix keeps it out of `cairn profile list` because it is
+**not** a production deployment target: it ignores the cascade's
+compute-budget design, and an EBM trained on full-coverage features
+expects every detector to fire at inference — deploying it back into
+the production cascade creates a distribution-shift trap. Treat any
+model trained against this overlay as a research artifact, not a
+replacement for `master_minus_arxiv` / `prompts_only`.
+
+When the next calibrator retrain (Wave 2 / A2) needs full-coverage
+features, point the cache builder at this overlay rather than at the
+default profile.
 
 ## Decision block
 

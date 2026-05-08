@@ -87,12 +87,17 @@ hand-flipping the heuristic prior.
 
 **Action items:**
 - Add `semantic_kinematics` to the `master_minus_arxiv` detector
-  calibrator JSON when next retrained.
+  calibrator JSON when next retrained. **This remains the durable fix.**
 - Re-run this experiment after the next calibrator pass to confirm
   the calibrated AUROC moves above 0.5.
-- Until then, every report from this detector under heuristic mode
-  is misleading. Consider gating the detector to "skip in heuristic
-  mode" until calibration covers it.
+- D2 (Stage 0 defect prelude, shipped): `heuristic_suppress: true` is
+  now set on `detectors.semantic_kinematics` in `configs/default.yaml`.
+  The detector still emits raw kinematic signals (so the EBM cache is
+  unaffected) but reports `p_llm=0.5, confidence=0.0,
+  determination=SKIP` under heuristic mode. This is a stop-gap;
+  calibrated profiles whose retrained calibrator covers
+  `semantic_kinematics` should set `heuristic_suppress: false` to
+  re-enable the calibrated mapping.
 
 ### 3. Two detectors are at random under both regimes
 

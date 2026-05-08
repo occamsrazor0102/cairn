@@ -21,12 +21,27 @@ def _load_yaml(path: Path) -> dict:
     with open(path) as f:
         return yaml.safe_load(f) or {}
 
+# Identity metadata that an overlay declares as its own. These survive
+# the merge so an extending profile's name wins over its base — otherwise
+# every extending profile silently reports its base's name in /health,
+# audit-chain manifests, and any other surface that reads `_profile`.
+# Other underscore-prefixed keys (`_extends`) are one-shot directives
+# whose only role is to trigger expansion in `load_config`; they must
+# not cascade through inheritance chains.
+_PRESERVED_META_KEYS = frozenset({"_profile", "_description"})
+
+
 def _deep_merge(base: dict, override: dict) -> dict:
-    """Merge override into base, recursively for nested dicts."""
+    """Merge override into base, recursively for nested dicts.
+
+    Most underscore-prefixed keys are skipped so meta-directives like
+    `_extends` don't cascade. Identity metadata listed in
+    `_PRESERVED_META_KEYS` is kept from the override.
+    """
     result = copy.deepcopy(base)
     for key, val in override.items():
-        if key.startswith("_"):
-            continue  # skip meta-keys
+        if key.startswith("_") and key not in _PRESERVED_META_KEYS:
+            continue  # skip meta-directives like `_extends`
         if key in result and isinstance(result[key], dict) and isinstance(val, dict):
             result[key] = _deep_merge(result[key], val)
         else:
