@@ -1,0 +1,84 @@
+{
+  "baseline": {
+    "n_samples": 100,
+    "metrics": {
+      "auroc": 0.9551282051282051,
+      "ece": 0.2593151644307786,
+      "brier": 0.1918916923395598,
+      "tpr_at_fpr_01": 0.8846153846153846
+    }
+  },
+  "per_attack": {
+    "burstiness_injection": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.9306891025641025,
+        "ece": 0.2463433789878772,
+        "brier": 0.18847735840393554,
+        "tpr_at_fpr_01": 0.8076923076923077
+      }
+    },
+    "emoji_noise": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.9362980769230769,
+        "ece": 0.2399051974111396,
+        "brier": 0.18724626223446386,
+        "tpr_at_fpr_01": 0.8269230769230769
+      }
+    },
+    "grammar_normalize": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.9579326923076923,
+        "ece": 0.2451018994656192,
+        "brier": 0.18266453137259767,
+        "tpr_at_fpr_01": 0.9038461538461539
+      }
+    },
+    "style_transfer": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.9587339743589743,
+        "ece": 0.23938072964908624,
+        "brier": 0.17715120543897867,
+        "tpr_at_fpr_01": 0.8461538461538461
+      }
+    },
+    "summarization_attack": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.4166666666666667,
+        "ece": 0.2571751418327568,
+        "brier": 0.33148272680347274,
+        "tpr_at_fpr_01": 0.019230769230769232
+      }
+    }
+  },
+  "vulnerability_ranking": [
+    {
+      "attack": "summarization_attack",
+      "delta_auroc": -0.5384615384615383
+    },
+    {
+      "attack": "burstiness_injection",
+      "delta_auroc": -0.024439102564102533
+    },
+    {
+      "attack": "emoji_noise",
+      "delta_auroc": -0.018830128205128194
+    },
+    {
+      "attack": "grammar_normalize",
+      "delta_auroc": 0.002804487179487225
+    },
+    {
+      "attack": "style_transfer",
+      "delta_auroc": 0.0036057692307692735
+    }
+  ],
+  "config_path": "configs\\.profile_master_minus_arxiv_robust_v1.yaml",
+  "dataset_path": "data\\calib2000_full_test.jsonl",
+  "n_samples": 100,
+  "seed": 42
+}

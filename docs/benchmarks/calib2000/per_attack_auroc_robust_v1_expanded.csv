@@ -1,0 +1,7 @@
+attack,n_samples,auroc,ece,brier,tpr_at_fpr_01,baseline_auroc,delta_auroc
+(none),100,0.9551,0.2593,0.1919,0.8846,0.9551,0.0000
+burstiness_injection,100,0.9307,0.2463,0.1885,0.8077,0.9551,-0.0244
+emoji_noise,100,0.9363,0.2399,0.1872,0.8269,0.9551,-0.0188
+grammar_normalize,100,0.9579,0.2451,0.1827,0.9038,0.9551,0.0028
+style_transfer,100,0.9587,0.2394,0.1772,0.8462,0.9551,0.0036
+summarization_attack,100,0.4167,0.2572,0.3315,0.0192,0.9551,-0.5385

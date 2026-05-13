@@ -29,6 +29,14 @@ venv/
 !/models/calib2000/profiles/master_minus_arxiv/ebm.pkl
 !/models/calib2000/profiles/master_minus_arxiv/conformal.json
 !/models/calib2000/profiles/master_minus_arxiv/detector_calibration.json
+# A2-augmented variant ships alongside; same allowlist pattern.
+!/models/calib2000/profiles/master_minus_arxiv_robust_v1/
+/models/calib2000/profiles/master_minus_arxiv_robust_v1/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v1/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v1/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v1/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v1/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v1/detector_calibration.json
 
 # Local editor / IDE
 .vscode/
