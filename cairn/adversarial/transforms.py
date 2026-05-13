@@ -6,9 +6,11 @@ the harness; they re-generate content via an LLM.
 """
 from __future__ import annotations
 
+import os
 import random
 import re
-from typing import Callable
+import threading
+from typing import Any, Callable
 
 from cairn.adversarial.registry import Attack, register
 
@@ -223,4 +225,325 @@ register(Attack(
     description="LLM paraphrases to strip stylistic fingerprints",
     severity="advanced",
     apply=paraphrase_launder,
+))
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 / A2 step 2 — seven new transforms
+# ---------------------------------------------------------------------------
+# Two pure-Python (burstiness_injection, emoji_noise), one local-model
+# (translation_pivot, NLLB-200), three provider-required (grammar_normalize,
+# style_transfer, summarization_attack), and one gated commercial skeleton
+# (humanizer_tools). See
+# docs/superpowers/specs/2026-05-07-post-honest-calibration-roadmap.md
+# Wave 2 step 2 for the rationale and per-attack mitigation register.
+
+# --- burstiness_injection ---------------------------------------------------
+
+_BURSTINESS_FRAGMENTS = (
+    "Yeah.",
+    "Hmm.",
+    "Right.",
+    "I think so.",
+    "Anyway,",
+    "Honestly,",
+    "Wait.",
+    "Sort of.",
+)
+
+
+def burstiness_injection(
+    text: str, *, rate: float = 0.20, seed: int | None = None, **_: object
+) -> str:
+    """Increase sentence-length variance by interleaving short fragments.
+
+    Targets perplexity / sentence-length-distribution detectors that flag
+    uniformly-medium LLM cadence. Fragments are inserted *after* a
+    sentence (not in the middle) to preserve readability and meaning.
+    """
+    rng = random.Random(seed)
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    if len(sentences) < 2:
+        return text
+    out: list[str] = []
+    for s in sentences:
+        out.append(s)
+        # Only inject after meaningfully-long sentences so a haiku-length
+        # corpus doesn't get drowned in fillers.
+        if len(s) > 20 and rng.random() < rate:
+            out.append(rng.choice(_BURSTINESS_FRAGMENTS))
+    return " ".join(out)
+
+
+# --- emoji_noise ------------------------------------------------------------
+
+# Visible-but-low-frequency emojis. Restricted to Unicode that has been
+# stable across emoji versions to avoid render quirks in test fixtures.
+_EMOJIS = ("\U0001f642", "\U0001f44d", "\U0001f914", "\U0001f4a1",
+           "\U0001f3af", "\U0001f525", "✨", "\U0001f440",
+           "\U0001f4dd", "\U0001f680")
+
+
+def emoji_noise(
+    text: str, *, rate: float = 0.10, seed: int | None = None, **_: object
+) -> str:
+    """Append emojis at sentence boundaries.
+
+    Targets fingerprint-vocab and surface-pattern detectors that key on a
+    clean text-only stream. Emojis are appended *after* the terminal
+    punctuation so detectors that segment on punctuation still see clean
+    sentences.
+    """
+    rng = random.Random(seed)
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    out: list[str] = []
+    for s in sentences:
+        if not s.strip():
+            continue
+        if rng.random() < rate:
+            s = s + " " + rng.choice(_EMOJIS)
+        out.append(s)
+    return " ".join(out)
+
+
+# --- translation_pivot ------------------------------------------------------
+
+# NLLB-200-distilled-600M is the smallest official NLLB checkpoint
+# (~2 GB on disk). Round-trip translation strips most stylistic
+# fingerprints — formality cues, function-word distributions,
+# punctuation idioms — while preserving content. Lazy + thread-safe
+# singleton so the model is loaded at most once per process.
+_NLLB_DEFAULT_MODEL = "facebook/nllb-200-distilled-600M"
+_TRANSLATION_PIPELINE: tuple[Any, Any] | None = None
+_TRANSLATION_LOCK = threading.Lock()
+
+
+def _load_translation_pipeline(model_name: str) -> tuple[Any, Any]:
+    """Return (model, tokenizer) for the requested NLLB checkpoint.
+
+    Cached at module level — re-requesting the same model name returns
+    the cached objects. Re-requesting a *different* model name returns
+    the cached pair without reloading; pass `model_name=...` only on
+    the first call to override the default.
+    """
+    global _TRANSLATION_PIPELINE
+    if _TRANSLATION_PIPELINE is not None:
+        return _TRANSLATION_PIPELINE
+    with _TRANSLATION_LOCK:
+        if _TRANSLATION_PIPELINE is not None:  # double-checked
+            return _TRANSLATION_PIPELINE
+        try:
+            from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        except ImportError as e:
+            raise RuntimeError(
+                "translation_pivot requires `transformers` "
+                "(install with `pip install 'cairn[tier2]'`)."
+            ) from e
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        _TRANSLATION_PIPELINE = (model, tokenizer)
+        return _TRANSLATION_PIPELINE
+
+
+def translation_pivot(
+    text: str,
+    *,
+    pivot_lang: str = "fra_Latn",
+    source_lang: str = "eng_Latn",
+    model_name: str = _NLLB_DEFAULT_MODEL,
+    max_tokens: int = 512,
+    **_: object,
+) -> str:
+    """Two-hop translation (en → pivot → en) via NLLB-200.
+
+    Default pivot is French (`fra_Latn`); override via `pivot_lang` for
+    a different language pair. Pivot choice trades off label-preservation
+    cosine (closer languages preserve more) against fingerprint-stripping
+    strength (more distant languages strip more style).
+    """
+    if not text.strip():
+        return text
+    model, tok = _load_translation_pipeline(model_name)
+
+    def _translate(src: str, src_lang: str, tgt_lang: str) -> str:
+        tok.src_lang = src_lang
+        ins = tok(src, return_tensors="pt", truncation=True, max_length=max_tokens)
+        bos_id = tok.convert_tokens_to_ids(tgt_lang)
+        out_ids = model.generate(
+            **ins, forced_bos_token_id=bos_id, max_new_tokens=max_tokens,
+        )
+        return tok.batch_decode(out_ids, skip_special_tokens=True)[0]
+
+    pivoted = _translate(text, source_lang, pivot_lang)
+    return _translate(pivoted, pivot_lang, source_lang)
+
+
+# --- grammar_normalize, style_transfer, summarization_attack ----------------
+
+_GRAMMAR_NORMALIZE_PROMPT = (
+    "Correct any grammar, punctuation, or spelling errors in the "
+    "following text. Preserve the meaning and approximate length. "
+    "Do not add any preamble or commentary; return only the corrected "
+    "text.\n\n"
+)
+
+_STYLE_TRANSFER_PROMPT = (
+    "Rewrite the following text in a different writing style — switch "
+    "from formal to casual or vice versa. Preserve the factual content "
+    "and the approximate length. Do not add preamble; return only the "
+    "rewritten text.\n\n"
+)
+
+_SUMMARIZATION_ATTACK_PROMPT = (
+    "Summarize the following text in roughly half the length while "
+    "preserving the key claims. Use natural sentence flow. Do not add "
+    "preamble; return only the summary.\n\n"
+)
+
+
+def grammar_normalize(
+    text: str, *, provider: Callable[[str], str] | None = None, **_: object
+) -> str:
+    """LM-based grammar / spelling normalization.
+
+    Strips idiosyncratic spelling and punctuation that sometimes flag
+    LLM-generated text by polishing the grammar surface. Plan A2 step 2
+    calls for a local Llama-3.2-1B-Instruct fallback by default; until
+    that local-LM provider lands, callers must supply a `provider`
+    callable explicitly (anthropic / openai / etc.).
+    """
+    if provider is None:
+        raise RuntimeError(
+            "grammar_normalize requires a 'provider' callable. "
+            "Pass --include-prompt-attacks --provider <name> in the "
+            "runner. Local-LM default routing (Llama-3.2-1B-Instruct) "
+            "is a follow-up per A2 step 2."
+        )
+    return provider(_GRAMMAR_NORMALIZE_PROMPT + text)
+
+
+def style_transfer(
+    text: str, *, provider: Callable[[str], str] | None = None, **_: object
+) -> str:
+    """LM-based register switch (formal ↔ casual). Targets
+    voice / fingerprint detectors that key on register-specific
+    vocabulary (`furthermore`, `comprehensive`, etc.)."""
+    if provider is None:
+        raise RuntimeError(
+            "style_transfer requires a 'provider' callable. "
+            "Pass --include-prompt-attacks --provider <name> in the "
+            "runner."
+        )
+    return provider(_STYLE_TRANSFER_PROMPT + text)
+
+
+def summarization_attack(
+    text: str, *, provider: Callable[[str], str] | None = None, **_: object
+) -> str:
+    """LM-based compression + paraphrase via summarization. Targets
+    length-aware EBM features and rephrases away from fingerprint
+    vocabulary by forcing a re-expression."""
+    if provider is None:
+        raise RuntimeError(
+            "summarization_attack requires a 'provider' callable. "
+            "Pass --include-prompt-attacks --provider <name> in the "
+            "runner."
+        )
+    return provider(_SUMMARIZATION_ATTACK_PROMPT + text)
+
+
+# --- humanizer_tools (commercial skeleton, double-gated) --------------------
+
+# Mirrors the gating pattern in cairn/benchmarks/originality.py: env-var
+# opt-in PLUS API key required. Live HTTP integration is deferred until
+# snapshot fixtures and a privacy-review checkpoint are in place — until
+# then, calling this attack raises a clear RuntimeError chain.
+_HUMANIZER_GATE_ENV = "CAIRN_ALLOW_COMMERCIAL_BENCHMARK"
+_HUMANIZER_API_KEY_ENV = "HUMANIZER_API_KEY"
+
+
+def humanizer_tools(text: str, **_: object) -> str:
+    """Commercial humanizer API (skeleton).
+
+    Wraps a third-party humanizer service (e.g., Undetectable.ai,
+    Quillbot). Sends the *full submission text* to a third-party server
+    — read the privacy implications before enabling. Double-gated by
+    `CAIRN_ALLOW_COMMERCIAL_BENCHMARK=1` and a populated
+    `HUMANIZER_API_KEY` env var to make the trade-off explicit.
+
+    Live integration is deferred until snapshot fixtures land (matches
+    `cairn/benchmarks/originality.py`'s skeleton policy).
+    """
+    if os.environ.get(_HUMANIZER_GATE_ENV) != "1":
+        raise RuntimeError(
+            f"humanizer_tools is gated behind {_HUMANIZER_GATE_ENV}=1 "
+            "for privacy and budget reasons. Set the env var explicitly "
+            "to opt in."
+        )
+    if not os.environ.get(_HUMANIZER_API_KEY_ENV):
+        raise RuntimeError(
+            f"humanizer_tools requires {_HUMANIZER_API_KEY_ENV} in the "
+            "environment. See A1's commercial-adapter pattern in "
+            "cairn/benchmarks/originality.py."
+        )
+    raise NotImplementedError(
+        "humanizer_tools is a SKELETON; live HTTP integration is "
+        "deferred until snapshot fixtures and a privacy-review "
+        "checkpoint are in place. See module docstring."
+    )
+
+
+# --- registrations ----------------------------------------------------------
+
+register(Attack(
+    name="burstiness_injection",
+    category="transform",
+    description="Interleave short filler fragments to increase sentence-length variance",
+    severity="moderate",
+    apply=burstiness_injection,
+))
+register(Attack(
+    name="emoji_noise",
+    category="transform",
+    description="Sprinkle emojis at sentence boundaries to disrupt token-level fingerprints",
+    severity="basic",
+    apply=emoji_noise,
+))
+register(Attack(
+    name="translation_pivot",
+    category="transform",
+    description="Round-trip translation via NLLB-200 (en -> fr -> en) to strip stylistic fingerprints",
+    severity="advanced",
+    apply=translation_pivot,
+))
+register(Attack(
+    name="grammar_normalize",
+    category="prompt",
+    description="LM-based grammar / spelling normalization to remove idiosyncratic marks",
+    severity="moderate",
+    apply=grammar_normalize,
+))
+register(Attack(
+    name="style_transfer",
+    category="prompt",
+    description="LM-based register switch (formal <-> casual) preserving content",
+    severity="advanced",
+    apply=style_transfer,
+))
+register(Attack(
+    name="summarization_attack",
+    category="prompt",
+    description="LM-based compression + paraphrase via summarization",
+    severity="advanced",
+    apply=summarization_attack,
+))
+register(Attack(
+    # humanizer_tools self-gates via env vars (no provider callable needed
+    # from the runner). Marked "transform" so the registry doesn't raise
+    # the generic "provider required" error before the gate runs.
+    name="humanizer_tools",
+    category="transform",
+    description="Commercial humanizer API (skeleton; gated by CAIRN_ALLOW_COMMERCIAL_BENCHMARK)",
+    severity="advanced",
+    apply=humanizer_tools,
 ))

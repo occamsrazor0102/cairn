@@ -1,0 +1,19 @@
+{
+  "headline": {
+    "metric": "TPR@FPR<=0.01",
+    "value": 0.186
+  },
+  "n_samples": 1000,
+  "fpr_ceiling": 0.01,
+  "threshold": 0.9720960282691613,
+  "achieved_fpr": 0.01,
+  "auroc": 0.65908,
+  "per_source": {
+    "mage": {
+      "n_samples": 1000,
+      "brier": 0.25024371706889437,
+      "auroc": 0.65908
+    }
+  },
+  "profile_used": "configs\\.profile_master_minus_arxiv_robust_v1.yaml"
+}

@@ -54,6 +54,14 @@ detectors:
   semantic_kinematics:
     enabled: true
     model: "sentence-transformers/all-MiniLM-L6-v2"
+    # _HEURISTIC_p_llm in cairn/detectors/semantic_kinematics.py follows the
+    # "LLMs smooth, humans drunken-walk" hypothesis; the relationship inverts
+    # on calib2000 / HC3 Q&A (AUROC 0.17 / 0.24 — see
+    # docs/benchmarks/full_coverage_holdout_500.md). Suppress the misleading
+    # point estimate by default but keep raw kinematic signals flowing into
+    # the EBM cache. Calibrated profiles whose detector calibrator covers
+    # semantic_kinematics flip this to false.
+    heuristic_suppress: true
   cross_similarity:
     enabled: false
     weight: 0.70

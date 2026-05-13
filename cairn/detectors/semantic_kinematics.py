@@ -142,6 +142,42 @@ class SemanticKinematicsDetector:
         embs = self._model.encode(sentences, normalize_embeddings=True, show_progress_bar=False)
         distances = _cosine_distances(embs)
         k = _kinematics(distances)
+        raw_signals = {
+            "n_sentences": len(sentences),
+            "sk_velocity_mean": round(k["velocity_mean"], 4),
+            "sk_velocity_std": round(k["velocity_std"], 4),
+            "sk_acceleration_mean": round(k["acceleration_mean"], 4),
+            "sk_acceleration_std": round(k["acceleration_std"], 4),
+            "sk_jerk_mean": round(k["jerk_mean"], 4),
+            "sk_jerk_std": round(k["jerk_std"], 4),
+        }
+
+        # _heuristic_p_llm follows the "LLMs smooth, humans drunken-walk"
+        # hypothesis. On calib2000 / HC3 Q&A the relationship inverts (AUROC
+        # 0.17 / 0.24 — see docs/benchmarks/full_coverage_holdout_500.md).
+        # When `heuristic_suppress` is set, neutralise the misleading point
+        # estimate but keep raw kinematic signals flowing so the EBM /
+        # feature cache can still learn the right sign per distribution at
+        # the next calibrator retrain.
+        if (config or {}).get("heuristic_suppress", False):
+            return LayerResult(
+                layer_id=self.id, domain=self.domain,
+                raw_score=k["velocity_std"],
+                p_llm=0.5, confidence=0.0,
+                signals={
+                    **raw_signals,
+                    "reason": "heuristic_suppress",
+                    "notes": (
+                        "heuristic mode: predictions suppressed pending "
+                        "calibrator retrain"
+                    ),
+                },
+                determination="SKIP",
+                attacker_tiers=["A0", "A1", "A2"],
+                compute_cost=self.compute_cost,
+                min_text_length=_MIN_TEXT_LENGTH,
+            )
+
         p_llm = _heuristic_p_llm(k)
         if p_llm >= 0.75:
             determination = "RED"
@@ -156,15 +192,7 @@ class SemanticKinematicsDetector:
             raw_score=k["velocity_std"],
             p_llm=p_llm,
             confidence=min(0.40 + len(sentences) / 50.0, 0.85),
-            signals={
-                "n_sentences": len(sentences),
-                "sk_velocity_mean": round(k["velocity_mean"], 4),
-                "sk_velocity_std": round(k["velocity_std"], 4),
-                "sk_acceleration_mean": round(k["acceleration_mean"], 4),
-                "sk_acceleration_std": round(k["acceleration_std"], 4),
-                "sk_jerk_mean": round(k["jerk_mean"], 4),
-                "sk_jerk_std": round(k["jerk_std"], 4),
-            },
+            signals=raw_signals,
             determination=determination,
             attacker_tiers=["A0", "A1", "A2"],
             compute_cost=self.compute_cost,

@@ -1,0 +1,24 @@
+{
+  "headline": {
+    "metric": "TPR@FPR<=0.01",
+    "value": 0.276
+  },
+  "n_samples": 1000,
+  "fpr_ceiling": 0.01,
+  "threshold": 0.9902026963085878,
+  "achieved_fpr": 0.01,
+  "auroc": 0.783528,
+  "per_source": {
+    "raid_abstracts": {
+      "n_samples": 676,
+      "brier": 0.22762122251170927,
+      "auroc": 0.739909547829058
+    },
+    "raid_books": {
+      "n_samples": 324,
+      "brier": 0.21019801310241296,
+      "auroc": 0.8610620612429477
+    }
+  },
+  "profile_used": "configs\\.profile_master_minus_arxiv_robust_v1.yaml"
+}

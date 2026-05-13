@@ -1,0 +1,71 @@
+{
+  "baseline": {
+    "n_samples": 100,
+    "metrics": {
+      "auroc": 0.9579326923076922,
+      "ece": 0.25182346205028894,
+      "brier": 0.18163152565353047,
+      "tpr_at_fpr_01": 0.9038461538461539
+    }
+  },
+  "per_attack": {
+    "synonym_swap": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.9547275641025641,
+        "ece": 0.25277934790003237,
+        "brier": 0.1842515411262104,
+        "tpr_at_fpr_01": 0.9038461538461539
+      }
+    },
+    "inject_typos": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.954326923076923,
+        "ece": 0.2521941209607488,
+        "brier": 0.18271404972430375,
+        "tpr_at_fpr_01": 0.9038461538461539
+      }
+    },
+    "casualize": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.9350961538461537,
+        "ece": 0.2485525485827643,
+        "brier": 0.18418063510793256,
+        "tpr_at_fpr_01": 0.7692307692307693
+      }
+    },
+    "mix_human": {
+      "n_samples": 100,
+      "metrics": {
+        "auroc": 0.9571314102564104,
+        "ece": 0.241985718509685,
+        "brier": 0.18230578242680573,
+        "tpr_at_fpr_01": 0.8269230769230769
+      }
+    }
+  },
+  "vulnerability_ranking": [
+    {
+      "attack": "casualize",
+      "delta_auroc": -0.022836538461538436
+    },
+    {
+      "attack": "inject_typos",
+      "delta_auroc": -0.0036057692307691624
+    },
+    {
+      "attack": "synonym_swap",
+      "delta_auroc": -0.0032051282051280827
+    },
+    {
+      "attack": "mix_human",
+      "delta_auroc": -0.0008012820512818264
+    }
+  ],
+  "config_path": "configs\\.profile_master_minus_arxiv_robust_v1.yaml",
+  "dataset_path": "data\\calib2000_full_test.jsonl",
+  "n_samples": 100,
+  "seed": 42
+}

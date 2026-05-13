@@ -206,6 +206,14 @@ contracts, endpoints, or user-facing surfaces.
   / `is_medium` / `is_long`. EBM `interactions=15` (was 5).
 - **Modal GPU offload** for feature caching —
   `scripts/modal_cache_features.py`.
+- **Full-coverage research profile** —
+  `configs/.profile_full_coverage.yaml`. Bypasses cascade short-circuit
+  so every detector fires on every sample. The recommended input
+  profile when caching features for a new calibrator pass — production
+  benchmarks under the default cascade understate phase-2/3 detector
+  strength because each detector only sees its "ambiguous-middle"
+  slice. See `docs/configuration.md` (cascade section) for tradeoffs;
+  not a production deployment target.
 
 ## Commit style
 
