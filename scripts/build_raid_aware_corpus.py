@@ -48,6 +48,7 @@ from typing import Callable
 # `cairn.evaluation.dataset` must import before `cairn.adversarial.registry`
 # to bootstrap the evaluation package -- same ordering issue documented in
 # scripts/run_per_attack_baseline.py.
+from cairn.dotenv import load_dotenv
 from cairn.evaluation.dataset import EvalSample, load_dataset, save_dataset
 from cairn.adversarial.generator import generate
 from cairn.adversarial.registry import get_attack
@@ -254,6 +255,7 @@ def build_corpus(
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument(
         "--source",
