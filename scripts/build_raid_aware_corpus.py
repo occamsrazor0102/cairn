@@ -38,10 +38,13 @@ decision.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
+import json
 import os
 import random
 import sys
 from collections import defaultdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Callable
 
@@ -49,7 +52,7 @@ from typing import Callable
 # to bootstrap the evaluation package -- same ordering issue documented in
 # scripts/run_per_attack_baseline.py.
 from cairn.dotenv import load_dotenv
-from cairn.evaluation.dataset import EvalSample, load_dataset, save_dataset
+from cairn.evaluation.dataset import EvalSample, load_dataset
 from cairn.adversarial.generator import generate
 from cairn.adversarial.registry import get_attack
 
@@ -194,6 +197,42 @@ def _stratified_sample(
     return out
 
 
+def _generate_parallel(
+    seeds: list[EvalSample],
+    attack,
+    *,
+    provider: Callable,
+    seed: int,
+    max_workers: int,
+) -> list[EvalSample]:
+    """Concurrent per-row apply for prompt-category attacks.
+
+    Each row triggers one HTTPS call to the provider; the synchronous
+    Anthropic SDK serializes per-thread, so a thread pool of N workers
+    multiplies throughput up to the API's rate-limit ceiling. Reuses the
+    single ``anthropic.Anthropic`` client captured by ``provider`` --
+    httpx (the SDK transport) is thread-safe and pools connections.
+
+    ``ThreadPoolExecutor.map`` preserves input order so output stays
+    deterministic for a given seed.
+    """
+    kwargs = {"seed": seed, "provider": provider}
+
+    def _apply_one(source: EvalSample) -> EvalSample:
+        new_text = attack.apply(source.text, **kwargs)
+        return replace(
+            source,
+            id=f"{source.id}__{attack.name}",
+            text=new_text,
+            attack_name=attack.name,
+            attack_category=attack.category,
+            source_id=source.id,
+        )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        return list(ex.map(_apply_one, seeds))
+
+
 def build_corpus(
     *,
     source_path: Path,
@@ -203,8 +242,14 @@ def build_corpus(
     seed: int,
     skip_unknown_provider: bool,
     provider: Callable | None,
+    concurrency: int = 1,
 ) -> list[EvalSample]:
-    """Run the augmentation. Returns the list of generated samples."""
+    """Run the augmentation. Returns the list of generated samples.
+
+    ``concurrency`` only affects prompt-category attacks (each row =
+    one API call); pure-Python transforms run sequentially since the
+    GIL would dominate any thread-pool overhead.
+    """
     samples = load_dataset(source_path)
     seeds = _stratified_sample(
         samples,
@@ -219,34 +264,53 @@ def build_corpus(
         file=sys.stderr,
     )
 
-    generated: list[EvalSample] = []
-    for attack_name in attacks:
-        slice_out = generate(seeds, [attack_name], provider=provider, seed=seed)
-        # Re-tag for the calib2000 schema: source becomes the adversarial
-        # corpus tag, tier becomes "A2"; original provenance is preserved
-        # on attack_name / attack_category / source_id (already filled by
-        # generate()).
-        retagged = [
-            EvalSample(
-                id=s.id,
-                text=s.text,
-                label=s.label,
-                tier="A2",
-                source="adversarial_raid_v1",
-                attack_name=s.attack_name,
-                attack_category=s.attack_category,
-                source_id=s.source_id,
-            )
-            for s in slice_out
-        ]
-        print(
-            f"[info] {attack_name}: {len(retagged)} rows generated",
-            file=sys.stderr,
-        )
-        generated.extend(retagged)
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    save_dataset(generated, output_path)
+    generated: list[EvalSample] = []
+    # Stream-write per attack batch so a partway failure (e.g. rate-limit
+    # crash during prompt-category attacks) preserves the work that
+    # already succeeded. Open in "w" mode so a rerun replaces, not
+    # appends. The flush after each batch is what makes partial recovery
+    # possible -- without it, a crash mid-run leaves an empty file.
+    with output_path.open("w", encoding="utf-8") as fh:
+        for attack_name in attacks:
+            attack = get_attack(attack_name)
+            if attack is None:
+                raise ValueError(f"unknown attack: {attack_name}")
+            if attack.category == "prompt" and concurrency > 1 and provider is not None:
+                slice_out = _generate_parallel(
+                    seeds, attack,
+                    provider=provider, seed=seed, max_workers=concurrency,
+                )
+            else:
+                slice_out = generate(seeds, [attack_name], provider=provider, seed=seed)
+            # Re-tag for the calib2000 schema: source becomes the
+            # adversarial corpus tag, tier becomes "A2"; original
+            # provenance is preserved on attack_name / attack_category /
+            # source_id (already filled by generate()).
+            retagged = [
+                EvalSample(
+                    id=s.id,
+                    text=s.text,
+                    label=s.label,
+                    tier="A2",
+                    source="adversarial_raid_v1",
+                    attack_name=s.attack_name,
+                    attack_category=s.attack_category,
+                    source_id=s.source_id,
+                )
+                for s in slice_out
+            ]
+            for sample in retagged:
+                d = {k: v for k, v in asdict(sample).items() if v is not None}
+                fh.write(json.dumps(d) + "\n")
+            fh.flush()
+            print(
+                f"[info] {attack_name}: {len(retagged)} rows generated "
+                f"({len(generated) + len(retagged)} cumulative)",
+                file=sys.stderr,
+            )
+            generated.extend(retagged)
+
     print(
         f"[done] wrote {len(generated)} rows -> {output_path}",
         file=sys.stderr,
@@ -287,6 +351,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Required when --include-prompt-attacks is set.",
     )
     p.add_argument("--include-humanizer", action="store_true")
+    p.add_argument(
+        "--concurrency",
+        type=int,
+        default=16,
+        help="Thread-pool size for prompt-category attacks. "
+             "Pure-Python attacks ignore this. 16 saturates at "
+             "~960 RPM, well under the typical 2k RPM Haiku ceiling.",
+    )
     args = p.parse_args(argv)
 
     provider = _make_provider(args.provider)
@@ -308,6 +380,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         skip_unknown_provider=args.skip_unknown_provider,
         provider=provider,
+        concurrency=args.concurrency,
     )
     return 0
 

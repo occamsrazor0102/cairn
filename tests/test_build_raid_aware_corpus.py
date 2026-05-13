@@ -67,6 +67,7 @@ def test_argparse_signature():
         "--source", "--output", "--max-per-provider-per-attack", "--seed",
         "--skip-unknown-provider", "--include-translation-pivot",
         "--include-prompt-attacks", "--provider", "--include-humanizer",
+        "--concurrency",
     }
     assert expected.issubset(flags), (
         f"missing argparse flags; got {flags}, need {expected}"
@@ -220,6 +221,111 @@ def test_resolve_attacks_prompt_without_provider_is_dropped():
     # Prompt attacks must NOT appear when provider is None, even with the
     # --include-prompt-attacks flag.
     assert tuple(attacks) == mod.PURE_PYTHON_ATTACKS
+
+
+def test_parallel_path_used_for_prompt_attacks_and_preserves_order(tmp_path, monkeypatch):
+    """Prompt-category attacks must route through _generate_parallel
+    when concurrency > 1, and output order must match input order
+    (deterministic for a given seed). Uses the registered prompt attack
+    'paraphrase_launder' with a fake provider so no real API calls fire.
+    """
+    mod = _import_module()
+    from cairn.evaluation.dataset import EvalSample, save_dataset
+
+    # Fake provider: deterministic identity-ish function so we can assert
+    # both that it was called and that order is preserved.
+    def fake_provider(prompt: str) -> str:
+        return f"PARAPHRASED::{prompt[-40:]}"
+
+    seeds = [
+        EvalSample(
+            id=f"seed_{i}", text=f"row {i} content text",
+            label=1, source=f"hc3_finance_regen_openai-stub-{i}",
+            source_id=f"seed_{i}",
+        )
+        for i in range(8)
+    ]
+    src = tmp_path / "source.jsonl"
+    save_dataset(seeds, src)
+    out = tmp_path / "out.jsonl"
+
+    # Capture both that _generate_parallel was invoked AND the seed
+    # order it received -- order through the thread pool must match the
+    # post-stratified-sample input order.
+    parallel_args: list[dict] = []
+    real_parallel = mod._generate_parallel
+
+    def _spy(seeds_arg, attack, *, provider, seed, max_workers):
+        parallel_args.append({
+            "max_workers": max_workers,
+            "seed_ids": [s.id for s in seeds_arg],
+        })
+        return real_parallel(
+            seeds_arg, attack,
+            provider=provider, seed=seed, max_workers=max_workers,
+        )
+
+    monkeypatch.setattr(mod, "_generate_parallel", _spy)
+
+    generated = mod.build_corpus(
+        source_path=src,
+        output_path=out,
+        attacks=["paraphrase_launder"],
+        per_provider_per_attack=8,
+        seed=42,
+        skip_unknown_provider=False,
+        provider=fake_provider,
+        concurrency=4,
+    )
+
+    # Parallel dispatch was taken (once, max_workers=4).
+    assert len(parallel_args) == 1
+    assert parallel_args[0]["max_workers"] == 4
+    # Ordering preserved THROUGH the thread pool: outputs match the
+    # order the spy saw on input. This is what ThreadPoolExecutor.map
+    # guarantees and what the test exists to assert.
+    expected_ids = [sid + "__paraphrase_launder" for sid in parallel_args[0]["seed_ids"]]
+    assert [s.id for s in generated] == expected_ids
+    # All rows have the expected attack metadata + transformed text shape.
+    for s in generated:
+        assert s.attack_name == "paraphrase_launder"
+        assert s.attack_category == "prompt"
+        assert s.text.startswith("PARAPHRASED::")
+
+
+def test_concurrency_one_keeps_serial_path(tmp_path, monkeypatch):
+    """concurrency=1 must NOT hit _generate_parallel even for prompt
+    attacks -- it falls back to the existing generate() function."""
+    mod = _import_module()
+    from cairn.evaluation.dataset import EvalSample, save_dataset
+
+    def fake_provider(prompt: str) -> str:
+        return "OK"
+
+    seeds = [EvalSample(
+        id="seed_0", text="row 0 content text",
+        label=1, source="hc3_finance_regen_openai-stub", source_id="seed_0",
+    )]
+    src = tmp_path / "source.jsonl"
+    save_dataset(seeds, src)
+
+    parallel_calls: list[int] = []
+    monkeypatch.setattr(
+        mod, "_generate_parallel",
+        lambda *a, **k: parallel_calls.append(k.get("max_workers", -1)) or [],
+    )
+
+    mod.build_corpus(
+        source_path=src,
+        output_path=tmp_path / "out.jsonl",
+        attacks=["paraphrase_launder"],
+        per_provider_per_attack=1,
+        seed=42,
+        skip_unknown_provider=False,
+        provider=fake_provider,
+        concurrency=1,
+    )
+    assert parallel_calls == [], parallel_calls
 
 
 def test_resolve_attacks_humanizer_requires_env_gate(monkeypatch):
