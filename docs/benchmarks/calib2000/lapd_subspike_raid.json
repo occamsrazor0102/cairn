@@ -1,0 +1,23 @@
+{
+  "aligned_model": "tiiuae/falcon-7b-instruct",
+  "base_model": "tiiuae/falcon-7b",
+  "dataset_n_rows": 100,
+  "sweeps": [
+    {
+      "n_perturbations": 20,
+      "n_scored": 92,
+      "n_skipped": 8,
+      "auroc_p_llm": 0.35095238095238096,
+      "auroc_s_lapd": 0.35095238095238096,
+      "auroc_p_llm_flipped": 0.6490476190476191,
+      "auroc_s_lapd_flipped": 0.6490476190476191,
+      "wall_seconds": 236.10214591026306,
+      "sec_per_sample": 2.566327672937642,
+      "skipped_breakdown": {
+        "too_short": 8
+      }
+    }
+  ],
+  "spec_gate_threshold": 0.82,
+  "spec_gate_pass": false
+}

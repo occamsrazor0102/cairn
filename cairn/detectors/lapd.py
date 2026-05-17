@@ -84,8 +84,30 @@ class LAPDDetector:
         tokenizer = AutoTokenizer.from_pretrained(name)
         kwargs: dict[str, Any] = {}
         if quantize_4bit and _HAS_BITSANDBYTES:
-            kwargs["load_in_4bit"] = True
-            kwargs["device_map"] = "auto"
+            # transformers >= 4.40 deprecated `load_in_4bit=True` as a direct
+            # from_pretrained kwarg; the supported path is a BitsAndBytesConfig
+            # passed as `quantization_config`. Imported here (not at module
+            # scope) because the symbol only exists when bitsandbytes is
+            # available, and we already skipped this branch when it isn't.
+            from transformers import BitsAndBytesConfig  # type: ignore
+            kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=True,
+                # fp16 compute keeps activations in 2-byte tensors; default
+                # fp32 doubles activation memory and crowds out the second
+                # model on smaller GPUs.
+                bnb_4bit_compute_dtype=torch.float16,
+            )
+            # Pin to GPU 0 explicitly. `device_map="auto"` is conservative
+            # about leaving headroom when a second model is already resident,
+            # and bitsandbytes 4-bit refuses CPU offload. Force everything on
+            # the GPU so the second model's load doesn't dispatch some layers
+            # to CPU/disk (the validation error we hit before this comment).
+            kwargs["device_map"] = {"": 0}
+            # Load weights as fp16 (not fp32) and avoid the transformers
+            # warmup allocator -- both halve peak memory during the load
+            # window so two 7B models can fit on a 24 GB GPU.
+            kwargs["torch_dtype"] = torch.float16
+            kwargs["low_cpu_mem_usage"] = True
         model = AutoModelForCausalLM.from_pretrained(name, **kwargs)
         if not (quantize_4bit and _HAS_BITSANDBYTES):
             model = model.to(device)
@@ -101,6 +123,12 @@ class LAPDDetector:
         self._aligned_model, self._aligned_tokenizer = self._load_one(
             aligned_name, device, quantize_4bit
         )
+        # Free the warmup allocator's temporary fp16 buffers before the second
+        # model's load. Without this, the second from_pretrained sees a
+        # half-empty GPU but the cached unallocated reservation prevents new
+        # large contiguous allocations.
+        if _HAS_TORCH and torch.cuda.is_available():
+            torch.cuda.empty_cache()
         self._base_model, self._base_tokenizer = self._load_one(
             base_name, device, quantize_4bit
         )
