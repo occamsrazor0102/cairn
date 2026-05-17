@@ -90,6 +90,7 @@ class FeatureAssembler:
             "perturbation_p_llm": p("perturbation"),
             "contrastive_gen_p_llm": p("contrastive_gen"),
             "dna_gpt_p_llm": p("dna_gpt"),
+            "lapd_p_llm": p("lapd"),
             "mixed_boundary_p_llm": p("mixed_boundary"),
             "cross_similarity_p_llm": p("cross_similarity"),
             # Per-detector missingness indicators (1.0 = absent / SKIP, 0.0 = present).
@@ -110,6 +111,7 @@ class FeatureAssembler:
             "perturbation_missing": missing("perturbation"),
             "contrastive_gen_missing": missing("contrastive_gen"),
             "dna_gpt_missing": missing("dna_gpt"),
+            "lapd_missing": missing("lapd"),
             "mixed_boundary_missing": missing("mixed_boundary"),
             "cross_similarity_missing": missing("cross_similarity"),
             # Per-detector confidence (NaN when detector absent, raw confidence
@@ -130,6 +132,7 @@ class FeatureAssembler:
             "perturbation_confidence": conf("perturbation"),
             "contrastive_gen_confidence": conf("contrastive_gen"),
             "dna_gpt_confidence": conf("dna_gpt"),
+            "lapd_confidence": conf("lapd"),
             "mixed_boundary_confidence": conf("mixed_boundary"),
             "cross_similarity_confidence": conf("cross_similarity"),
             # Metadata

@@ -48,6 +48,21 @@ detectors:
     weight: 0.85
     provider: "anthropic"
     model: "claude-haiku-4-5-20251001"
+  lapd:
+    # Log-likelihood Alignment Preference Discrepancy (Wu et al., arXiv 2604.16923).
+    # Phase-3 detector. Requires `cairn[tier2]` + a matching (aligned, base) LM
+    # pair sharing a tokenizer. Default Falcon-7B pair is Apache-2.0; no Meta
+    # gate. 4-bit quantization fits the pair on a single T4. Heavy compute --
+    # only runs when phases 1+2 leave the sample ambiguous.
+    enabled: false
+    weight: 0.95
+    aligned_model: "tiiuae/falcon-7b-instruct"
+    base_model: "tiiuae/falcon-7b"
+    quantize_4bit: true
+    n_perturbations: 50
+    perturbation_rate: 0.10
+    max_tokens: 512
+    seed: 42
   mixed_boundary:
     enabled: true
     weight: 0.80

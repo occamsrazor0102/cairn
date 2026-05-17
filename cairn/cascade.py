@@ -8,7 +8,7 @@ PHASE1_DETECTORS = ("preamble", "fingerprint_vocab", "prompt_structure", "voice_
 # submission, so it's a Phase-2 detector despite earlier being parked in
 # Phase 4 (batch-only) where it never fired.
 PHASE2_DETECTORS = ("surprisal_dynamics", "contrastive_lm", "token_cohesiveness", "mixed_boundary", "semantic_kinematics")
-PHASE3_DETECTORS = ("perturbation", "contrastive_gen", "dna_gpt")
+PHASE3_DETECTORS = ("perturbation", "contrastive_gen", "dna_gpt", "lapd")
 # Phase 4 is batch-only; contributor_graph is invoked separately via
 # pipeline.analyze_contributors, not through the normal cascade.
 PHASE4_DETECTORS = ("cross_similarity",)
