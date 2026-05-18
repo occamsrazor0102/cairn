@@ -46,6 +46,10 @@ def main() -> None:
         "--holdout-source", default=None,
         help="LLM source to hold out entirely from training (zero-shot eval).",
     )
+    ap.add_argument(
+        "--interactions", type=int, default=15,
+        help="Number of pairwise EBM interaction terms. Default 15.",
+    )
     args = ap.parse_args()
 
     pipeline = (
@@ -82,7 +86,7 @@ def main() -> None:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=args.test_size, stratify=y, random_state=42
         )
-    model = train_ebm(X_train, y_train)
+    model = train_ebm(X_train, y_train, interactions=args.interactions)
 
     dataset_bytes = args.dataset.read_bytes()
     dataset_hash = hashlib.sha256(dataset_bytes).hexdigest()[:16]

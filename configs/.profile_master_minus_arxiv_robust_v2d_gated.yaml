@@ -1,0 +1,20 @@
+_profile: master_minus_arxiv_robust_v2d_gated
+_extends: default
+
+# Follow-up experiment 4: same as robust_v2 but EBM trained on a
+# specdetect-gated cache where specdetect features are NaN for
+# non-prose router samples. Tests whether eliminating the train/
+# inference distribution mismatch for specdetect closes the v2
+# regression.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

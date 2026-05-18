@@ -1,0 +1,12 @@
+{
+  "dataset_hash": "91f51254a3a15f0d",
+  "dataset_path": "data\\master_minus_arxiv_robust_v1_train.jsonl",
+  "interactions": 15,
+  "label_balance_test": 0.5748401881558316,
+  "label_balance_train": 0.5748251115667591,
+  "max_rounds": 300,
+  "n_test": 16582,
+  "n_train": 66328,
+  "schema_version": "ebm-v8",
+  "trained_at": "2026-05-18T14:17:41.381705+00:00"
+}

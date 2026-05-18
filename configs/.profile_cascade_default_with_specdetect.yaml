@@ -1,0 +1,20 @@
+_profile: cascade_default_with_specdetect
+_extends: default
+
+# Research profile for robust_v2 follow-up experiment 2: cache the
+# training corpus using the PRODUCTION CASCADE (short-circuit on) plus
+# SpecDetect enabled. Contrast with .profile_full_coverage_with_specdetect
+# which fires every detector on every sample.
+#
+# Used by scripts/modal_cache_features.py to build all_features_v9_cascade
+# from data/calib2000_v6_train.jsonl. Hypothesis: training the EBM on
+# the cascade-default feature distribution (where specdetect is
+# NaN-imputed for non-prose router samples) better matches the
+# inference-time distribution, eliminating the train/inference shift.
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "EleutherAI/gpt-j-6b"
+    max_tokens: 512

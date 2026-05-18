@@ -36,11 +36,18 @@ _MONOTONE_UP_FEATURES = (
 )
 
 
-def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = None) -> Any:
+def train_ebm(
+    X: list[dict],
+    y: list[int],
+    feature_names: list[str] | None = None,
+    interactions: int = 15,
+) -> Any:
     """
     Train EBM on assembled feature vectors.
     X: list of feature dicts (from FeatureAssembler.assemble)
     y: list of labels (1=LLM, 0=human)
+    interactions: number of pairwise interaction terms. Default 15.
+        Lowered to 5 for ablation experiments (matches v1 baseline).
     Returns: trained EBM model
 
     Computes per-column means from finite training values and imputes
@@ -73,11 +80,12 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
         model = ExplainableBoostingClassifier(
             feature_names=feature_names,
             max_rounds=300,
-            # 15 pairwise interactions (was 5). Length-bucket × per-detector
-            # p_llm interactions are the prime motivator — verb=low sweep
-            # showed length-conditional behaviour the previous 5-interaction
-            # budget couldn't model.
-            interactions=15,
+            # 15 pairwise interactions by default (was 5 pre-2026-04). Length-
+            # bucket × per-detector p_llm interactions are the prime motivator
+            # — verb=low sweep showed length-conditional behaviour the previous
+            # 5-interaction budget couldn't model. Override via the function
+            # argument for ablation experiments.
+            interactions=interactions,
             random_state=42,
             monotone_constraints=monotone,
         )
@@ -97,7 +105,7 @@ def train_ebm(X: list[dict], y: list[int], feature_names: list[str] | None = Non
         model = ExplainableBoostingClassifier(
             feature_names=feature_names,
             max_rounds=300,
-            interactions=15,
+            interactions=interactions,
             random_state=42,
         )
         monotone = None

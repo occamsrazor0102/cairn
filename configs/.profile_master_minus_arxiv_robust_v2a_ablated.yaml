@@ -1,0 +1,18 @@
+_profile: master_minus_arxiv_robust_v2a_ablated
+_extends: default
+
+# Follow-up experiment 1: same as robust_v2 but trained on the v1
+# corpus only (no 4 user-flagged samples). Isolates the effect of
+# adding SpecDetect from the corpus change.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512
