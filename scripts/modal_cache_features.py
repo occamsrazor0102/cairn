@@ -48,14 +48,18 @@ hf_cache = modal.Volume.from_name("cairn-hf-cache", create_if_missing=True)
 
 @app.function(
     image=image,
-    # A10G (24 GB) gives headroom when the full_coverage profile loads
-    # ALL detectors at once -- GPT-J-6B fp16 (~12 GB for specdetect) +
-    # the small models for surprisal_dynamics / contrastive_lm /
-    # token_cohesiveness / semantic_kinematics push T4 (16 GB) to the
-    # edge. Cost delta from T4 is ~+$0.60/hr; worth it to avoid OOM
-    # several hours into a long cache pass.
-    gpu="A10G",
-    # 6 hours -- 110k unique training rows at ~0.1-0.2 s/sample.
+    # H200 (141 GB HBM3e) -- top-tier inference card. A10G (24 GB) ran
+    # at ~0.05-0.09 s/sample on the 110k-row full_coverage cache pass;
+    # H200 is ~1.3x faster than H100 and ~3-4x faster than A10G on
+    # transformer token-decode (HBM3e bandwidth ~4.8 TB/s vs 3.35 on
+    # H100 vs 0.6 on A10G). Projected to land the full cache in
+    # ~30-45 min. Cost is higher per hour (~$5-6/hr on H200 vs ~$1.10/hr
+    # on A10G) but total spend is roughly net-neutral or only slightly
+    # higher because the faster GPU finishes sooner.
+    gpu="H200",
+    # 6 hours -- 110k unique training rows; H200 should finish much
+    # sooner but we keep the ceiling generous in case of cold-start
+    # or model-load stalls.
     timeout=21600,
     secrets=[modal.Secret.from_dotenv()],
     volumes={"/root/.cache/huggingface": hf_cache},
