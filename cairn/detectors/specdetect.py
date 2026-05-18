@@ -73,7 +73,13 @@ class SpecDetectDetector:
         if self._model is not None and self._loaded_key == key:
             return
         self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self._model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
+        # fp16 on GPU keeps the proxy LM small enough to fit T4 (16 GB).
+        # GPT-J-6B at fp32 is ~24 GB and OOMs; at fp16 it's ~12 GB. CPU
+        # path stays fp32 since most CPUs don't accelerate fp16.
+        dtype = torch.float16 if device == "cuda" else torch.float32
+        self._model = AutoModelForCausalLM.from_pretrained(
+            model_name, torch_dtype=dtype
+        ).to(device)
         self._model.eval()
         self._loaded_key = key
 
