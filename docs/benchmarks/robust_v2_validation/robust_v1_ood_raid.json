@@ -1,0 +1,54 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.7571,
+    "ece": 0.2069,
+    "brier": 0.2354,
+    "tpr_at_fpr_01": 0.48
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.2258,
+      "brier": 0.1243,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.5407,
+      "brier": 0.3466,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "per_source": {
+    "raid_abstracts": {
+      "n_samples": 130,
+      "brier": 0.2474,
+      "auroc": 0.7003
+    },
+    "raid_books": {
+      "n_samples": 70,
+      "brier": 0.2132,
+      "auroc": 0.8363
+    }
+  },
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 79,
+    "fp": 59,
+    "tn": 41,
+    "fn": 21,
+    "precision": 0.5725,
+    "recall": 0.79,
+    "f1": 0.6639,
+    "accuracy": 0.6
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_raid_test.jsonl",
+  "config": "configs\\.profile_master_minus_arxiv_robust_v1.yaml",
+  "duration_seconds": 1.41
+}
