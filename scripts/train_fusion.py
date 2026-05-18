@@ -50,6 +50,13 @@ def main() -> None:
         "--interactions", type=int, default=15,
         help="Number of pairwise EBM interaction terms. Default 15.",
     )
+    ap.add_argument(
+        "--drop-features", default="",
+        help="Comma-separated FeatureAssembler keys to drop from the EBM "
+             "input vector. Used for ablation experiments (e.g. "
+             "'specdetect_total_energy,specdetect_low_band,...' to test "
+             "whether the spectral signal features are noise).",
+    )
     args = ap.parse_args()
 
     pipeline = (
@@ -58,7 +65,10 @@ def main() -> None:
         else CairnPipeline.from_config_file(args.config)
     )
     samples = load_dataset(args.dataset)
-    assembler = FeatureAssembler()
+    drop_set: set[str] = {k.strip() for k in args.drop_features.split(",") if k.strip()}
+    assembler = FeatureAssembler(drop_features=drop_set)
+    if drop_set:
+        print(f"dropping {len(drop_set)} EBM features: {sorted(drop_set)}", flush=True)
 
     X: list[dict] = []
     y: list[int] = []

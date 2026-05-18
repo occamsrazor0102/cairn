@@ -1,0 +1,20 @@
+_profile: master_minus_arxiv_robust_v2h_clean_full
+_extends: default
+
+# Exp 8: clean v2 = full v2 minus only the 3 leftover LAPD orphan
+# features (lapd_p_llm, lapd_missing, lapd_confidence). LAPD never
+# runs at inference so these were always NaN-imputed at training,
+# adding noise that consumed EBM capacity. v2h tests whether removing
+# this noise improves the v2 OOD numbers.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

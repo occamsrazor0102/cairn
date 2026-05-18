@@ -1,0 +1,20 @@
+_profile: master_minus_arxiv_robust_v2f_pllm_only
+_extends: default
+
+# Follow-up experiment 7 (H3 test): same as robust_v2 but EBM trained
+# with the 6 specdetect spectral signal features dropped (keep
+# specdetect_p_llm + specdetect_missing + specdetect_confidence).
+# Tests whether the spectral signals are the noise source, given the
+# H2 diagnostic showing raw dft_total_energy has AUROC only 0.556.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

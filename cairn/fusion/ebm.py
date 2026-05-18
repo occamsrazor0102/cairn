@@ -14,6 +14,14 @@ _NAN = float("nan")
 class FeatureAssembler:
     """Assembles layer results into a flat feature dict for the EBM."""
 
+    def __init__(self, drop_features: set[str] | None = None) -> None:
+        # Optional feature-drop allowlist for ablation experiments. Keys
+        # are popped from the returned dict after assembly. Used by
+        # train_fusion --drop-features to test which specdetect (or other)
+        # features actually carry signal vs. dilute the EBM's capacity.
+        # Always-empty default; backward-compatible.
+        self._drop_features: set[str] = set(drop_features or ())
+
     def assemble(self, results: list[LayerResult], word_count: int, domain: str) -> dict:
         by_id = {r.layer_id: r for r in results if r.determination != "SKIP"}
 
@@ -163,6 +171,9 @@ class FeatureAssembler:
             "domain_prompt": 1.0 if domain == "prompt" else 0.0,
             "domain_prose": 1.0 if domain == "prose" else 0.0,
         }
+        if self._drop_features:
+            for k in self._drop_features:
+                vec.pop(k, None)
         return vec
 
 
