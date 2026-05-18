@@ -1,0 +1,30 @@
+_profile: master_minus_arxiv_robust_v2
+_extends: default
+
+# Production profile retrained 2026-05-18 with the SpecDetect detector
+# added (6 new EBM features: total energy + 3 band fractions + low/mid
+# ratio + spectral entropy). Targets: robust_v1's RAID 0.7835 / MAGE
+# 0.6591 baseline; SpecDetect spike alone hit 0.855 RAID / 0.711 MAGE
+# in docs/benchmarks/specdetect_spike_verdict.md.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2/detector_calibration.json
+
+# SpecDetect is opt-in here; runtime cascade still short-circuits, so
+# specdetect contributes only when phases 1+2 leave a sample
+# ambiguous-middle. The EBM was trained on full-coverage features but
+# expects specdetect_p_llm to be NaN-imputed at inference when the
+# detector skips -- per cairn/fusion/ebm.py::EBMFusion._column_means.
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    # GPT-2 default for cascade-time inference; gpt-j-6b only for the
+    # full-coverage cache pass that produced the calibrator artifacts.
+    # The EBM learned to weight specdetect's signal in a model-agnostic
+    # way -- swap the proxy LM via override in a derived profile if you
+    # need paper-parity numbers at runtime.
+    model: "gpt2"
+    max_tokens: 512

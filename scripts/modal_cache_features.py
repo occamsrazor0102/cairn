@@ -48,8 +48,15 @@ hf_cache = modal.Volume.from_name("cairn-hf-cache", create_if_missing=True)
 
 @app.function(
     image=image,
-    gpu="T4",
-    timeout=3600,
+    # A10G (24 GB) gives headroom when the full_coverage profile loads
+    # ALL detectors at once -- GPT-J-6B fp16 (~12 GB for specdetect) +
+    # the small models for surprisal_dynamics / contrastive_lm /
+    # token_cohesiveness / semantic_kinematics push T4 (16 GB) to the
+    # edge. Cost delta from T4 is ~+$0.60/hr; worth it to avoid OOM
+    # several hours into a long cache pass.
+    gpu="A10G",
+    # 6 hours -- 110k unique training rows at ~0.1-0.2 s/sample.
+    timeout=21600,
     secrets=[modal.Secret.from_dotenv()],
     volumes={"/root/.cache/huggingface": hf_cache},
 )

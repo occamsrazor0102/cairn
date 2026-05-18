@@ -1,0 +1,21 @@
+_profile: full_coverage_with_specdetect
+_extends: .profile_full_coverage
+
+# Research profile for the robust_v2 feature-cache pass: full_coverage
+# (every detector fires every sample, bypasses cascade short-circuit)
+# PLUS specdetect enabled with GPT-J-6B as the proxy LM for
+# paper-parity scoring.
+#
+# Used by scripts/modal_cache_features.py to build all_features_v8.jsonl
+# from data/calib2000_v6_train.jsonl. Not a production deployment
+# target -- the EBM trained on this expects all features present at
+# inference, which the runtime cascade short-circuit doesn't satisfy.
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    # GPT-J-6B for parity with paper. Fp16 on T4 fits (~12 GB resident).
+    # Pattern verified in commit 3523041 spike verdict.
+    model: "EleutherAI/gpt-j-6b"
+    max_tokens: 512

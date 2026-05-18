@@ -37,6 +37,14 @@ venv/
 !/models/calib2000/profiles/master_minus_arxiv_robust_v1/ebm.pkl.meta.json
 !/models/calib2000/profiles/master_minus_arxiv_robust_v1/conformal.json
 !/models/calib2000/profiles/master_minus_arxiv_robust_v1/detector_calibration.json
+# SpecDetect-augmented variant (robust_v2). Same allowlist pattern.
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/detector_calibration.json
 
 # Local editor / IDE
 .vscode/
