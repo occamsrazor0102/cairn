@@ -86,6 +86,18 @@ class FeatureAssembler:
             "sk_acceleration_std": sig("semantic_kinematics", "sk_acceleration_std"),
             "sk_jerk_mean": sig("semantic_kinematics", "sk_jerk_mean"),
             "sk_jerk_std": sig("semantic_kinematics", "sk_jerk_std"),
+            # SpecDetect (Phase 2, frequency-domain log-prob features). p_llm
+            # is derived from total energy alone, but the EBM gets the full
+            # spectral breakdown so it can learn per-band weights. The total
+            # energy itself is redundant with `surprisal_std` by Parseval;
+            # the per-band fractions are the orthogonal signal.
+            "specdetect_p_llm": p("specdetect"),
+            "specdetect_total_energy": sig("specdetect", "dft_total_energy"),
+            "specdetect_low_band": sig("specdetect", "dft_low_band_energy"),
+            "specdetect_mid_band": sig("specdetect", "dft_mid_band_energy"),
+            "specdetect_high_band": sig("specdetect", "dft_high_band_energy"),
+            "specdetect_low_mid_ratio": sig("specdetect", "dft_low_mid_ratio"),
+            "specdetect_spectral_entropy": sig("specdetect", "dft_spectral_entropy"),
             # Tier 3 / advanced
             "perturbation_p_llm": p("perturbation"),
             "contrastive_gen_p_llm": p("contrastive_gen"),
@@ -108,6 +120,7 @@ class FeatureAssembler:
             "binoculars_missing": missing("contrastive_lm"),
             "tocsin_missing": missing("token_cohesiveness"),
             "semantic_kinematics_missing": missing("semantic_kinematics"),
+            "specdetect_missing": missing("specdetect"),
             "perturbation_missing": missing("perturbation"),
             "contrastive_gen_missing": missing("contrastive_gen"),
             "dna_gpt_missing": missing("dna_gpt"),
@@ -129,6 +142,7 @@ class FeatureAssembler:
             "binoculars_confidence": conf("contrastive_lm"),
             "tocsin_confidence": conf("token_cohesiveness"),
             "semantic_kinematics_confidence": conf("semantic_kinematics"),
+            "specdetect_confidence": conf("specdetect"),
             "perturbation_confidence": conf("perturbation"),
             "contrastive_gen_confidence": conf("contrastive_gen"),
             "dna_gpt_confidence": conf("dna_gpt"),

@@ -63,6 +63,15 @@ detectors:
     perturbation_rate: 0.10
     max_tokens: 512
     seed: 42
+  specdetect:
+    # SpecDetect (Luo et al., arXiv 2508.11343, AAAI 26). Frequency-domain
+    # features of per-token log-probabilities under a proxy LM. Requires
+    # `cairn[tier2]`. Default gpt2 matches surprisal_dynamics' scoring LM;
+    # override to EleutherAI/gpt-j-6b for paper-comparison spike runs.
+    enabled: false
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512
   mixed_boundary:
     enabled: true
     weight: 0.80
