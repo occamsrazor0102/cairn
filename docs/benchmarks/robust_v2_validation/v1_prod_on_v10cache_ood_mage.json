@@ -1,0 +1,49 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.5947,
+    "ece": 0.0208,
+    "brier": 0.25,
+    "tpr_at_fpr_01": 0.05
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.5121,
+      "brier": 0.2668,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.4759,
+      "brier": 0.2331,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "per_source": {
+    "mage": {
+      "n_samples": 200,
+      "brier": 0.25,
+      "auroc": 0.5947
+    }
+  },
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 32,
+    "fp": 24,
+    "tn": 76,
+    "fn": 68,
+    "precision": 0.5714,
+    "recall": 0.32,
+    "f1": 0.4103,
+    "accuracy": 0.54
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_mage_test.jsonl",
+  "config": "configs\\.profile_master_minus_arxiv.yaml",
+  "duration_seconds": 0.06
+}

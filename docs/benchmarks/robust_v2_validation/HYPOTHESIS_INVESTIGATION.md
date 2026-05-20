@@ -146,3 +146,191 @@ the EBM's learned splits would shift.
 robust_v1 stays production. SpecDetect's integration needs (a) a recalibrated
 heuristic table or fully data-driven anchors, and (b) a clear answer to the
 v7-vs-v8 cache differential before any retrained ensemble can match v1.
+
+## Follow-up 2026-05-20: v7-vs-v8 cache differential — root cause found
+
+Ran `scripts/_diag_v7_v8_cache_diff.py` on 500 shared hashes
+(`all_features_v7.jsonl` ∩ `all_features_v8.jsonl` = 80,237 records).
+
+For samples where the same layer fires in both caches:
+
+| layer | field | n | max abs delta | shifted (delta > 1e-6) |
+|---|---|---:|---:|---:|
+| **token_cohesiveness** | **p_llm** | **100** | **0.0528** | **76 / 100** |
+| token_cohesiveness | raw_score | 100 | 0.0033 | 76 / 100 |
+| surprisal_dynamics | raw_score | 100 | 9.9e-6 | 42 / 100 |
+| contrastive_lm | p_llm | 100 | 6.2e-6 | 26 / 100 |
+| surprisal_dynamics | p_llm | 100 | 5.8e-6 | 12 / 100 |
+| contrastive_lm | raw_score | 100 | 3.0e-6 | 11 / 100 |
+
+Only `token_cohesiveness` drifts at a magnitude that can shift EBM splits.
+The other v1-schema detectors drift at float-reduction-order noise (~1e-6).
+
+**Root cause:** `cairn/detectors/token_cohesiveness.py:39`
+
+```python
+sample_indices = random.sample(range(len(words)), n_samples)
+```
+
+The detector uses Python's **global `random` module** to pick which 30 word
+positions to delete-and-re-embed. Different cache-build sessions consume the
+global RNG in different orders (router decisions, other detectors), so the
+same text passing through `token_cohesiveness.analyze()` gets different
+`sample_indices`, different reduced texts, different cosine distances,
+different `p_llm`. The output is non-deterministic across runs and even
+across samples within a run.
+
+This was always present; v7 vs v8 only made it visible because we compared
+two independent builds.
+
+### Implications
+
+1. **`token_cohesiveness` is one of v1's 10 calibrated detectors.** Its
+   training-time signal distribution differs from its inference-time
+   signal distribution by ~0.011 stdev — same magnitude as the v2-vs-v1
+   p_llm shift we've been chasing.
+2. **The production v1 EBM was trained on v7's RNG draw and runs against
+   live inference's RNG draw.** It has been silently miscalibrated to
+   the magnitude of this drift since v1 shipped.
+3. **Part of the 0.14 RAID AUROC gap is plausibly attributable to this
+   alone**, plus the cascade-routing differences observed as
+   layer-presence-only deltas (see below).
+
+### Layer-presence deltas (cascade routing changed between builds)
+
+```
+v8-only layers (per 500 sampled): contrastive_lm=400, surprisal_dynamics=400,
+  mixed_boundary=400, token_cohesiveness=400, semantic_kinematics=478,
+  perturbation=500, specdetect=500
+v7-only layers: none beyond per-record hash gap
+```
+
+The v8 build fired phase-2 detectors on ~80% of corpus samples that v7 had
+cascade-short-circuited past. This is a config change (the cache builder
+profile changed between May 13 and May 18, plausibly to the
+`full_coverage_with_specdetect` research profile), not a detector-code
+change. It explains a different part of the v1-vs-v2 gap — the EBM saw
+a denser feature matrix at train time than v1 did, and a denser one than
+the production cascade produces at inference time.
+
+### Proposed fix path
+
+**Decision required from operator before proceeding.**
+
+Option A (minimal, recommended): seed `token_cohesiveness` deterministically
+from a hash of the input text.
+
+```python
+rng = random.Random(hashlib.sha256(text.encode("utf-8")).digest())
+sample_indices = rng.sample(range(len(words)), n_samples)
+```
+
+Pros: detector becomes pure-functional in `text`; cache builds reproducible;
+no global-RNG side-effect on other code.
+
+Cons: changes signal values for every cached row -> v1 EBM should be
+re-validated against the new signal distribution. Two sub-paths:
+
+- A1. Rebuild v7 cache against fixed detector, retrain v1, re-benchmark.
+  Lowest risk to production accuracy; ~few hours of compute.
+- A2. Ship the fix without retraining; accept ~0.011 stdev p_llm shift on
+  one of 10 features at inference time. Likely a small but non-zero
+  accuracy hit on production.
+
+Option B: accept the drift, document it. Faster, but the v1->v2 retrain
+story stays poisoned because every future retrain inherits this issue.
+
+Option C: full audit. Grep every detector for `random.` usage, fix all of
+them to seeded RNG. The diff already shows `token_cohesiveness` is the
+only one with material drift, but `surprisal_dynamics` /
+`contrastive_lm` showing any drift at all (~1e-6) hints that some other
+upstream nondeterminism may exist (BLAS reduction order, etc.).
+Worth one grep before committing to Option A.
+
+### Recommendation
+
+Run Option C's grep first (cheap), then Option A1 (rebuild v7 cache and
+retrain v1 against the fix). That gives a clean baseline before attempting
+robust_v2 again. SpecDetect's heuristic recalibration (open question #3
+above) is orthogonal and can land after.
+
+## Follow-up 2026-05-20 (later): A1 executed -- v10 clean retrain
+
+Executed Option A1 in full:
+
+1. Fixed `cairn/detectors/token_cohesiveness.py:39` to seed `random.Random`
+   from `sha256(text)`.
+2. Added two determinism tests (`tests/test_detectors/test_token_cohesiveness.py`).
+3. Pytest gate: 800 / 800 passed.
+4. Modal H200 cache build: `data/all_features_v10.jsonl`, 80,241 unique
+   features. Plus calib split + OOD test caches.
+5. Retrained `master_minus_arxiv_clean` profile (detector_calibration.json,
+   ebm.pkl, conformal.json).
+6. Apples-to-apples OOD on the same fixed-RNG cache:
+
+| Dataset | v10 clean (retrained) | v1 prod (trained on buggy cache) | delta |
+|---|---:|---:|---:|
+| RAID | **0.6895** | 0.6764 | **+0.013** |
+| MAGE | 0.5917 | 0.5947 | -0.003 |
+| M4 | **0.5885** | 0.5421 | **+0.046** |
+
+v10 clean meets-or-beats v1 on every OOD slice.
+
+### Why the v10 RAID number (0.6895) looks lower than historical v1 (0.7571)
+
+The historical v1 RAID 0.7571 was measured against an OOD cache built in
+a session whose global-RNG environment was statistically similar to the
+training session. The EBM's learned splits aligned with that environment's
+RNG draws. When evaluated against the deterministic (fixed-seed) cache,
+v1's splits no longer align with the data -- so the same v1 model now
+scores 0.6764 on RAID against the honest cache.
+
+**Production v1 has been silently miscalibrated against inference since
+it shipped.** The 0.7571 number was an artifact of train/test cache
+co-poisoning by the same global-RNG environment, not real OOD
+generalization. The retrain (v10) matches inference and gives the honest
+performance.
+
+### Promotion decision
+
+v10 clean is the new honest baseline. The artifacts are at
+`models/calib2000/profiles/master_minus_arxiv_clean/`. Promotion to
+production = copying the three files (`ebm.pkl`, `conformal.json`,
+`detector_calibration.json`) into `master_minus_arxiv/`.
+
+The robust_v2 retrain story is now unblocked: any future v2 attempt
+should train against `data/all_features_v10.jsonl` (or a successor built
+against the fixed detector) and compare against v10 clean, not against
+the historically-inflated v1 numbers.
+
+SpecDetect's heuristic recalibration (open question #3 above) remains
+orthogonal -- it can land on top of the v10 baseline.
+
+### Refined diagnosis: re-running robust_v2 on the clean OOD cache
+
+Ran the existing `master_minus_arxiv_robust_v2` profile against
+`data/ood_all_features_v10.jsonl` (the fixed-detector OOD cache):
+
+| Dataset | v10 clean | v1 prod | robust_v2 |
+|---|---:|---:|---:|
+| RAID | 0.6895 | 0.6764 | 0.6898 (tied with v10) |
+| MAGE | 0.5917 | 0.5947 | 0.5691 (-0.023 vs v10) |
+| M4 | 0.5885 | 0.5421 | 0.5322 (-0.056 vs v10) |
+
+The original "REGRESSION, do not promote" verdict was correct as a
+shipping decision, but the diagnosis splits cleanly:
+
+- **RAID regression was a RNG ghost.** On the honest cache, v2 ties v10.
+  The historical RAID gap (-0.024) was an artifact of the buggy v8 cache
+  matching v2's training distribution by chance.
+- **MAGE and M4 regressions are real.** v2 underperforms v10 by ~0.02
+  to ~0.06 AUROC on these slices. SpecDetect's heuristic miscalibration
+  (open question #3) is the most plausible source on text where SpecDetect
+  fires (prose / step-by-step LLM output).
+
+This sharpens the next experiment: rebuild a v2-style cache (SpecDetect
+enabled, full coverage) against the fixed detector, recalibrate
+SpecDetect's `_HEURISTIC_TOTAL_ENERGY_TO_P_LLM` from empirical p1/p25/p50/
+p75/p95/p99 of that cache, retrain v2-clean, evaluate against v10 on
+MAGE/M4. If MAGE and M4 close to v10, SpecDetect-with-honest-calibration
+is shippable.

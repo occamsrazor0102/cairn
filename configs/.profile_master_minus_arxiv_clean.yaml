@@ -1,0 +1,14 @@
+_profile: profile_master_minus_arxiv_clean
+_extends: default
+
+# Side profile pointing to artifacts retrained against all_features_v10.jsonl,
+# the cache built after fixing the token_cohesiveness global-RNG nondeterminism
+# documented in docs/benchmarks/robust_v2_validation/HYPOTHESIS_INVESTIGATION.md.
+# Promotion path: validate this profile's OOD numbers (RAID/MAGE/M4) against
+# the production master_minus_arxiv numbers; if meets-or-beats, swap into
+# production by copying the three files into master_minus_arxiv/.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_clean/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_clean/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_clean/detector_calibration.json

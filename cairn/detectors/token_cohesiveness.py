@@ -2,6 +2,7 @@
 """
 TOCSIN-inspired: LLM text is more semantically stable under token deletion.
 """
+import hashlib
 import random
 from cairn.contracts import LayerResult
 
@@ -36,7 +37,11 @@ class TokenCohesivenessDetector:
 
         orig_emb = self._model.encode(text, convert_to_numpy=True)
         n_samples = min(self._n_samples, len(words) // 3)
-        sample_indices = random.sample(range(len(words)), n_samples)
+        # Seed from sha256(text) so the detector is pure-functional in text;
+        # the prior global-RNG sample_indices made cache builds non-reproducible
+        # (see docs/benchmarks/robust_v2_validation/HYPOTHESIS_INVESTIGATION.md).
+        rng = random.Random(hashlib.sha256(text.encode("utf-8")).digest())
+        sample_indices = rng.sample(range(len(words)), n_samples)
 
         impacts = []
         for idx in sample_indices:
