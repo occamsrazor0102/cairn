@@ -1,16 +1,70 @@
 # cairn/detectors/token_cohesiveness.py
+"""TOCSIN — token cohesiveness via random deletion (Ma et al., EMNLP 2024 main,
+arXiv:2409.16914).
+
+Faithful re-implementation of the published method. LLM-generated text is
+*more cohesive* under small random token deletions: regenerating the
+original from a lightly-deleted copy is easier (higher BARTScore) than for
+human text, whose meaning is more brittle to deletion.
+
+Mechanism (per the paper):
+  * make ``n=10`` copies of the text, each with ``ρ=1.5%`` of tokens
+    randomly deleted;
+  * measure semantic shift with **BARTScore** under ``facebook/bart-base``
+    (139M) — the mean per-token log-likelihood of regenerating the
+    original from each deleted copy;
+  * the cohesiveness channel ``u(x)`` is the average of those scores
+    (closer to 0 = more cohesive = more LLM-like);
+  * combine with a base zero-shot logprob detector ``v(x)`` via the
+    paper's exponential rule
+    ``w(x) = e^{u(x)}·v(x)   if v(x) ≥ 0``,
+    ``w(x) = e^{-u(x)}·v(x)  otherwise``.
+
+The base channel ``v(x)`` reuses the in-tree Fast-DetectGPT *curvature*
+(``cairn.benchmarks.fast_detectgpt``) so we don't load a third scoring LM.
+The previous implementation diverged from the paper on every axis
+(MiniLM cosine instead of BARTScore, single-token deletion, no base
+channel) and scored at chance (AUROC ~0.50); this restores the method.
+
+Raw channels (``cohesiveness_u``, ``base_v``, ``combined_w``) are surfaced
+in ``signals`` so the EBM learns the mapping rather than relying on the
+heuristic point estimate.
+
+Tier-2 dependency (torch + transformers, via ``facebook/bart-base``). The
+module imports cleanly without them and SKIPs at analyze time when absent.
+Privacy: all scoring is on-device.
 """
-TOCSIN-inspired: LLM text is more semantically stable under token deletion.
-"""
+from __future__ import annotations
+
+import logging
+import math
 import random
+import threading
+
+from cairn.benchmarks.fast_detectgpt import (
+    FastDetectGPTAdapter,
+    _heuristic_curvature_to_p_llm,
+)
 from cairn.contracts import LayerResult
 
-try:
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-    _HAS_ST = True
-except ImportError:
-    _HAS_ST = False
+logger = logging.getLogger("cairn.detectors.token_cohesiveness")
+
+# Paper hyperparameters.
+_DELETION_RATIO = 0.015          # ρ — fraction of tokens deleted per copy
+_N_COPIES = 10                   # number of deleted copies per text
+_BART_MODEL = "facebook/bart-base"
+# TOCSIN degrades on passages under ~90 tokens; ~60 words is a comparable
+# floor. Below this we SKIP rather than emit a noisy verdict.
+_MIN_WORDS = 60
+
+
+def _try_import_torch():
+    try:
+        import torch  # type: ignore
+
+        return torch
+    except ImportError:
+        return None
 
 
 class TokenCohesivenessDetector:
@@ -18,79 +72,179 @@ class TokenCohesivenessDetector:
     domain = "prose"
     compute_cost = "moderate"
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", n_samples: int = 30):
-        if not _HAS_ST:
-            raise ImportError("sentence-transformers required. Run: pip install 'cairn[tier2]'")
-        self._model = SentenceTransformer(model_name)
-        self._n_samples = n_samples
+    def __init__(self, model_name: str = _BART_MODEL) -> None:
+        self._model_name = model_name
+        self._bart = None
+        self._bart_tok = None
+        # Base logprob channel v(x); shares the tier-2 deps with BART.
+        self._base = FastDetectGPTAdapter()
+
+    # -------------------------------------------------------------- loading
+
+    def _ensure_bart(self) -> None:
+        if self._bart is not None:
+            return
+        from transformers import (  # type: ignore
+            AutoTokenizer,
+            BartForConditionalGeneration,
+        )
+
+        self._bart_tok = AutoTokenizer.from_pretrained(self._model_name)
+        self._bart = BartForConditionalGeneration.from_pretrained(
+            self._model_name
+        )
+        self._bart.eval()
+
+    def _bart_score(self, source: str, target: str) -> float:
+        """Mean per-token log-likelihood of ``target`` given ``source``.
+
+        BARTScore = -CE: ``BartForConditionalGeneration(..., labels=)``
+        returns the mean cross-entropy over the target tokens, so the
+        negated loss is the mean log-probability.
+        """
+        torch = _try_import_torch()
+        enc = self._bart_tok(
+            source, return_tensors="pt", truncation=True, max_length=512
+        )
+        labels = self._bart_tok(
+            target, return_tensors="pt", truncation=True, max_length=512
+        )["input_ids"]
+        with torch.no_grad():
+            out = self._bart(**enc, labels=labels)
+        return float(-out.loss.item())
+
+    # -------------------------------------------------------------- helpers
+
+    def _deleted_copy(self, words: list[str], rng: random.Random) -> str:
+        n_delete = max(1, int(len(words) * _DELETION_RATIO))
+        drop = set(rng.sample(range(len(words)), min(n_delete, len(words))))
+        return " ".join(w for i, w in enumerate(words) if i not in drop)
+
+    def _skip(self, reason: str, **extra) -> LayerResult:
+        return LayerResult(
+            layer_id=self.id, domain=self.domain, raw_score=0.0,
+            p_llm=0.5, confidence=0.0,
+            signals={"skipped": reason, **extra},
+            determination="SKIP", attacker_tiers=["A0", "A1", "A2", "A3"],
+            compute_cost=self.compute_cost, min_text_length=_MIN_WORDS,
+        )
+
+    # ----------------------------------------------------------------- main
 
     def analyze(self, text: str, config: dict) -> LayerResult:
         words = text.split()
-        if len(words) < 50:
-            return LayerResult(
-                layer_id=self.id, domain=self.domain, raw_score=0.0,
-                p_llm=0.5, confidence=0.0, signals={"skipped": "too_short"},
-                determination="SKIP", attacker_tiers=["A0", "A1", "A2", "A3"],
-                compute_cost=self.compute_cost, min_text_length=50,
+        if len(words) < _MIN_WORDS:
+            return self._skip("too_short", n_words=len(words))
+        if _try_import_torch() is None:
+            return self._skip(
+                "tier2_unavailable",
+                hint="pip install 'cairn[tier2]' (torch + transformers)",
             )
 
-        orig_emb = self._model.encode(text, convert_to_numpy=True)
-        n_samples = min(self._n_samples, len(words) // 3)
-        sample_indices = random.sample(range(len(words)), n_samples)
+        try:
+            self._ensure_bart()
+        except Exception as exc:  # weights missing / load failure
+            logger.warning("token_cohesiveness: BART load failed: %s", exc)
+            return self._skip("bart_load_failed", error=str(exc))
 
-        impacts = []
-        for idx in sample_indices:
-            reduced = " ".join(w for i, w in enumerate(words) if i != idx)
-            reduced_emb = self._model.encode(reduced, convert_to_numpy=True)
-            # Cosine distance
-            cos_sim = float(np.dot(orig_emb, reduced_emb) / (
-                np.linalg.norm(orig_emb) * np.linalg.norm(reduced_emb) + 1e-9
-            ))
-            impacts.append(1.0 - cos_sim)
+        rng = random.Random(config.get("seed", 42))
+        scores = []
+        for _ in range(_N_COPIES):
+            copy = self._deleted_copy(words, rng)
+            scores.append(self._bart_score(copy, text))
+        cohesiveness_u = sum(scores) / len(scores)
 
-        mean_impact = sum(impacts) / len(impacts)
-        impact_variance = sum((x - mean_impact) ** 2 for x in impacts) / len(impacts)
-        low_impact_ratio = sum(1 for x in impacts if x < 0.01) / len(impacts)
+        # Base channel v(x): Fast-DetectGPT curvature. Standalone-degrade to
+        # the cohesiveness channel alone if the base scorer is unavailable
+        # (the paper reports cohesiveness-alone at ~0.94 AUROC, so this is a
+        # graceful fallback, not a failure).
+        base_v = None
+        if self._base.is_available():
+            try:
+                base_v = self._base.curvature(text)
+            except Exception as exc:
+                logger.debug("token_cohesiveness: base channel failed: %s", exc)
 
-        # Low mean_impact → high semantic stability → LLM-like
-        p_llm = max(0.0, min(1.0, (0.05 - mean_impact) / 0.05 * 0.8))
+        if base_v is None:
+            combined_w = cohesiveness_u
+            # cohesiveness alone: more cohesive (u→0) → more LLM-like.
+            p_llm = _heuristic_cohesiveness_to_p_llm(cohesiveness_u)
+            raw_score = cohesiveness_u
+        else:
+            # Paper's exponential combination, sign-aware on the base score.
+            if base_v >= 0:
+                combined_w = math.exp(cohesiveness_u) * base_v
+            else:
+                combined_w = math.exp(-cohesiveness_u) * base_v
+            p_llm = _heuristic_curvature_to_p_llm(combined_w)
+            raw_score = combined_w
 
-        if p_llm >= 0.75: determination = "RED"
-        elif p_llm >= 0.50: determination = "AMBER"
-        elif p_llm >= 0.25: determination = "YELLOW"
-        else: determination = "GREEN"
+        if p_llm >= 0.75:
+            determination = "RED"
+        elif p_llm >= 0.50:
+            determination = "AMBER"
+        elif p_llm >= 0.25:
+            determination = "YELLOW"
+        else:
+            determination = "GREEN"
 
         return LayerResult(
             layer_id=self.id, domain=self.domain,
-            raw_score=mean_impact, p_llm=p_llm,
-            confidence=min(0.40 + n_samples / 50, 0.85),
+            raw_score=float(raw_score), p_llm=p_llm,
+            confidence=min(0.40 + len(words) / 800.0, 0.85),
             signals={
-                "mean_deletion_impact": round(mean_impact, 5),
-                "deletion_impact_variance": round(impact_variance, 6),
-                "low_impact_token_ratio": round(low_impact_ratio, 3),
-                "n_samples": n_samples,
+                "cohesiveness_u": round(float(cohesiveness_u), 5),
+                "base_v": round(float(base_v), 5) if base_v is not None else None,
+                "combined_w": round(float(combined_w), 5),
+                "deletion_ratio": _DELETION_RATIO,
+                "n_copies": _N_COPIES,
             },
             determination=determination,
             attacker_tiers=["A0", "A1", "A2", "A3"],
             compute_cost=self.compute_cost,
-            min_text_length=50,
+            min_text_length=_MIN_WORDS,
         )
 
-    def calibrate(self, labeled_data: list) -> None: pass
+    def calibrate(self, labeled_data: list) -> None:
+        pass
 
 
-if _HAS_ST:
-    class _LazyTOCSIN:
-        id = "token_cohesiveness"
-        domain = "prose"
-        compute_cost = "moderate"
-        _instance = None
+# Cohesiveness u(x) is a mean BART log-likelihood: roughly [-5, 0], closer
+# to 0 = more cohesive = more LLM-like. Map with a heuristic sigmoid
+# centred where human/LLM cohesiveness tends to separate. _HEURISTIC_ prefix
+# per CLAUDE.md's honest-mode rule; the EBM relearns this from `cohesiveness_u`.
+_HEURISTIC_COHESIVENESS_CENTER = -1.5
+_HEURISTIC_COHESIVENESS_SLOPE = 1.0
 
-        def analyze(self, text: str, config: dict) -> LayerResult:
-            if self._instance is None:
-                self._instance = TokenCohesivenessDetector()
-            return self._instance.analyze(text, config)
 
-        def calibrate(self, labeled_data: list) -> None: pass
+def _heuristic_cohesiveness_to_p_llm(u: float) -> float:
+    z = _HEURISTIC_COHESIVENESS_SLOPE * (u - _HEURISTIC_COHESIVENESS_CENTER)
+    if z >= 0:
+        return 1.0 / (1.0 + math.exp(-z))
+    ez = math.exp(z)
+    return ez / (1.0 + ez)
 
-    DETECTOR = _LazyTOCSIN()
+
+class _LazyTOCSIN:
+    """Lazy wrapper — defers BART construction until first analyze."""
+
+    id = "token_cohesiveness"
+    domain = "prose"
+    compute_cost = "moderate"
+    _instance: "TokenCohesivenessDetector | None" = None
+    _lock = threading.Lock()
+
+    def analyze(self, text: str, config: dict) -> LayerResult:
+        if self._instance is None:
+            with self._lock:
+                if self._instance is None:  # double-checked
+                    type(self)._instance = TokenCohesivenessDetector(
+                        model_name=(config or {}).get("model", _BART_MODEL),
+                    )
+        return self._instance.analyze(text, config)
+
+    def calibrate(self, labeled_data: list) -> None:
+        pass
+
+
+DETECTOR = _LazyTOCSIN()

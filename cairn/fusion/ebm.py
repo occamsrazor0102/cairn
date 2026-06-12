@@ -70,10 +70,30 @@ class FeatureAssembler:
             "surprisal_p_llm": p("surprisal_dynamics"),
             "surprisal_late_volatility": sig("surprisal_dynamics", "late_volatility_ratio"),
             "surprisal_diversity": sig("surprisal_dynamics", "surprisal_diversity"),
+            # DivEye-style surprisal-fluctuation features (arXiv:2509.18880).
+            # The detector suppresses its (OOD-inverting) heuristic p_llm and
+            # leans on these instead; the EBM learns the domain-aware mapping.
+            "surprisal_skew": sig("surprisal_dynamics", "surprisal_skew"),
+            "surprisal_kurtosis": sig("surprisal_dynamics", "surprisal_kurtosis"),
+            "surprisal_d1_std": sig("surprisal_dynamics", "surprisal_d1_std"),
+            "surprisal_d1_absmean": sig("surprisal_dynamics", "surprisal_d1_absmean"),
+            "surprisal_d1_autocorr": sig("surprisal_dynamics", "surprisal_d1_autocorr"),
+            "surprisal_d2_std": sig("surprisal_dynamics", "surprisal_d2_std"),
+            "surprisal_d2_absmean": sig("surprisal_dynamics", "surprisal_d2_absmean"),
             "binoculars_p_llm": p("contrastive_lm"),
             "binoculars_ratio": sig("contrastive_lm", "binoculars_ratio"),
+            # Fast-DetectGPT (arXiv:2310.05130) — analytic curvature; replaces
+            # the classic-DetectGPT `perturbation` detector.
+            "fast_detectgpt_p_llm": p("fast_detectgpt"),
+            "fast_detectgpt_curvature": sig("fast_detectgpt", "curvature"),
             "tocsin_p_llm": p("token_cohesiveness"),
+            # Legacy column kept so pre-A2 EBM artifacts still load; NaN until
+            # retrain (the faithful TOCSIN no longer emits mean_deletion_impact).
             "tocsin_mean_deletion_impact": sig("token_cohesiveness", "mean_deletion_impact"),
+            # Faithful-TOCSIN channels (EMNLP 2024): cohesiveness u(x) and the
+            # exponential combination w(x) with the Fast-DetectGPT base score.
+            "tocsin_cohesiveness_u": sig("token_cohesiveness", "cohesiveness_u"),
+            "tocsin_combined_w": sig("token_cohesiveness", "combined_w"),
             # Semantic kinematics (Phase 2, embedding-trajectory macro-feature).
             # Full detector ID is used for the {p_llm, missing, confidence}
             # triplet; signal-level keys live in their own `sk_*` namespace
@@ -105,6 +125,7 @@ class FeatureAssembler:
             "nssi_missing": missing("nssi"),
             "surprisal_missing": missing("surprisal_dynamics"),
             "binoculars_missing": missing("contrastive_lm"),
+            "fast_detectgpt_missing": missing("fast_detectgpt"),
             "tocsin_missing": missing("token_cohesiveness"),
             "semantic_kinematics_missing": missing("semantic_kinematics"),
             "perturbation_missing": missing("perturbation"),
@@ -125,6 +146,7 @@ class FeatureAssembler:
             "nssi_confidence": conf("nssi"),
             "surprisal_confidence": conf("surprisal_dynamics"),
             "binoculars_confidence": conf("contrastive_lm"),
+            "fast_detectgpt_confidence": conf("fast_detectgpt"),
             "tocsin_confidence": conf("token_cohesiveness"),
             "semantic_kinematics_confidence": conf("semantic_kinematics"),
             "perturbation_confidence": conf("perturbation"),

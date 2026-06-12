@@ -118,6 +118,23 @@ detectors:
   etc.) flow through to `detector.analyze(text, config)` as the second
   argument — each detector documents what it reads.
 
+### Scoring-model knobs (tier-2 LM detectors)
+
+- `fast_detectgpt.model` — HuggingFace causal-LM id used to score the
+  analytic curvature. Defaults to `gpt2` for a lean install. For the
+  paper's 0.93 black-box AUROC on ChatGPT/GPT-4, set it to
+  `EleutherAI/gpt-neo-2.7B` (or export `CAIRN_FAST_DETECTGPT_MODEL`).
+  Requires `cairn[tier2]`. The 2.7B option is ~6 GB of weights — run
+  feature caching for it on GPU (`scripts/modal_cache_features.py`).
+- `token_cohesiveness.model` — seq2seq model for the BARTScore
+  cohesiveness channel; defaults to `facebook/bart-base` (139M). The
+  detector reuses the `fast_detectgpt` curvature as its base channel and
+  degrades to cohesiveness-alone if that channel is unavailable.
+- `surprisal_dynamics.model` — causal LM for per-token surprisal
+  (default `gpt2`). The detector suppresses its heuristic verdict and
+  exports DivEye-style fluctuation features for the EBM; a per-detector
+  isotonic calibrator (when loaded) maps its `raw_score` to a p(LLM).
+
 ## Cascade block
 
 ```yaml

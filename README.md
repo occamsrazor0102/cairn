@@ -45,8 +45,8 @@ Seventeen detectors organised into four cascade phases:
 | Phase | Cost | Detectors |
 |------:|------|-----------|
 | 1 | trivial / cheap | `preamble`, `fingerprint_vocab`, `prompt_structure`, `voice_spec`, `instruction_density`, `nssi` |
-| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `token_cohesiveness`, `mixed_boundary`, `semantic_kinematics` |
-| 3 | expensive (LLM-backed) | `perturbation`, `contrastive_gen`, `dna_gpt` |
+| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `fast_detectgpt`, `token_cohesiveness`, `mixed_boundary`, `semantic_kinematics` |
+| 3 | expensive (LLM-backed) | `perturbation` (disabled; superseded by `fast_detectgpt`), `contrastive_gen`, `dna_gpt` |
 | 4 | batch-only | `cross_similarity` (and `contributor_graph` via `pipeline.analyze_contributors`) |
 
 The cascade scheduler short-circuits on confident Phase 1 verdicts and
@@ -223,13 +223,25 @@ for several profiles, but several caveats still apply:
   return `SKIP` on single-text analyze; `cross_similarity` runs on
   `pipeline.analyze_batch`, `contributor_graph` via a separate
   `pipeline.analyze_contributors` entry point.
-- **Some detectors carry no signal post-calibration.** Per-detector
-  AUROC analysis surfaced four detectors (`token_cohesiveness`,
-  `mixed_boundary`, `preamble`, `fingerprint_vocab`) that contribute
-  near-zero discriminative power on the calib2000 corpus, and
-  `surprisal_dynamics` inverts on some OOD distributions. They
-  remain enabled because the EBM weights them toward zero, but
-  they're candidates for removal.
+- **Weak detectors are being replaced, not just disabled.** Per-detector
+  AUROC analysis surfaced detectors with near-zero discriminative power on
+  calib2000 (`token_cohesiveness` 0.50, `mixed_boundary` 0.51, `preamble`
+  0.52, `fingerprint_vocab` 0.54) plus `surprisal_dynamics`, which inverts
+  OOD. The in-flight remediation:
+  - `token_cohesiveness` was a divergent TOCSIN approximation (MiniLM
+    cosine, single-token deletion); it is now a faithful TOCSIN rebuild
+    (BART-base cohesiveness + a Fast-DetectGPT base channel, EMNLP 2024).
+  - `fast_detectgpt` (analytic conditional-probability curvature,
+    arXiv:2310.05130) is added in Phase 2 and supersedes the classic
+    `perturbation` detector (now disabled).
+  - `surprisal_dynamics` keeps its (OOD-inverting) heuristic *suppressed*
+    and now exports DivEye-style fluctuation features (arXiv:2509.18880)
+    for the EBM to map.
+  - `preamble` / `fingerprint_vocab` / `mixed_boundary` stay enabled
+    (high-precision in heuristic mode / drive the mixed report); dropping
+    them from a calibrated profile's fusion is a retrain-time LOO call.
+  All require a fresh EBM/conformal retrain to take effect (the assembler
+  emits the new columns; existing artifacts ignore them until retrained).
 - **The Settings tab shows what's really active.** Each declared
   detector is tagged "available" or flagged with its missing
   requirement (tier2 / tier3 / API key / batch-only).

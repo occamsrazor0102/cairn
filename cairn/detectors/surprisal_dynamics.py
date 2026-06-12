@@ -36,6 +36,74 @@ def _windowed_variance(values: list[float], window_size: int) -> list[float]:
     return variances
 
 
+def _moments(xs: list[float]) -> tuple[float, float, float, float]:
+    """Return (mean, std, skewness, excess-kurtosis) of ``xs`` in pure Python."""
+    n = len(xs)
+    if n == 0:
+        return 0.0, 0.0, 0.0, 0.0
+    mean = sum(xs) / n
+    var = sum((x - mean) ** 2 for x in xs) / n
+    std = math.sqrt(var)
+    if std < 1e-9:
+        return mean, 0.0, 0.0, 0.0
+    m3 = sum((x - mean) ** 3 for x in xs) / n
+    m4 = sum((x - mean) ** 4 for x in xs) / n
+    skew = m3 / (std ** 3)
+    kurt = m4 / (std ** 4) - 3.0
+    return mean, std, skew, kurt
+
+
+def _lag1_autocorr(xs: list[float]) -> float:
+    """Lag-1 autocorrelation of ``xs`` (0.0 when undefined)."""
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    mean = sum(xs) / n
+    denom = sum((x - mean) ** 2 for x in xs)
+    if denom < 1e-9:
+        return 0.0
+    num = sum((xs[i] - mean) * (xs[i + 1] - mean) for i in range(n - 1))
+    return num / denom
+
+
+def _diveye_features(surprisals: list[float]) -> dict[str, float]:
+    """DivEye-style diversity features over the surprisal series.
+
+    Reimplements the feature *definitions* from DivEye (Basani & Chen,
+    arXiv:2509.18880) — 9 statistics capturing the distribution and the
+    first/second-order temporal fluctuation of per-token surprisal, which
+    is what makes the method robust to paraphrase and OOD where a few
+    hand-weighted scalars invert. (The DivEye reference code is CC-BY-NC-SA;
+    these are clean-room reimplementations of the published statistics, not
+    vendored code.)
+
+    Returns the 9 features keyed for the EBM assembler. The fitted EBM
+    learns the mapping; we emit no heuristic p(LLM) from them.
+    """
+    s_mean, s_std, s_skew, s_kurt = _moments(surprisals)
+    d1 = [surprisals[i + 1] - surprisals[i] for i in range(len(surprisals) - 1)]
+    d2 = [d1[i + 1] - d1[i] for i in range(len(d1) - 1)]
+    _, d1_std, _, _ = _moments(d1)
+    d1_absmean = sum(abs(x) for x in d1) / len(d1) if d1 else 0.0
+    d1_autocorr = _lag1_autocorr(d1)
+    _, d2_std, _, _ = _moments(d2)
+    d2_absmean = sum(abs(x) for x in d2) / len(d2) if d2 else 0.0
+    return {
+        "surprisal_skew": round(s_skew, 4),
+        "surprisal_kurtosis": round(s_kurt, 4),
+        "surprisal_d1_std": round(d1_std, 4),
+        "surprisal_d1_absmean": round(d1_absmean, 4),
+        "surprisal_d1_autocorr": round(d1_autocorr, 4),
+        "surprisal_d2_std": round(d2_std, 4),
+        "surprisal_d2_absmean": round(d2_absmean, 4),
+        # s_mean / s_std are already surfaced as surprisal_mean/std below;
+        # included here as the 8th/9th DivEye moments for completeness of
+        # the distributional block.
+        "surprisal_moment_mean": round(s_mean, 4),
+        "surprisal_moment_std": round(s_std, 4),
+    }
+
+
 class SurprisalDynamicsDetector:
     id = "surprisal_dynamics"
     domain = "prose"
@@ -95,23 +163,30 @@ class SurprisalDynamicsDetector:
         m4 = sum((x - mu) ** 4 for x in surprisals) / n
         kurtosis_excess = m4 / max(surprisal_std ** 4, 1e-9) - 3
 
-        # Combine into p_llm:
-        # LLM text: low late_volatility_ratio (<0.7), high surprisal diversity, negative slope
-        lv_score = max(0.0, (0.85 - late_volatility_ratio) / 0.85)   # 0 if ratio>0.85, 1 if ratio=0
-        div_score = max(0.0, (0.65 - surprisal_diversity) / 0.65)    # lower diversity = more LLM-like
-        slope_score = max(0.0, -slope * 5)                            # negative slope = LLM-like
-        p_llm = min((lv_score * 0.5 + div_score * 0.3 + slope_score * 0.2), 1.0)
-
-        if p_llm >= 0.75: determination = "RED"
-        elif p_llm >= 0.50: determination = "AMBER"
-        elif p_llm >= 0.25: determination = "YELLOW"
-        else: determination = "GREEN"
+        # The previous hand-weighted p(LLM) — built from late_volatility,
+        # surprisal_diversity and slope — was the component that *inverted*
+        # out-of-domain (AUROC 0.27–0.36 on M4/RAID/MAGE vs 0.59 in-domain;
+        # see docs/benchmarks/calib2000/per_detector_auroc.csv). We no longer
+        # emit that point estimate. Instead we expose the richer DivEye-style
+        # feature block and suppress the heuristic verdict, letting the EBM
+        # learn the correct (and domain-aware) mapping at calibration time.
+        #
+        # IMPORTANT: the suppressed result uses determination="UNCERTAIN"
+        # (NOT "SKIP"). FeatureAssembler.assemble() drops SKIP results from
+        # by_id, which would silently discard every surprisal_* feature
+        # before the EBM ever sees it. UNCERTAIN keeps the row in the feature
+        # vector; confidence=0.0 keeps it out of the naive aggregate and the
+        # cascade short-circuit (both filter on confidence > 0), so a broken
+        # heuristic can't move the verdict while its features still feed
+        # fusion. A loaded per-detector isotonic calibrator overrides p_llm
+        # from raw_score in cairn/pipeline.py at read time.
+        diveye = _diveye_features(surprisals)
 
         return LayerResult(
             layer_id=self.id, domain=self.domain,
             raw_score=late_volatility_ratio,
-            p_llm=p_llm,
-            confidence=min(0.40 + n / 500, 0.88),
+            p_llm=0.5,
+            confidence=0.0,
             signals={
                 "surprisal_mean": round(surprisal_mean, 3),
                 "surprisal_std": round(surprisal_std, 3),
@@ -120,8 +195,14 @@ class SurprisalDynamicsDetector:
                 "window_trajectory_slope": round(slope, 5),
                 "kurtosis_excess": round(kurtosis_excess, 3),
                 "n_tokens": n,
+                **diveye,
+                "reason": "heuristic_suppress",
+                "notes": (
+                    "heuristic point estimate suppressed (inverted OOD); "
+                    "DivEye-style features feed the EBM pending calibrator retrain"
+                ),
             },
-            determination=determination,
+            determination="UNCERTAIN",
             attacker_tiers=["A0", "A1", "A2", "A3"],
             compute_cost=self.compute_cost,
             min_text_length=150,
