@@ -53,6 +53,22 @@ _HEURISTIC_Z_TO_P_LLM = [
 _MIN_PERTURBATION_VARIANCE = 1e-4
 
 
+def _pick_device() -> str:
+    """`cuda` when torch is importable and sees a GPU, else `cpu`.
+
+    Local import on purpose: the module-level try-import may have failed
+    (no tier2 extras) while a test stubs `_HAS_TORCH`/model methods to
+    exercise analyze() torch-free — referencing the bare `torch` name
+    here would NameError in that case.
+    """
+    try:
+        import torch  # type: ignore
+
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except ImportError:
+        return "cpu"
+
+
 class PerturbationDetector:
     id = "perturbation"
     domain = "universal"
@@ -111,7 +127,7 @@ class PerturbationDetector:
         n_perturbations = int(config.get("n_perturbations", 8))
         perturbation_rate = float(config.get("perturbation_rate", 0.12))
         seed = config.get("seed", 42)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = _pick_device()
 
         try:
             self._ensure_loaded(model_name, device)

@@ -75,16 +75,20 @@ def detector_availability(config: dict) -> list[dict]:
             "reason": "",
             "requires": [],
         }
+        # Disabled wins over registration state: if the operator turned the
+        # detector off, "disabled in config" is the actionable reason whether
+        # or not its module could import (in a no-tier2 env a disabled torch
+        # detector is BOTH unregistered and disabled).
+        if not enabled:
+            row["reason"] = "disabled in config"
+            out.append(row)
+            continue
         if det_id in missing:
             row["reason"] = f"import failed: {missing[det_id]}"
             out.append(row)
             continue
         if det_id not in all_dets:
             row["reason"] = "not registered"
-            out.append(row)
-            continue
-        if not enabled:
-            row["reason"] = "disabled in config"
             out.append(row)
             continue
         # Detector-specific readiness gates
