@@ -72,6 +72,18 @@ class PerturbationDetector:
         self._model.eval()
         self._loaded_model_name = key
 
+    def _resolve_device(self) -> str:
+        """Pick 'cuda' when a real torch with CUDA is present, else 'cpu'.
+
+        Guarded against NameError: `_HAS_TORCH` may be forced True (tests
+        stub the scorer) or torch may have failed to import at module load,
+        in which case the module-global `torch` symbol doesn't exist.
+        """
+        try:
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        except NameError:
+            return "cpu"
+
     def _log_prob(self, text: str, device: str) -> float:
         """Mean per-token log-prob of `text` under the loaded LM."""
         enc = self._tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
@@ -111,7 +123,7 @@ class PerturbationDetector:
         n_perturbations = int(config.get("n_perturbations", 8))
         perturbation_rate = float(config.get("perturbation_rate", 0.12))
         seed = config.get("seed", 42)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = self._resolve_device()
 
         try:
             self._ensure_loaded(model_name, device)

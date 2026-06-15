@@ -75,16 +75,20 @@ def detector_availability(config: dict) -> list[dict]:
             "reason": "",
             "requires": [],
         }
+        # An explicit config-disable is a deliberate operator choice and
+        # takes precedence over import/registration state: a disabled
+        # detector reports "disabled" even when its optional extras are
+        # absent (so it never registered in this environment).
+        if not enabled:
+            row["reason"] = "disabled in config"
+            out.append(row)
+            continue
         if det_id in missing:
             row["reason"] = f"import failed: {missing[det_id]}"
             out.append(row)
             continue
         if det_id not in all_dets:
             row["reason"] = "not registered"
-            out.append(row)
-            continue
-        if not enabled:
-            row["reason"] = "disabled in config"
             out.append(row)
             continue
         # Detector-specific readiness gates
