@@ -11,6 +11,12 @@ detectors:
     enabled: false
   perturbation:
     enabled: false
+  # fast_detectgpt is a tier-2 (torch) detector; screening is the Tier-1
+  # fast path, so keep it off here like its siblings above. Without this it
+  # would inherit enabled:true from default.yaml and dilute the cheap
+  # high-precision verdicts this profile relies on.
+  fast_detectgpt:
+    enabled: false
   contrastive_gen:
     enabled: false
   dna_gpt:

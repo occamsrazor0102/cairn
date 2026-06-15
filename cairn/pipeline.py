@@ -75,10 +75,10 @@ def detector_availability(config: dict) -> list[dict]:
             "reason": "",
             "requires": [],
         }
-        # Disabled wins over registration state: if the operator turned the
-        # detector off, "disabled in config" is the actionable reason whether
-        # or not its module could import (in a no-tier2 env a disabled torch
-        # detector is BOTH unregistered and disabled).
+        # An explicit config-disable is a deliberate operator choice and
+        # takes precedence over import/registration state: a disabled
+        # detector reports "disabled" even when its optional extras are
+        # absent (so it never registered in this environment).
         if not enabled:
             row["reason"] = "disabled in config"
             out.append(row)
