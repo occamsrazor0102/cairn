@@ -110,6 +110,17 @@ fusion:
   # Path to per-detector isotonic calibration JSON (scripts/calibrate_detectors.py).
   detector_calibration_path: null
 
+task_description:
+  # Auto-derive a task_description for prompt-aware detectors
+  # (e.g. contrastive_gen) when the caller didn't supply one.
+  #   off   — never derive; detector returns SKIP if no task_description (default)
+  #   local — pure-Python heuristic; no data leaves the host
+  #   llm   — call provider for a one-sentence summary; SUBMISSION TEXT IS SENT
+  auto_mode: off
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
+  # api_key: ...  # optional override; default reads ANTHROPIC_API_KEY / OPENAI_API_KEY
+
 decision:
   red_threshold: 0.75
   amber_threshold: 0.50

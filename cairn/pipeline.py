@@ -330,6 +330,19 @@ class CairnPipeline:
         cfg = self._config
         # Reset per-call detector-failure accumulator (initialised in __init__).
         self._phase_errors = []
+        # Auto-derive task_description when caller didn't supply one and the
+        # config opts in. Default auto_mode is "off" (no behavior change for
+        # existing callers). Warning is attached after decide() so the
+        # decision engine can still own Determination.warnings normally.
+        auto_warning: str | None = None
+        td_cfg = cfg.get("task_description") or {}
+        if td_cfg.get("auto_mode", "off") not in ("off", None, False):
+            existing_td = (task_metadata or {}).get("task_description")
+            if not existing_td:
+                from cairn.task_description import auto_derive
+                desc, _mode_used, auto_warning = auto_derive(text, td_cfg)
+                if desc:
+                    task_metadata = {**(task_metadata or {}), "task_description": desc}
         results: list[LayerResult] = []
         phases_run = [1]
         phase1_results = self._run_phase(1, text, cfg, router_decision.skip_detectors, task_metadata)
@@ -350,6 +363,8 @@ class CairnPipeline:
         determination = self._decision.decide(fusion_result, results)
         determination.cascade_phases = phases_run
         determination.detector_errors = list(self._phase_errors)
+        if auto_warning:
+            determination.warnings = list(determination.warnings or []) + [auto_warning]
         if self._monitor is not None:
             try:
                 vec = self._fusion._assembler.assemble(

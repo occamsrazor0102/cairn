@@ -1,0 +1,27 @@
+_profile: cache_builder
+_extends: default
+# Used exclusively by scripts/run_hc3_benchmark.py::ensure_features_cache
+# (and any other "build a feature cache" workflow) to force every cascade
+# phase to run regardless of phase-1 / phase-2 aggregate verdicts.
+#
+# Why this matters: the heuristic-cascade short-circuit fires on
+# heuristic p_llm values, while the live CALIBRATED pipeline short-circuits
+# on calibrated p_llm — and the two disagree on a large fraction of
+# samples. A cache built with default cascade thresholds therefore stores
+# phase-2 features for only ~20% of records (verified against the v6
+# master cache), and a calibrated reader has nothing to feed the EBM
+# but NaN→0.5 imputations. With every phase forced on, the cache is
+# truly calibrator-independent and any downstream reader (heuristic or
+# calibrated) sees real values for every detector.
+#
+# Detector enable flags are inherited from default.yaml — Phase-3
+# detectors stay disabled by default since they require API keys, so
+# this widening only forces the four enabled Phase-2 detectors
+# (surprisal_dynamics, contrastive_lm, token_cohesiveness, mixed_boundary)
+# to run on every sample.
+cascade:
+  phase1_short_circuit_high: 1.1
+  phase1_short_circuit_low: -0.1
+  phase2_short_circuit_high: 1.1
+  phase2_short_circuit_low: -0.1
+  phase3_always_run: true

@@ -1,0 +1,42 @@
+{
+  "n_samples": 600,
+  "n_failed": 0,
+  "config_hash": "32e9ac76a91e",
+  "metrics": {
+    "auroc": 0.7419,
+    "ece": 0.3969,
+    "brier": 0.3673,
+    "tpr_at_fpr_01": 0.34
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.8431,
+      "brier": 0.7304,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.0525,
+      "brier": 0.0042,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 0,
+    "fp": 0,
+    "tn": 300,
+    "fn": 300,
+    "precision": null,
+    "recall": 0.0,
+    "f1": null,
+    "accuracy": 0.5
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "/root/data/hc3_reddit_eli5_test.jsonl",
+  "config": "configs/default.yaml",
+  "duration_seconds": 41.98
+}

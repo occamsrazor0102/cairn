@@ -1,0 +1,42 @@
+{
+  "n_samples": 254,
+  "n_failed": 0,
+  "config_hash": "32e9ac76a91e",
+  "metrics": {
+    "auroc": 0.7457,
+    "ece": 0.368,
+    "brier": 0.3472,
+    "tpr_at_fpr_01": 0.2835
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.0795,
+      "brier": 0.0115,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.8156,
+      "brier": 0.6829,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 0,
+    "fp": 0,
+    "tn": 127,
+    "fn": 127,
+    "precision": null,
+    "recall": 0.0,
+    "f1": null,
+    "accuracy": 0.5
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "/root/data/hc3_wiki_csai_test.jsonl",
+  "config": "configs/default.yaml",
+  "duration_seconds": 28.87
+}

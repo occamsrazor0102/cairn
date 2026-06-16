@@ -68,12 +68,20 @@ def cache_features(
     dataset_jsonl: bytes,
     config_path: str = "configs/default.yaml",
     run_id: str = "v8",
-) -> bytes:
-    """Run pipeline.analyze_detailed on each unique text. Returns JSONL bytes.
+) -> dict:
+    """Run pipeline.analyze_detailed on each unique text.
 
-    Checkpoints incrementally to /root/.cache/huggingface/cairn_cache_output/
-    so Modal worker preemption (auto-restart with same inputs) resumes where
-    the previous run left off instead of reprocessing from scratch.
+    Returns a small manifest dict; the JSONL result lives on the
+    persistent ``cairn-hf-cache`` Modal Volume at
+    ``/cairn_cache_output/{run_id}_features.jsonl``. The local entrypoint
+    downloads the file via ``Volume.read_file`` to avoid Modal's
+    return-value blob path (which crashed in Modal 1.4.2 with
+    ``UnimplementedError: method BlobGet not implemented`` when returning
+    >~10 MB of bytes).
+
+    Checkpoints incrementally to the same path so Modal worker preemption
+    (auto-restart with same inputs) resumes where the previous run left
+    off instead of reprocessing from scratch.
     """
     import json
     import os
@@ -149,8 +157,13 @@ def cache_features(
         flush=True,
     )
 
-    with open(checkpoint_path, "rb") as f:
-        return f.read()
+    return {
+        "run_id": run_id,
+        "remote_path": f"cairn_cache_output/{run_id}_features.jsonl",
+        "n_total": len(seen),
+        "n_new_this_run": n_done,
+        "n_duplicates": n_dup,
+    }
 
 
 @app.local_entrypoint()
@@ -172,9 +185,22 @@ def main(
     from pathlib import Path
 
     src = Path(dataset_path).read_bytes()
+
+    def _download_shard_bytes(remote_path: str) -> bytes:
+        # Local-side reads see the latest committed-by-the-worker state
+        # by the time the manifest is returned. ``Volume.reload()`` can
+        # only be called from inside a running Modal function, not here.
+        buf = bytearray()
+        for chunk in hf_cache.read_file(remote_path):
+            buf.extend(chunk)
+        return bytes(buf)
+
     if shards <= 1:
         print(f"sending {len(src):,} bytes to Modal GPU function ({dataset_path})...")
-        cache_bytes = cache_features.remote(src, config_path, run_id)
+        manifest = cache_features.remote(src, config_path, run_id)
+        print(f"worker manifest: {manifest}")
+        print(f"downloading {manifest['remote_path']} from cairn-hf-cache volume...")
+        cache_bytes = _download_shard_bytes(manifest["remote_path"])
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
         Path(out_path).write_bytes(cache_bytes)
         n_lines = cache_bytes.count(b"\n")
@@ -196,14 +222,19 @@ def main(
         print(f"  shard {i}: rows [{start}, {end}) -> {len(shard_bytes):,} bytes")
 
     print(f"fanning out {len(shard_args)} parallel shards to Modal...")
-    results = list(cache_features.starmap(shard_args))
+    manifests = list(cache_features.starmap(shard_args))
+    for m in manifests:
+        print(f"  worker manifest: {m}")
 
     seen: set[str] = set()
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     n_total = 0
     n_dup_xshard = 0
     with open(out_path, "w", encoding="utf-8") as out:
-        for idx, shard_bytes in enumerate(results):
+        for idx, manifest in enumerate(manifests):
+            remote_path = manifest["remote_path"]
+            print(f"  shard {idx}: downloading {remote_path}...", flush=True)
+            shard_bytes = _download_shard_bytes(remote_path)
             for raw in shard_bytes.decode("utf-8").splitlines():
                 if not raw.strip():
                     continue
