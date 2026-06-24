@@ -14,7 +14,8 @@
       "Bash(git *)",
       "Bash(python -m ruff check beet/detectors/ beet/cascade.py beet/pipeline.py beet/monitoring/drift.py)",
       "Bash(python -m mypy beet/detectors/ beet/cascade.py beet/pipeline.py beet/monitoring/drift.py --ignore-missing-imports)",
-      "Bash(python -m pytest -q)"
+      "Bash(python -m pytest -q)",
+      "mcp__Mermaid_Chart__validate_and_render_mermaid_diagram"
     ],
     "deny": [
       "Bash(rm -rf /:*)",
