@@ -401,18 +401,19 @@ gantt
     Built-in observability (drift, audit)     :active, p3, 2026-05-01, 2026-07-31
     section Next (0-2 quarters)
     Profile auto-routing                      :        n1, 2026-07-01, 90d
-    Persistent drift window                   :        n2, 2026-07-15, 60d
-    Non-loopback hardening (auth, rate-limit) :        n3, 2026-08-01, 75d
+    Verdict case-file export (PDF + JSON)      :        n2, 2026-07-15, 45d
+    Persistent drift window                   :        n3, 2026-08-15, 60d
+    Non-loopback hardening (auth, rate-limit) :        n4, 2026-09-01, 75d
     section Later (2-4 quarters)
-    Adversarial coverage expansion            :        l1, 2026-10-01, 120d
-    New-model refresh automation              :        l2, 2026-11-01, 90d
-    Detector pruning + retrain                :        l3, 2026-12-01, 90d
+    Adversarial coverage expansion            :        l1, 2026-11-01, 120d
+    New-model refresh automation              :        l2, 2026-12-01, 90d
+    Detector pruning + retrain                :        l3, 2027-01-01, 90d
 ```
 
 | Horizon | Theme | Items |
 |---------|-------|-------|
 | **Now** | Defensible verdicts, run-like-infra | Calibrated profiles, conformal abstention, evidence UI, history/drift/audit/eval observability |
-| **Next** | Reduce operator burden, close exposure gap | Profile auto-routing by input shape; persistent drift window; auth + rate limiting for `cairn serve` |
+| **Next** | Reduce operator burden, close exposure gap | Profile auto-routing by input shape; verdict case-file export (PDF + JSON) for appeals/audit; persistent drift window; auth + rate limiting for `cairn serve` |
 | **Later** | Stay ahead of the moving target | Widen adversarial calibration (verb-low, RAID transforms); automate per-provider refresh on each frontier release; prune near-zero-signal detectors and retrain |
 
 ### Technical Architecture (high level)
