@@ -363,6 +363,10 @@ class CairnPipeline:
         determination = self._decision.decide(fusion_result, results)
         determination.cascade_phases = phases_run
         determination.detector_errors = list(self._phase_errors)
+        # decide() defaults calibration_status to "heuristic"; stamp the
+        # pipeline's actual status so the determination (and report.py) agree
+        # with /health instead of always claiming heuristic.
+        determination.calibration_status = self._calibration_status
         if auto_warning:
             determination.warnings = list(determination.warnings or []) + [auto_warning]
         if self._monitor is not None:
@@ -442,6 +446,7 @@ class CairnPipeline:
                 )
                 enriched = self._decision.decide(fusion_result, results)
                 enriched.cascade_phases = det.cascade_phases + [4]
+                enriched.calibration_status = self._calibration_status
                 per_sub[sid] = (enriched, results, rd)
 
         return {sid: triple[0] for sid, triple in per_sub.items()}
