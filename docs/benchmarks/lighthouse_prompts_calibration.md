@@ -81,3 +81,42 @@ risks the known "retrained profile underperforms baseline" trap.
 3. Gate on **this** slice (`data/lighthouse_prompts_eval.jsonl`) plus the
    existing prompt held-outs — track flag-rate per `style` so a future model
    that only learns the preamble tell again is caught.
+
+---
+
+## Follow-up: 31-variant graded benchmark — **length dominates** (2026-06-26)
+
+Ran the companion graded benchmark (62 items: 31 raw + 31 tiered transforms,
+each with a blind 3-lens human panel score, 0=def-AI … 100=def-human) through
+the same calibrated `prompts_only`. All 62 are AI-generated. Slice saved at
+`data/lighthouse_benchmark_eval.jsonl`; runner `scripts/_lighthouse_benchmark_cairn.py`.
+
+| tier | blind human-ness | mean words | CAIRN p(LLM) | flag p≥.5 |
+|---|---|---|---|---|
+| T3 "blatant LLM" | ~7 | 602 | 0.961 | 10/10 |
+| T2 "performed human" | ~50 | 457 | 0.943 | 11/11 |
+| raw variants | 11–57 (mean 40) | 218 | 0.271 | 7/31 |
+| T1 "genuine" (restraint rewrite) | ~75 | 240 | 0.376 | 2/10 |
+
+**Headline: `corr(word_count, p_llm) = +0.887`** — p(LLM) tracks length far more
+than the human-ness axis (Pearson `p_llm` vs blind score = −0.43, Spearman
+−0.25, both largely a length proxy). Proof it's length not tier: the two *raw*
+items that happen to be long — Expanded 1 (428 w → 0.96) and Expanded 2
+(384 w → 0.93) — score like T2/T3 despite no humanization transform, while
+short items (raw + T1, ~220–240 w) sit ~0.3 regardless of tier.
+
+The seductive misread — "CAIRN catches the T2 discriminator 11/11, where weak
+human reviewers fail" — is **mostly a length artifact**: T2/T3 were transformed
+into verbose figure-dumping prose (~450–600 w); T1 genuine was rewritten
+*shorter* with restraint (~240 w). This does not contradict the Form A/B
+finding — those casual items were short. **Unified mechanism: `prompts_only`
+p(LLM) on tax prompts is driven by (1) the preamble override and (2) raw
+length**, not robust stylistic detection. Consequence: a long detailed prompt
+from a real human would be flagged; a short AI prompt with no preamble passes.
+
+**Implication for "use for calibration":** before any retrain, the eval/gate
+must **length-match** human vs LLM (or include `log_word_count` as a controlled
+covariate), otherwise length leakage will masquerade as detection skill. The
+actionable fix is to down-weight / decorrelate the length features for the
+prompt domain and re-validate on a length-balanced set — not to celebrate the
+T2 catch rate.
