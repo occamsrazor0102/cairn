@@ -118,5 +118,48 @@ from a real human would be flagged; a short AI prompt with no preamble passes.
 must **length-match** human vs LLM (or include `log_word_count` as a controlled
 covariate), otherwise length leakage will masquerade as detection skill. The
 actionable fix is to down-weight / decorrelate the length features for the
-prompt domain and re-validate on a length-balanced set — not to celebrate the
+prompt domain and re-validate on a length-balanced set, not to celebrate the
 T2 catch rate.
+
+---
+
+## Length-balanced control — CAIRN *does* discriminate in-distribution (2026-06-26)
+
+Scored the full held-out `prompts_v5_test` (6,068 balanced prompts) through the
+prompts_only EBM via the feature cache (`CachedPipeline`, fusion only, no GPT-J;
+100% cache coverage). This isolates real content discrimination from length.
+
+| measure | AUC |
+|---|---|
+| **Natural** (full set; human median 69 w, LLM 41 w) | **0.841** |
+| Length-only (word count alone) | 0.244 -> **0.756** in the human-longer direction |
+| **Within-bin** (length held ~constant), size-weighted | **0.697** |
+| Matched subsample (identical class length dists) | 0.654 |
+| `corr(word_count, p_llm)` | **-0.399** |
+
+within-bin AUC by length: 5-15 w **0.69**, 15-30 **0.78**, 30-50 0.63, 50-80
+0.68, 80-130 0.69, 130-260 0.73, **260+ 0.57** (near chance).
+
+**This corrects the "no genuine signal" reading above.** In-distribution,
+`corr(words,p_llm) = -0.399` (longer -> more human) is the **opposite sign** of
+Lighthouse's +0.887. The `word_count` EBM shape function is **non-monotonic**:
+"longer->human" across the training range (humans write longer prompts; length
+is a legitimately strong in-distribution signal, AUC 0.756), but it **flips and
+saturates to "longer->LLM" (+2.10) in the sparse OOD-long tail** (>260 w = only
+1.6% of the test set). The Lighthouse tax prompts (150-760 w) sit entirely in
+that tail, so their verdict is set by the saturated length feature, and content
+discrimination there is near chance (260+ bin AUC 0.57).
+
+**Corrected takeaway.** prompts_only is **not** signal-free: it has modest but
+real content discrimination (content-only AUC ~0.65-0.70) that **degrades with
+length** and **breaks (sign-flips + saturates) on OOD-long prompts**. "Length
+dominates" is specific to the OOD-long regime the Lighthouse set probes; it is
+not the in-distribution behaviour.
+
+**Actionable.** (1) Guard length features against OOD extrapolation: prompts
+beyond the training length range should not inherit the saturated `word_count`
+contribution (clamp, or add an `is_oversized` gate). (2) Any prompt-domain
+retrain must include **long prompts in both classes** so the `word_count` shape
+cannot extrapolate to a sign-flip. (3) Report content-only (within-bin / length-
+matched) AUC alongside headline AUC so length leakage cannot masquerade as skill.
+Eval: `scripts/_lengthbalanced_eval_cairn.py`.
