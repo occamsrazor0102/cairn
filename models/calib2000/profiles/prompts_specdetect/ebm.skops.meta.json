@@ -1,0 +1,12 @@
+{
+  "dataset_hash": "0e6f64300757b398",
+  "dataset_path": "data\\prompts_only_train.jsonl",
+  "interactions": 15,
+  "label_balance_test": 0.4998794309139137,
+  "label_balance_train": 0.5000301477238468,
+  "max_rounds": 300,
+  "n_test": 4147,
+  "n_train": 16585,
+  "schema_version": "ebm-v8",
+  "trained_at": "2026-06-27T11:32:45.481793+00:00"
+}

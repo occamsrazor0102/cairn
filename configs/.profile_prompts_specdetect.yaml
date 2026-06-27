@@ -1,0 +1,11 @@
+_profile: profile_prompts_specdetect
+# Full coverage (no cascade short-circuit) + SpecDetect — the validated recipe
+# for humanized/long prompt detection (AUC 0.945, TPR 0.85@10%FPR vs hard human
+# control). See docs/benchmarks/lighthouse_prompts_calibration.md (Stage 2-3).
+# NOTE: runs every detector incl. SpecDetect (GPT-J) on each input — real
+# inference cost; this is intentional for the prompt domain.
+_extends: .profile_full_coverage_with_specdetect
+fusion:
+  model_path: models/calib2000/profiles/prompts_specdetect/ebm.skops
+  conformal_path: models/calib2000/profiles/prompts_specdetect/conformal.json
+  detector_calibration_path: models/calib2000/profiles/prompts_specdetect/detector_calibration.json
