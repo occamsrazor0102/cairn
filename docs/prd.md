@@ -334,6 +334,7 @@ Ideas considered for the core problem (defensible verdicts):
 - **New-model refresh** automation via the reusable matched corpus. *Roadmap.*
 - Managed/cloud tier with auth & rate limiting. *Roadmap (deferred; OSS-first).*
 - LMS/ATS/CMS turnkey connectors. *Roadmap (post-API-hardening).*
+- Annotation/RLHF batch-integrity mode for data pipelines. *Roadmap (Next; design-partner-gated).*
 
 ### Leveraging AI: why AI is essential
 
@@ -378,13 +379,22 @@ features scored.)
 | **LMS/ATS/CMS turnkey connectors** | 40% | 7 | 5 | 8 | **1.75** |
 | **Managed/cloud tier** | 35% | 7 | 5 | 9 | **1.36** |
 | **Per-verdict exportable PDF report** | 70% | 6 | 7 | 4 | **7.35** |
+| **Annotation/RLHF batch-integrity mode** *(data-pipeline SKU)* | 50%\* | 8 | 6 | 5 | **4.8** |
+
+\* Reach for the annotation mode is scored against the new data-pipeline
+segment (Mara), not Dana; like the managed tier it is a new-segment bet, so
+its score is not directly comparable to the Dana-anchored rows.
 
 **Summary:** the highest-leverage near-term bets are **profile
 auto-routing**, **detector pruning + retrain**, **new-model refresh
 automation**, and a **per-verdict export**. These are all high-reach and
 moderate-effort, and they build on the existing calibration advantage.
 Connectors and a managed tier score low now (high effort, gated on API
-hardening) and are correctly "Later."
+hardening) and are correctly "Later." The annotation/RLHF batch-integrity
+mode scores in the middle, gated on design-partner validation and an
+annotation-matched corpus, but it is the first expansion into the
+data-pipeline segment and reuses the existing batch, contributor-graph, and
+audit foundations.
 
 ### AI MVP
 
@@ -439,6 +449,7 @@ gantt
     Verdict case-file export (PDF + JSON)      :        n2, 2026-07-15, 45d
     Persistent drift window                   :        n3, 2026-08-15, 60d
     Non-loopback hardening (auth, rate-limit) :        n4, 2026-09-01, 75d
+    Annotation/RLHF batch-integrity mode      :        n5, 2026-10-01, 90d
     section Later (2-4 quarters)
     Adversarial coverage expansion            :        l1, 2026-11-01, 120d
     New-model refresh automation              :        l2, 2026-12-01, 90d
@@ -448,7 +459,7 @@ gantt
 | Horizon | Theme | Items |
 |---------|-------|-------|
 | **Now** | Defensible verdicts, production-ready operation | Calibrated profiles, conformal abstention, evidence UI, history/drift/audit/eval observability |
-| **Next** | Reduce operator burden, close exposure gap | Profile auto-routing by input shape; verdict case-file export (PDF + JSON) for appeals/audit; persistent drift window; auth + rate limiting for `cairn serve` |
+| **Next** | Reduce operator burden, close exposure gap | Profile auto-routing by input shape; verdict case-file export (PDF + JSON) for appeals/audit; persistent drift window; auth + rate limiting for `cairn serve`; annotation/RLHF batch-integrity mode for data pipelines (design-partner-gated) |
 | **Later** | Keep pace with new model releases | Widen adversarial calibration (verb-low, RAID transforms); automate per-provider refresh on each frontier release; prune near-zero-signal detectors and retrain |
 
 ### Technical Architecture (high level)
@@ -748,9 +759,11 @@ a verdict also shows what it does and doesn't guarantee.
    (fusion, calibration, evidence, privacy). Win detection researchers and
    privacy-blocked buyers first.
 2. **Design partners (per segment).** 2 to 3 each in education,
-   publishing/peer-review, and trust & safety. Validate H3 (trust) and H4
-   (privacy unlock) with real workflows; co-develop the per-verdict export
-   and profile auto-routing.
+   publishing/peer-review, trust & safety, and AI data pipelines (labeling
+   and RLHF vendors, plus lab data teams). Validate H3 (trust), H4 (privacy
+   unlock), and demand for the annotation/RLHF batch-integrity mode with
+   real workflows; co-develop the per-verdict export, profile auto-routing,
+   and the annotation mode.
 3. **Harden for integration.** Ship `cairn serve` auth + rate limiting and
    a vetted non-loopback exposure story; then build the first turnkey
    connector for the segment with strongest pull.
