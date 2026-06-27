@@ -254,3 +254,32 @@ for recall (it inverts to AUC 0.247), but even off it tops out ~0.39. This is a
 FEATURE ceiling (the detectors don't capture humanized-AI signal), so better
 fusion can't close it — Stage 2 needs a stronger (neural) detector + humanized
 training data.
+
+### Stage 2-3 RESOLUTION — full-coverage + SpecDetect hits the goal (2026-06-27)
+
+The Stage 1 "feature ceiling" conclusion was WRONG. Root cause of the ~chance
+result: the production **cascade short-circuits**, so the discriminative phase-3
+detectors (perturbation, semantic_kinematics, contrastive_lm, surprisal) never
+fired on these prompts — the EBM was blind. Force **full coverage** + add
+**SpecDetect** (GPT-J spectral, Modal) and it works.
+
+- **SpecDetect alone** (dft_total_energy) on the humanized slice: AUC 0.963,
+  TPR 0.91 @10% FPR. Length-independent (variance of surprisal; within-band
+  AUC 0.99). The standalone signal that cracked it.
+- **Retrained `prompts_specdetect`** (full-coverage features, 20.7k corpus) vs
+  the HARD control (380 long/dense/technical humans — medqa/mmlu, length-matched
+  235w~267w): **AUC 0.945, TPR 0.85 @10% FPR**, within-band 0.96-0.97. Meets the
+  ≥0.70 @5-10% FPR screening goal at 10%. SpecDetect adds ~11 pts TPR@10%
+  (0.85 vs 0.74) and most on long prompts (260+w: 0.96 vs 0.93).
+- TPR@5%FPR ~0.59-0.68 (noisy; the hardest operating point against the hardest
+  control) — would firm up with humanized examples IN training (the model is
+  trained only on generic prompts; humanized are all held-out) and conformal
+  calibration.
+
+**Recipe:** prompt detection needs (1) full coverage (no cascade short-circuit),
+(2) SpecDetect for the long tail where other detectors saturate. **Remaining for
+production:** a real `prompts_specdetect` profile (conformal + calibration), a
+cascade/config that runs full coverage + SpecDetect for prompts (GPT-J inference
+cost), and humanized training data to firm up 5% FPR. Scripts:
+`_modal_humanized_specdetect.py`, `modal_cache_features.py` (specdetect config),
+`train_fusion.py`, `_stage3_validate.py`, `_stage3_validate_hard.py`.
