@@ -106,12 +106,14 @@ text ever leaving their control.
 
 ### Competitor Analysis
 
-The AI-text-detection market splits into three groups. CAIRN targets the
-gap all three leave open: **honest calibration, evidence, and privacy**.
+The AI-text-detection market splits into three broad groups, plus one
+modern, well-funded standout worth naming (Pangram). CAIRN targets the gap
+they leave open: **honest calibration, evidence, and privacy**.
 
 | Competitor / class | Approach | Where it leaves a gap CAIRN fills |
 |--------------------|----------|-----------------------------------|
 | **GPTZero, Originality.ai, Copyleaks, Winston AI, ZeroGPT** (commercial SaaS) | Hosted single-model / perplexity-burstiness classifiers; emit a % score | Text leaves the customer's machine; scores are uncalibrated and have no interval; limited per-phrase evidence; closed weights and corpus |
+| **Pangram** (modern cloud classifier) | Single transformer trained with mirror-prompting + hard-negative mining; very low self-reported false-positive rate; cloud API | Strong, funded, and education-positioned, and it already markets an RLHF / ML-engineer use case, but text is sent to a cloud API; no calibrated uncertainty interval, no honest abstention, no contributor-graph, no audit trail; ill-suited to discrete labels |
 | **Turnitin AI detection, Sapling** (embedded in a larger workflow) | Bundled into plagiarism / writing-assistant suites | Black-box verdicts inside a closed product; no profile/threshold control; no honest abstention; institution can't self-host |
 | **Open-source detectors:** DetectGPT, Fast-DetectGPT, Binoculars, GLTR, RoBERTa-class classifiers; **RAID** benchmark | Strong single *signals*, research-grade | A single signal rather than a product: no fusion, no calibration layer, no UI/observability, no decision policy, no audit trail |
 
@@ -150,6 +152,16 @@ gap all three leave open: **honest calibration, evidence, and privacy**.
   high-profile false positives (students wrongly accused). The buyer's
   real question is "can I defend this verdict?", which is exactly what
   CAIRN is built to support.
+- **An under-tooled buyer: AI data pipelines.** Covert LLM use by
+  crowdworkers and annotators is a measured phenomenon (peer-reviewed
+  estimates of roughly 30 to 46% on free-text tasks) that survives policy
+  and UX countermeasures, so detection rather than policy is required. The
+  segment is under-tooled: surveys find only about 11% of teams use an
+  automated detector, the rest relying on informal heuristics. It is
+  high-value because clean, genuinely human data is what keeps training
+  corpora from degrading, and proprietary prompts make privacy a hard
+  requirement. See
+  `docs/research/2026-06-27-data-annotation-positioning.md` for sources.
 
 ### Technology Analysis: what AI-specific solutions are competitors leveraging?
 
@@ -176,6 +188,7 @@ gap all three leave open: **honest calibration, evidence, and privacy**.
 | **Newsrooms / fact-checking / trust & safety** | Triage suspected synthetic content; per-feature evidence for editorial calls | Medium |
 | **Regulated enterprise (legal, finance, healthcare)** | On-prem / loopback is a hard requirement; audit chain for compliance | Very High |
 | **Platform / marketplace integrity** | Batch + `cross_similarity` / `contributor_graph` to catch coordinated synthetic content | Medium |
+| **AI data pipelines / labeling & RLHF integrity** | Batch-screen free-text annotations, SFT demonstrations, and RLHF rationales for covert LLM origin; `contributor_graph` catches repeat synthetic submitters; audit record per batch; proprietary prompts never leave the machine | Very High (proprietary prompts/IP) |
 | **Detection researchers / OSS adopters** | Pluggable detector protocol, evaluation harness, BYO-dataset training | N/A |
 
 ### User Personas
@@ -196,6 +209,19 @@ moderation queue). Sam needs stable contracts, batch throughput,
 `calibration_status` introspection, profile selection per input type, and
 observability (drift alerts, audit log) that is dependable enough to run
 in production.
+
+**Secondary: "Mara, the Data-Quality / RLHF Operations Lead."**
+Mara owns the integrity of human-produced training data at a data-labeling
+vendor or a frontier lab's data team. She must keep annotation,
+SFT-demonstration, and RLHF-rationale free-text actually human at batch
+scale, without shipping proprietary prompts to a third party. She needs: a
+calibrated probability with an uncertainty interval she can threshold to a
+strict false-positive budget, honest abstention on genuinely ambiguous
+items, contributor-graph signals to catch repeat or coordinated synthetic
+submitters, an exportable audit record per batch, and local-first
+processing so prompts and submissions never leave her infrastructure. She
+knows text detection cannot police discrete multiple-choice labels, so she
+applies CAIRN to the free-text surface where it is effective.
 
 **Tertiary: "Riya, the Detection Researcher."**
 Riya extends CAIRN: adds a detector behind the `Detector` protocol,
@@ -226,6 +252,12 @@ What users are trying to achieve:
 6. **Operate over time.** Monitor determination distribution, feedback-
    derived accuracy, and feature drift; recalibrate when a new model
    shifts the distribution.
+7. **Annotation-pipeline integrity.** Batch-screen free-text annotations,
+   SFT demonstrations, and RLHF rationales for covert LLM origin; use the
+   contributor-graph to catch repeat or coordinated synthetic submitters;
+   export an auditable integrity record per batch. Applies to free-text
+   fields; discrete multiple-choice labels are out of scope for text-based
+   detection.
 
 ### Pain Points
 
@@ -491,6 +523,9 @@ gantt
 - **GUI eval is capped at 1000 samples**; larger runs drop to the Python
   API.
 - **Tier-3 detectors require API credentials** and explicit opt-in.
+- **Text-based detection does not cover discrete labels.** Covert LLM use in
+  multiple-choice or preference-pick annotation is out of scope; CAIRN
+  applies to free-text annotation, demonstration, and rationale fields.
 
 ### Risks
 
@@ -503,6 +538,7 @@ gantt
 | **Privacy regression** | Low | High | Loopback default; hash-only history; egress test (`contrastive_gen` task-desc-only); `_redact` on config; audit chain |
 | **Overclaiming calibration** | Med | High (trust) | `_HEURISTIC_*` naming convention; tier reporting; `prediction_set` (cosmetic) vs `conformal_set` (honest) never conflated |
 | **Exposed `cairn serve` without a proxy** | Med | High | Loopback default + explicit docs; auth/rate-limit on roadmap (Next) |
+| **Strong funded competitor (Pangram)** | Med | Med | Differentiate on calibrated uncertainty, honest abstention, evidence spans, local-first privacy, contributor-graph, and audit trail; acknowledge Pangram's low-FPR strength rather than dispute it |
 
 ---
 
@@ -633,6 +669,7 @@ algorithms" view, not the algorithms themselves):
 | Surviving adversarial edits | Verbosity-low / paraphrase silently reduce accuracy | Length-aware EBM features; widen adversarial calibration | Known attack surface measured & partly counteracted (verb-low ↑ to ~0.89) |
 | Handling sensitive text (legal/PHI/student) | Can't ship to third-party SaaS | Loopback-first runtimes; hash-only history; task-desc-only egress | Unlocks regulated/education segments SaaS can't serve |
 | Screening a queue at scale | One-at-a-time tools; no relational view | Batch mode + `cross_similarity` / `contributor_graph` | Catch coordinated synthetic content; throughput |
+| Keeping human-feedback data human | Crowdworkers covertly using LLMs on free-text annotation | Batch detection + `contributor_graph` + calibrated abstention; local-first so prompts stay private | Cleaner training/RLHF data; repeat synthetic submitters caught; proprietary prompts never leave |
 | Defending a decision later | No audit trail | Hash-chained provenance pinned to model-artifact hash | Verifiable, tamper-evident record for compliance/appeal |
 | Operating over time | No drift visibility; stale calibration | History + drift (KL/feature) + feedback accuracy + eval runner | Dependable ongoing operation; recalibrate before quality decays |
 
