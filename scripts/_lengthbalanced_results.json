@@ -1,8 +1,8 @@
 {
-  "auc_natural": 0.8413266747201558,
+  "auc_natural": 0.8337473601647778,
   "auc_length_only_natural": 0.24433043784328723,
-  "within_bin_weighted_auc": 0.6968394109474125,
-  "auc_matched": 0.6542440628198632,
+  "within_bin_weighted_auc": 0.6969541306032762,
+  "auc_matched": 0.6519653436172083,
   "n_pool": 6068,
   "n_matched": 3110
 }

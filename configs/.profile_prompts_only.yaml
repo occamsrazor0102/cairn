@@ -2,5 +2,11 @@ _profile: profile_prompts_only
 _extends: default
 fusion:
   model_path: models/calib2000/profiles/prompts_only/ebm.skops
+  # OOD-length guard: prompt corpus trains on short prompts (median ~15-50w);
+  # the EBM word_count shape saturates to ~+2.1 LLM above ~340w (extrapolation
+  # artifact). Cap length features at 200w so prompts longer than the training
+  # range aren't flagged on length alone. See
+  # docs/benchmarks/lighthouse_prompts_calibration.md.
+  word_count_clamp: 200
   conformal_path: models/calib2000/profiles/prompts_only/conformal.json
   detector_calibration_path: models/calib2000/profiles/prompts_only/detector_calibration.json

@@ -14,16 +14,32 @@ _NAN = float("nan")
 class FeatureAssembler:
     """Assembles layer results into a flat feature dict for the EBM."""
 
-    def __init__(self, drop_features: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        drop_features: set[str] | None = None,
+        word_count_clamp: int | None = None,
+    ) -> None:
         # Optional feature-drop allowlist for ablation experiments. Keys
         # are popped from the returned dict after assembly. Used by
         # train_fusion --drop-features to test which specdetect (or other)
         # features actually carry signal vs. dilute the EBM's capacity.
         # Always-empty default; backward-compatible.
         self._drop_features: set[str] = set(drop_features or ())
+        # OOD-length guard. When set, word_count is capped at this value before
+        # the length features (word_count/log_word_count/is_*) are computed, so
+        # a prompt far longer than the training distribution does NOT inherit
+        # the EBM's saturated long-tail length contribution (an extrapolation
+        # artifact: on prompts_only the word_count shape function flips to
+        # ~+2.1 LLM above ~340 words, where almost no training prompts exist).
+        # None = no clamp (default); set per-profile in config for domains
+        # whose inputs are routinely far longer than training (see
+        # docs/benchmarks/lighthouse_prompts_calibration.md).
+        self._word_count_clamp: int | None = word_count_clamp
 
     def assemble(self, results: list[LayerResult], word_count: int, domain: str) -> dict:
         by_id = {r.layer_id: r for r in results if r.determination != "SKIP"}
+        # Effective (clamped) length feeds every length-derived feature.
+        eff_wc = word_count if self._word_count_clamp is None else min(word_count, self._word_count_clamp)
 
         def p(layer_id: str) -> float:
             return by_id[layer_id].p_llm if layer_id in by_id else _NAN
@@ -157,17 +173,17 @@ class FeatureAssembler:
             "lapd_confidence": conf("lapd"),
             "mixed_boundary_confidence": conf("mixed_boundary"),
             "cross_similarity_confidence": conf("cross_similarity"),
-            # Metadata
-            "word_count": float(word_count),
-            "log_word_count": math.log1p(float(word_count)),
+            # Metadata (length features use the clamped eff_wc, not raw)
+            "word_count": float(eff_wc),
+            "log_word_count": math.log1p(float(eff_wc)),
             # Length-bucket indicators give the EBM clean breakpoints to
             # learn length-conditional behaviour (e.g. "trust this detector
             # less on short text"). Buckets chosen from the empirical
             # distribution: <150 captures terse Q&A and brief replies,
             # 150-500 the bulk of long-form responses, 500+ the long tail.
-            "is_short": 1.0 if word_count < 150 else 0.0,
-            "is_medium": 1.0 if 150 <= word_count < 500 else 0.0,
-            "is_long": 1.0 if word_count >= 500 else 0.0,
+            "is_short": 1.0 if eff_wc < 150 else 0.0,
+            "is_medium": 1.0 if 150 <= eff_wc < 500 else 0.0,
+            "is_long": 1.0 if eff_wc >= 500 else 0.0,
             "domain_prompt": 1.0 if domain == "prompt" else 0.0,
             "domain_prose": 1.0 if domain == "prose" else 0.0,
         }
@@ -194,10 +210,10 @@ except ImportError:
 class EBMFusion:
     """Fusion using a trained EBM. Falls back to naive fusion if untrained."""
 
-    def __init__(self, model: Any = None, conformal: Any = None):
+    def __init__(self, model: Any = None, conformal: Any = None, word_count_clamp: int | None = None):
         self._model = model
         self._conformal = conformal
-        self._assembler = FeatureAssembler()
+        self._assembler = FeatureAssembler(word_count_clamp=word_count_clamp)
         self._feature_names: list[str] | None = None
         self._column_means: dict[str, float] = {}
         if model is not None:

@@ -295,7 +295,14 @@ class CairnPipeline:
                 conformal = None
         if model is None and conformal is None:
             return DEFAULT_FUSION
-        return EBMFusion(model=model, conformal=conformal)
+        # OOD-length guard (opt-in per profile). Caps word_count before the
+        # length features so prompts far longer than the training distribution
+        # don't inherit the EBM's saturated long-tail length contribution.
+        clamp = fusion_cfg.get("word_count_clamp")
+        return EBMFusion(
+            model=model, conformal=conformal,
+            word_count_clamp=int(clamp) if clamp is not None else None,
+        )
 
     @staticmethod
     def _build_detector_calibrator(config: dict):

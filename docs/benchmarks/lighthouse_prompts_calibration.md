@@ -163,3 +163,51 @@ retrain must include **long prompts in both classes** so the `word_count` shape
 cannot extrapolate to a sign-flip. (3) Report content-only (within-bin / length-
 matched) AUC alongside headline AUC so length leakage cannot masquerade as skill.
 Eval: `scripts/_lengthbalanced_eval_cairn.py`.
+
+---
+
+## Fix shipped: OOD-length guard `fusion.word_count_clamp` (2026-06-26)
+
+Implemented the guard from fix (1) above. `FeatureAssembler` now takes an
+optional `word_count_clamp`; when set it caps `word_count` before the length
+features (`word_count` / `log_word_count` / `is_*`) are computed, so prompts
+longer than the training range cannot inherit the EBM's saturated long-tail
+length contribution. Config-gated (`fusion.word_count_clamp`), plumbed through
+`EBMFusion` and `pipeline._build_fusion`; **default None = no change for any
+other profile**. Set to **200** in `.profile_prompts_only.yaml` (upper edge of
+the dense prompt distribution; the `word_count` shape turns positive ~245 w and
+saturates to +2.1 above ~340 w). Tests: `tests/test_word_count_clamp.py`; full
+suite 798 passed.
+
+**In-distribution: no harm** (held-out prompts_v5_test, via cache):
+
+| measure | no clamp | clamp 200 |
+|---|---|---|
+| Natural AUC | 0.841 | 0.834 |
+| Within-bin (weighted) | 0.697 | 0.697 |
+| Matched AUC | 0.654 | 0.652 |
+| 260+ bin AUC | 0.566 | **0.597** |
+
+**OOD-long: length leakage removed** (62-item graded benchmark, all LLM, all >200 w):
+
+| tier | p(LLM) no clamp | p(LLM) clamp 200 |
+|---|---|---|
+| T3 blatant (602 w) | 0.961 (10/10 flagged) | 0.237 (0/10) |
+| T2 performed (457 w) | 0.943 (11/11) | 0.155 (0/11) |
+| raw (218 w) | 0.271 (7/31) | 0.116 (0/31) |
+| T1 genuine (240 w) | 0.376 (2/10) | 0.178 (0/10) |
+| **flagged p≥0.5** | **30/62** | **0/62** |
+
+Lighthouse Form A/B (mostly <200 w): mean 0.365 -> 0.339; the short
+preamble-marked items are unaffected (still caught, p ~0.95-1.00) — the clamp
+only binds on the >200 w items.
+
+**Honest read of the result.** The clamp is a **correctness fix, not a detection
+upgrade**. It removes the *length-leakage false confidence* — the same mechanism
+that would have flagged a long *human* prompt — and preserves in-distribution
+skill (AUC 0.834). It does NOT make CAIRN catch long LLM prompts: the 62 benchmark
+items now score ~0.1-0.24 because, with length neutralised, CAIRN's content
+discrimination on long prompts is ~chance (within-bin 260+ AUC ~0.60). Catching
+long LLM prompts on genuine content tells still requires a retrain with long
+prompts in **both** classes. What the clamp buys is that prompts_only will no
+longer flag a long human submission purely for being long.
