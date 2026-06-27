@@ -211,3 +211,24 @@ discrimination on long prompts is ~chance (within-bin 260+ AUC ~0.60). Catching
 long LLM prompts on genuine content tells still requires a retrain with long
 prompts in **both** classes. What the clamp buys is that prompts_only will no
 longer flag a long human submission purely for being long.
+
+### Retrain feasibility audit — the long-prompt retrain is DATA-BLOCKED
+
+Counted long prompts by class across the prompt corpora:
+
+| corpus | human ≥300 w | LLM ≥300 w | human ≥400 w | human ≥500 w |
+|---|---|---|---|---|
+| prompts_only_train (10,366/class) | 13 | 131 | 0 | 0 |
+| full human pool (15,245) | 26 | — | 1 | 0 |
+
+The entire 15,245-prompt human corpus has **26** prompts ≥300 w, **1** ≥400 w,
+**0** ≥500 w. The Lighthouse prompts are 400–760 w — there is **no human
+training data where they live**. The only long examples that exist are LLM
+(~10:1 at ≥300 w), which is exactly why the EBM learned the saturating
+"long→LLM" shape. A length-balanced long-prompt retrain is therefore
+**infeasible** with available data, and a naive retrain (adding the long LLM
+benchmark prompts) would *reinforce* the bias. The clamp is the operative fix;
+the only route to genuine long-prompt content discrimination is **collecting
+real long human prompts at scale** (a data effort — synthetic "human" data is
+self-defeating). Audit not scripted (one-off count); reproduce via word-count
+histograms over `data/prompts_human.jsonl` / `data/prompts_llm.jsonl`.
