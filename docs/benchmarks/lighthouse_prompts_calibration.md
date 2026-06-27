@@ -232,3 +232,25 @@ the only route to genuine long-prompt content discrimination is **collecting
 real long human prompts at scale** (a data effort — synthetic "human" data is
 self-defeating). Audit not scripted (one-off count); reproduce via word-count
 histograms over `data/prompts_human.jsonl` / `data/prompts_llm.jsonl`.
+
+### Stage 1 operating-point measurement — ensemble caps ~0.39 TPR (2026-06-26)
+
+Target: TPR >= 0.70 at 5-10% FPR (screening) on the 102 humanized LLM prompts
+(Lighthouse A+B + 62 graded) vs human prompts. CPU-only via cache
+(`scripts/_stage1_cpu.py`, `_stage1_cpu_clampoff.py`):
+
+| operating point | AUC | TPR@5% | TPR@10% | TPR@20% |
+|---|---|---|---|---|
+| clamp ON (shipped) | 0.247 (inverted) | 0.11 | 0.11 | 0.11 |
+| clamp OFF (recall) | 0.489 (~chance) | 0.36 | 0.39 | 0.42 |
+
+Length split (clamp off, @10% FPR): >=300 w -> TPR 1.00; <300 w -> TPR 0.19.
+The entire clamp-off TPR is the length trick catching the 25 long prompts; on
+the 77 short/casual prompts the ensemble is ~chance, and that length signal
+would false-positive long humans. **The current heuristic-detector + EBM
+ensemble cannot reach 0.70** — content discrimination on humanized prompts is
+~chance (they were built to evade surface tells). The clamp must be gated OFF
+for recall (it inverts to AUC 0.247), but even off it tops out ~0.39. This is a
+FEATURE ceiling (the detectors don't capture humanized-AI signal), so better
+fusion can't close it — Stage 2 needs a stronger (neural) detector + humanized
+training data.
