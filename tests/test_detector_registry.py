@@ -69,8 +69,11 @@ def test_attribute_error_during_register_lands_in_missing():
             return fake_module
         return real_import(name, *args, **kwargs)
 
-    # Inject the broken module into the package by patching iter_modules too
-    fake_iter = [type("M", (), {"name": "broken_test"})()]
+    # Inject the broken module into the package by patching iter_modules too.
+    # _discover() calls pkgutil.iter_modules(__path__, __name__ + "."), so the
+    # yielded ModuleInfo.name is the fully-qualified dotted name (which is what
+    # the frozen importer also produces) — mirror that here.
+    fake_iter = [type("M", (), {"name": "cairn.detectors.broken_test"})()]
     real_iter = registry.pkgutil.iter_modules
 
     def iter_with_broken(*args, **kwargs):

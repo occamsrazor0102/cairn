@@ -222,5 +222,17 @@ fn resolve_sidecar_command(resource_dir: &Path) -> Result<(String, Vec<String>)>
 
 fn sidecar_binary_path(resource_dir: &Path) -> PathBuf {
     let name = if cfg!(windows) { "cairn-sidecar.exe" } else { "cairn-sidecar" };
+    // Tauri's `externalBin` mechanism places the sidecar next to the main
+    // executable (the install root / target dir), NOT under a binaries/
+    // subdir of the resource dir. Prefer that location; fall back to the
+    // legacy resource_dir/binaries/ layout for resource-style bundling.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let next_to_exe = dir.join(name);
+            if next_to_exe.exists() {
+                return next_to_exe;
+            }
+        }
+    }
     resource_dir.join("binaries").join(name)
 }

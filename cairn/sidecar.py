@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 from cairn.auto_routing import recommend_profile
-from cairn.config import list_profiles, load_config
+from cairn.config import CONFIGS_DIR, list_profiles, load_config
 from cairn.history import HistoryStore, mint_submission_id
 from cairn.monitoring.drift import DriftMonitor
 from cairn.monitoring.meta_detector import MetaDetector
@@ -962,7 +962,7 @@ def run(
 def _resolve_config_path(config: str | None, profile: str) -> Path:
     if config:
         return Path(config)
-    return Path(__file__).parent.parent / "configs" / f"{profile}.yaml"
+    return CONFIGS_DIR / f"{profile}.yaml"
 
 
 def main(argv: list[str] | None = None) -> int:
