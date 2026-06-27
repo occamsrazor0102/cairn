@@ -283,3 +283,27 @@ cascade/config that runs full coverage + SpecDetect for prompts (GPT-J inference
 cost), and humanized training data to firm up 5% FPR. Scripts:
 `_modal_humanized_specdetect.py`, `modal_cache_features.py` (specdetect config),
 `train_fusion.py`, `_stage3_validate.py`, `_stage3_validate_hard.py`.
+
+### LEAK-FREE re-validation — result confirmed/strengthened (2026-06-27)
+
+Code review caught that the original hard-human control was 63% (241/380) in
+prompts_only_train (and the conformal recal set 68%). Rebuilt the hard control
+leak-free: 296 humans >=150w with NO overlap of train+calib (medqa/mmlu,
+mean 189w). `scripts/_stage3_validate_clean.py`:
+
+| metric | leaked set (235w) | LEAK-FREE (189w) |
+|---|---|---|
+| AUC | 0.945 | **0.973** |
+| TPR @5% FPR | 0.59 | **0.84** |
+| TPR @10% FPR | 0.85 | **0.94** |
+| within-band 200-320w | 0.961 | **0.978** |
+| conformal human-FPR | 35% | **15.5%** |
+
+The leakage did NOT inflate — the leak-free numbers are BETTER. The leaked "hard"
+set just skewed longer (235 vs 189w) and length, not memorization, drove its
+worse FPR. So the Stage 2-3 conclusion stands (strengthened): leak-free,
+length-controlled AUC ~0.98; TPR 0.84 @5%FPR / 0.94 @10%FPR vs clean held-out
+technical humans; the goal is met even at 5% FPR. Form B recall (all LLM):
+19/20 p>=0.5, 20/20 conformal ['LLM']. Surviving caveat: the conformal honest
+set still over-flags ~15% of long technical humans (density confound) — the
+part that needs humanized/dense-human training data, not calibration.
