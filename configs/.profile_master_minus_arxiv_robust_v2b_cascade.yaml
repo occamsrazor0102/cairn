@@ -1,0 +1,19 @@
+_profile: master_minus_arxiv_robust_v2b_cascade
+_extends: default
+
+# Follow-up experiment 2: same as robust_v2 but EBM trained on a
+# cache built with the production cascade (short-circuit on). Tests
+# whether eliminating the train/inference distribution mismatch for
+# ALL phase 2+ detectors closes the v2 regression.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

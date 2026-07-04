@@ -1,0 +1,139 @@
+{
+  "n_samples": 200,
+  "n_failed": 0,
+  "config_hash": "44136fa355b3",
+  "metrics": {
+    "auroc": 0.5421,
+    "ece": 0.0251,
+    "brier": 0.2469,
+    "tpr_at_fpr_01": 0.06
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.4716,
+      "brier": 0.2306,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.5093,
+      "brier": 0.2631,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "per_source": {
+    "m4_eli5": {
+      "n_samples": 12,
+      "brier": 0.257,
+      "auroc": 0.4815
+    },
+    "m4_roct": {
+      "n_samples": 10,
+      "brier": 0.2744,
+      "auroc": 0.0833
+    },
+    "m4_outfox": {
+      "n_samples": 9,
+      "brier": 0.2204,
+      "auroc_unavailable": "single-class slice"
+    },
+    "m4_reddit_eli5": {
+      "n_samples": 29,
+      "brier": 0.2463,
+      "auroc": 0.4494
+    },
+    "m4_cmv": {
+      "n_samples": 5,
+      "brier": 0.3003,
+      "auroc": 0.0
+    },
+    "m4_wikipedia": {
+      "n_samples": 17,
+      "brier": 0.2079,
+      "auroc": 0.75
+    },
+    "m4_wp": {
+      "n_samples": 9,
+      "brier": 0.2557,
+      "auroc": 0.625
+    },
+    "m4_reddit": {
+      "n_samples": 11,
+      "brier": 0.2382,
+      "auroc": 0.75
+    },
+    "m4_wikihow": {
+      "n_samples": 17,
+      "brier": 0.2306,
+      "auroc": 0.6667
+    },
+    "m4_xsum": {
+      "n_samples": 13,
+      "brier": 0.2421,
+      "auroc": 0.8095
+    },
+    "m4_sci_gen": {
+      "n_samples": 8,
+      "brier": 0.2763,
+      "auroc": 0.4
+    },
+    "m4_squad": {
+      "n_samples": 11,
+      "brier": 0.2569,
+      "auroc": 0.4583
+    },
+    "m4_yelp": {
+      "n_samples": 14,
+      "brier": 0.2478,
+      "auroc": 0.6667
+    },
+    "m4_arxiv": {
+      "n_samples": 17,
+      "brier": 0.2529,
+      "auroc": 0.6212
+    },
+    "m4_finance": {
+      "n_samples": 1,
+      "brier": 0.233,
+      "auroc_unavailable": "single-class slice"
+    },
+    "m4_tldr": {
+      "n_samples": 8,
+      "brier": 0.2532,
+      "auroc": 0.4
+    },
+    "m4_hswag": {
+      "n_samples": 5,
+      "brier": 0.2896,
+      "auroc": 0.0
+    },
+    "m4_peerread": {
+      "n_samples": 2,
+      "brier": 0.2745,
+      "auroc_unavailable": "single-class slice"
+    },
+    "m4_open_qa": {
+      "n_samples": 2,
+      "brier": 0.1676,
+      "auroc_unavailable": "single-class slice"
+    }
+  },
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 35,
+    "fp": 31,
+    "tn": 69,
+    "fn": 65,
+    "precision": 0.5303,
+    "recall": 0.35,
+    "f1": 0.4217,
+    "accuracy": 0.52
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\ood_m4_test.jsonl",
+  "config": "configs\\.profile_master_minus_arxiv.yaml",
+  "duration_seconds": 0.1
+}

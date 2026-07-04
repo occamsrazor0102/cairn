@@ -46,6 +46,17 @@ def main() -> None:
         "--holdout-source", default=None,
         help="LLM source to hold out entirely from training (zero-shot eval).",
     )
+    ap.add_argument(
+        "--interactions", type=int, default=15,
+        help="Number of pairwise EBM interaction terms. Default 15.",
+    )
+    ap.add_argument(
+        "--drop-features", default="",
+        help="Comma-separated FeatureAssembler keys to drop from the EBM "
+             "input vector. Used for ablation experiments (e.g. "
+             "'specdetect_total_energy,specdetect_low_band,...' to test "
+             "whether the spectral signal features are noise).",
+    )
     args = ap.parse_args()
 
     pipeline = (
@@ -54,7 +65,10 @@ def main() -> None:
         else CairnPipeline.from_config_file(args.config)
     )
     samples = load_dataset(args.dataset)
-    assembler = FeatureAssembler()
+    drop_set: set[str] = {k.strip() for k in args.drop_features.split(",") if k.strip()}
+    assembler = FeatureAssembler(drop_features=drop_set)
+    if drop_set:
+        print(f"dropping {len(drop_set)} EBM features: {sorted(drop_set)}", flush=True)
 
     X: list[dict] = []
     y: list[int] = []
@@ -82,7 +96,7 @@ def main() -> None:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=args.test_size, stratify=y, random_state=42
         )
-    model = train_ebm(X_train, y_train)
+    model = train_ebm(X_train, y_train, interactions=args.interactions)
 
     dataset_bytes = args.dataset.read_bytes()
     dataset_hash = hashlib.sha256(dataset_bytes).hexdigest()[:16]

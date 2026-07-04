@@ -1,6 +1,6 @@
 """Build the Python sidecar binary for Tauri bundling.
 
-Runs PyInstaller against `beet/sidecar.py` and renames the output to the
+Runs PyInstaller against `cairn/sidecar.py` and renames the output to the
 target-triple suffix Tauri 2 expects when resolving an `externalBin`
 declared as `binaries/cairn-sidecar` in `tauri.conf.json`.
 
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -72,6 +73,10 @@ def run_pyinstaller(*, target: str, clean: bool) -> Path:
         # Pull in lazy/optional submodules we only import inside functions.
         "--collect-submodules",
         "cairn",
+        # Ship the configs/ tree (profiles + patterns) as bundled data so
+        # the frozen sidecar resolves them under sys._MEIPASS at runtime.
+        "--add-data",
+        f"{REPO_ROOT / 'configs'}{os.pathsep}configs",
         str(SIDECAR_SRC),
     ]
     if clean:

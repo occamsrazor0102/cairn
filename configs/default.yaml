@@ -48,6 +48,30 @@ detectors:
     weight: 0.85
     provider: "anthropic"
     model: "claude-haiku-4-5-20251001"
+  lapd:
+    # Log-likelihood Alignment Preference Discrepancy (Wu et al., arXiv 2604.16923).
+    # Phase-3 detector. Requires `cairn[tier2]` + a matching (aligned, base) LM
+    # pair sharing a tokenizer. Default Falcon-7B pair is Apache-2.0; no Meta
+    # gate. 4-bit quantization fits the pair on a single T4. Heavy compute --
+    # only runs when phases 1+2 leave the sample ambiguous.
+    enabled: false
+    weight: 0.95
+    aligned_model: "tiiuae/falcon-7b-instruct"
+    base_model: "tiiuae/falcon-7b"
+    quantize_4bit: true
+    n_perturbations: 50
+    perturbation_rate: 0.10
+    max_tokens: 512
+    seed: 42
+  specdetect:
+    # SpecDetect (Luo et al., arXiv 2508.11343, AAAI 26). Frequency-domain
+    # features of per-token log-probabilities under a proxy LM. Requires
+    # `cairn[tier2]`. Default gpt2 matches surprisal_dynamics' scoring LM;
+    # override to EleutherAI/gpt-j-6b for paper-comparison spike runs.
+    enabled: false
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512
   mixed_boundary:
     enabled: true
     weight: 0.80
@@ -85,6 +109,17 @@ fusion:
   conformal_path: null
   # Path to per-detector isotonic calibration JSON (scripts/calibrate_detectors.py).
   detector_calibration_path: null
+
+task_description:
+  # Auto-derive a task_description for prompt-aware detectors
+  # (e.g. contrastive_gen) when the caller didn't supply one.
+  #   off   — never derive; detector returns SKIP if no task_description (default)
+  #   local — pure-Python heuristic; no data leaves the host
+  #   llm   — call provider for a one-sentence summary; SUBMISSION TEXT IS SENT
+  auto_mode: off
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
+  # api_key: ...  # optional override; default reads ANTHROPIC_API_KEY / OPENAI_API_KEY
 
 decision:
   red_threshold: 0.75

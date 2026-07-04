@@ -1,0 +1,69 @@
+{
+  "n_samples": 4000,
+  "n_failed": 0,
+  "config_hash": "365cd528d91f",
+  "metrics": {
+    "auroc": 0.9531,
+    "ece": 0.1622,
+    "brier": 0.1269,
+    "tpr_at_fpr_01": 0.641
+  },
+  "per_tier": {
+    "human": {
+      "auroc": null,
+      "ece": 0.402,
+      "brier": 0.2247,
+      "tpr_at_fpr_01": null
+    },
+    "A0": {
+      "auroc": null,
+      "ece": 0.0776,
+      "brier": 0.0292,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "per_source": {
+    "hc3_finance_regen_claude-opus-4-8": {
+      "n_samples": 800,
+      "brier": 0.0966,
+      "auroc": 0.9801
+    },
+    "hc3_medicine_regen_claude-opus-4-8": {
+      "n_samples": 800,
+      "brier": 0.1391,
+      "auroc": 0.9648
+    },
+    "hc3_open_qa_regen_claude-opus-4-8": {
+      "n_samples": 800,
+      "brier": 0.1381,
+      "auroc": 0.9093
+    },
+    "hc3_reddit_eli5_regen_claude-opus-4-8": {
+      "n_samples": 800,
+      "brier": 0.1284,
+      "auroc": 0.934
+    },
+    "hc3_wiki_csai_regen_claude-opus-4-8": {
+      "n_samples": 800,
+      "brier": 0.1323,
+      "auroc": 0.9921
+    }
+  },
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 1944,
+    "fp": 647,
+    "tn": 1353,
+    "fn": 56,
+    "precision": 0.7503,
+    "recall": 0.972,
+    "f1": 0.8469,
+    "accuracy": 0.8243
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "data\\calib2000_anthropic_opus48_all.jsonl",
+  "config": "configs\\.profile_master_minus_arxiv.yaml",
+  "duration_seconds": 12689.04
+}

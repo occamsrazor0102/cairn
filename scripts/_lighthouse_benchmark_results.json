@@ -1,0 +1,991 @@
+[
+  {
+    "variant_id": "Expanded 1",
+    "persona": "Eudora Ferncliffe",
+    "tier": "raw",
+    "blind_score": 18,
+    "text": "I am Eudora Ferncliffe in Madison. Bram and I have been talking about making a recurring monthly gift for our grandchildren's education, but I do not want us to make a promise that quietly depends on draining savings or selling investments during a bad market. I would like you to use our 2025 files and give me a practical answer, not a motivational answer. Please read the household budget workbook, checking transactions, bank checking statement, credit-card statement and card transactions, Bram's self-employment records, my payroll year-end package, brokerage statement, 403(b)/retirement statement, mortgage/escrow Form 1098, and consolidated 1099. I know the files show large retirement and brokerage balances, but I want the recommendation to be based on spendable cash flow first. Retirement accounts should be off-limits. Brokerage can be mentioned only as a backup, not as the normal funding source for a monthly family commitment. Here is the situation I want solved. The budget workbook makes it look as if we had enough cash coming in to cover the year, but it also has a very large \"investment transfer\" line. I do not know whether that should be treated as real household spending, planned saving, or something else. The credit-card files also make me worry about double-counting, because some expenses appear on the card and then the checking account shows card payments. Bram's consulting deposits are useful, but they are not as predictable as my payroll. I want you to rebuild the answer from the documents rather than trusting the budget labels. Please write back in the style of a careful family finance note. I do not need a table unless it helps the arithmetic. I do need the math to be visible. Start by explaining our reliable annual cash income, then separate ordinary living costs from transfers, card-payment mechanics, tax/investment items, and irregular spending. After that, decide how much checking plus savings we should preserve given the mortgage, card balance, utilities, groceries, medical or home expenses, and the fact that Bram's consulting income can be lumpy. End with four concrete items: - the largest monthly education gift we can safely commit to; - the largest annual increase to charitable giving; - whether that commitment can be funded from cash flow alone; - the one line in the files most likely to make someone overestimate or underestimate what we can afford. Use exact dollars from the files. Do not give a vague range. Do not say \"talk to a financial advisor\" instead of making the calculation. Do not suggest selling the house, cutting essential insurance, or touching retirement money.",
+    "id": "lh_raw_01_Expanded1",
+    "words": 428,
+    "p_llm": 0.20205385758028144,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 2",
+    "persona": "Cornelius Whitaker / Holloway household",
+    "tier": "raw",
+    "blind_score": 14,
+    "text": "I need a file-based audit of the Holloway 2025 tax situation, and I want you to be strict about what is income, what is a disclosure obligation, what is deductible, and what is merely a large number in the background. Use the context note, the draft 2025 tax tracker, Forms 3520 and 3520-A for the Ashworth Settlement, trustee annual accounts, foreign disclosure/FBAR/Form 8938 materials, foreign tax voucher, consulting income and expense records, HartwellCole investment statement, Cornerstone bank statement and checking transactions, Sterling mortgage Form 1098, and the three credit-card statements. The draft tracker is labeled as unreliable, so please do not summarize it as if it is the answer. I want you to identify what the files actually support. The trust distributions appear to be 120,000 for the year, consulting has gross receipts and expenses, and the mortgage/property-tax deduction looks large. There are also foreign reporting forms that may be mandatory even if they do not directly create tax. The trustee accounts show a large trust value, but the principal is not available until age 45, so do not use that value to solve cash-flow or credit-card problems. Please write the answer as an audit memo with three labels: supported, needs correction, and dangerous assumption. Under supported, include amounts that the files prove and how they flow into the tax return or disclosure package. Under needs correction, include draft tracker lines that might have the right idea but wrong number, wrong form, or incomplete source support. Under dangerous assumption, include anything that would make the household look more liquid, more deductible, or less exposed than the files justify. The memo should cover at least these issues: - trust distributions and whether they belong in taxable income; - consulting income, consulting expenses, and net profit; - foreign reporting forms versus actual tax owed; - foreign tax voucher treatment; - mortgage interest and property tax versus the standard deduction; - investment income or other taxable items; - checking cash, card balances, and why trust principal is not a liquidity solution. Close with a corrected starting point for taxable income, a short foreign-reporting checklist, and a cash-risk paragraph that compares year-end checking to total card balances and near-term obligations. Use exact dollars where supported and call out every place where a file is missing or not enough.",
+    "id": "lh_raw_02_Expanded2",
+    "words": 384,
+    "p_llm": 0.11974314486222448,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 3",
+    "persona": "Jolene Hartwell",
+    "tier": "raw",
+    "blind_score": 24,
+    "text": "I run Hartwell Family Farm, and I need a practical answer about whether I can renew the operating line and add a replacement equipment payment of 1,100 per month starting in March. I am not asking for a tax-only answer. I already know Schedule F shows a profit. I need to know whether the farm can actually carry the payment through the seasonal cash cycle. Please use the Schedule F, farm operating bank statement, farm operating transaction CSV, operating line of credit statement, equipment loan statement, fuel records, Form 4562 depreciation schedule, payroll W-2, mortgage statement/Form 1098, retirement 401(k) statement, and draft 1040. The hard part is that several things in the files can make the farm look healthier or weaker than it really is depending on how they are classified. Loan advances should not be treated as crop revenue. Principal paydowns should not be treated the same way as seed, fertilizer, fuel, repairs, labor, or insurance. Depreciation reduces taxable profit but does not pay a bill in the month it is claimed. At the same time, a land-rich farm can still be cash-poor if most of the value is tied up in land, machinery, and livestock. Write this as a lender-style decision memo for me. Put the answer in the first paragraph: approve the new payment, reject it, or approve only with a condition. Then show the reasoning. I need a reconciliation from Schedule F net farm profit to actual operating cash flow, a debt-service view of the operating line, equipment loan, and mortgage, and a seasonal cushion analysis that considers the timing of farm receipts and required outflows. Please also identify the transactions or statement lines that are most likely to be misread by someone rushing through the file. I care about the classification as much as the final number. End with a yes/no answer to this exact question: Can the farm carry a new 1,100 monthly equipment payment starting in March without relying on selling farmland or rolling more debt into the operating line? Use the file-backed numbers and show the arithmetic.",
+    "id": "lh_raw_03_Expanded3",
+    "words": 345,
+    "p_llm": 0.1592539899754891,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 4",
+    "persona": "Niamh A. Oonkwo Bauer",
+    "tier": "raw",
+    "blind_score": 11,
+    "text": "I am Niamh A. Oonkwo Bauer. Stefan and I need a corrected 2025 federal tax estimate before we rely on our draft 1040, and I want the work shown carefully enough that I can see where the draft is incomplete. Use the draft tax tracker, draft 1040, my DOJ W-2/pay files, Stefan's PGHS W-2/pay files, mortgage and property-tax records, student-loan records, bank records and checking transactions, brokerage statement, consolidated 1099, and the household employer/nanny records. The nanny records are important; please do not treat them as a side note. The draft already includes wages, investment income, itemized deductions, and some credits, but it leaves important totals blank and I am worried about several high-income issues. I need you to check the SALT cap, mortgage interest, charity, student-loan interest adjustment, child tax credit, child/dependent-care credit, Schedule H household employment tax, NIIT, and Additional Medicare tax. If any of those are not supported by the files, say so and do not force them into the calculation. Please organize the answer like a tax workpaper. The workpaper should include: 1. Gross income by category, with wages split between me and Stefan. 2. Investment income split into taxable interest, tax-exempt interest, ordinary dividends, qualified dividends, and long-term capital gains. 3. Adjustments to income, including whether the student-loan interest item survives at our income level. 4. Itemized deductions after the SALT cap, compared with the standard deduction. 5. Regular tax before credits. 6. Credits, including child tax credit and child/dependent-care credit. 7. Schedule H calculation from the household employee records, including what was withheld from the nanny and what we still owe as household employers. 8. NIIT and Additional Medicare tax, with threshold logic shown. 9. Total tax, total payments, and final refund or balance due. 10. Draft lines that are wrong, blank, double-counted, or unsupported. Use exact dollars wherever the files support them. If you must approximate a tax calculation, label the formula and the approximation. Do not count employee FICA withholding as both a credit and an expense. Do not ignore surtaxes just because they are annoying.",
+    "id": "lh_raw_04_Expanded4",
+    "words": 344,
+    "p_llm": 0.13168755247332684,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 5",
+    "persona": "Gus Pendergast",
+    "tier": "raw",
+    "blind_score": 17,
+    "text": "I am Gus Pendergast, and my 2025 draft tax tracker looks too favorable. I want you to debug it from the source files rather than trying to make the draft come out right. Use the draft tax tracker, brokerage statement and consolidated 1099, Treasury/I-bond 1099-INT, K-1 from Palouse, rental package, consulting Schedule C records, retirement-income documents, W-2/paystub files, bank statements, and 2025 transactions. I suspect several things may be wrong. The draft may be mixing tax-exempt muni interest into taxable interest. It may not be treating I-bond interest correctly. It may be mishandling dividends, qualified dividends, capital-gain distributions, long-term gains, or wash-sale details. It may not be showing how Social Security became taxable. It may be combining consulting, partnership, rental, pension, inherited IRA, and wage income without classifying them first. It also proposes a refund split involving I-bonds, a Roth, and checking, and I want that checked against the rules and the actual refund calculation. Use a diagnostic format for the main body. For each issue, write: Wrong or suspicious: Corrected treatment: Source file: Dollar impact: After you finish the diagnostic, rebuild the federal result from scratch. Show classified income, deductions, total federal tax, withholding, estimated payments, refund or balance due, and whether the refund split is allowed and practical. If the refund is smaller than the proposed split, say so directly. If the Roth piece is not supported, explain why. Do not include tax-exempt muni interest in taxable interest. Do not assume zero basis unless the brokerage file supports it. Do not reuse the draft refund number. I want the corrected number even if it is worse than the draft.",
+    "id": "lh_raw_05_Expanded5",
+    "words": 271,
+    "p_llm": 0.11523950526917552,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 6",
+    "persona": "Dmitri Volkov Hayes",
+    "tier": "raw",
+    "blind_score": 19,
+    "text": "I am Dmitri Volkov Hayes, and I think my 2025 tax tracker is broken because it treats digital assets as if nothing happened. I need you to treat the tracker like a bad draft and rebuild the tax estimate from the source files. Use the draft tax tracker, payroll year-end package, bank checking statement and transactions, brokerage statement/1099, credit-card statement, student-loan annual statement, Coinhaven consolidated 1099-DA, and wallet on-chain activity report. Do not use outside crypto price lookups. If the files do not give a basis for a lot, isolate the unresolved lot rather than inventing a number. Start with a short bug report. Each bug should name the draft line or assumption, the file that contradicts it, and the corrected treatment. I expect at least one bug around digital assets, but please also check wages, withholding, taxable interest, dividends if any, student-loan interest, and anything in the bank or brokerage files that contradicts the draft. Then rebuild the tax estimate. I need gross proceeds from digital-asset sales kept separate from taxable gain. I need cost basis or known basis shown separately. I need unresolved basis issues listed separately. I also need the payroll and withholding numbers tied back to the year-end package, and the student-loan interest adjustment checked against the actual statement. Finish with: - corrected taxable income inputs; - corrected digital-asset gain or unresolved amount; - corrected federal refund or balance due; - the documents I should keep as support; - the exact figures each document proves. Do not assume crypto gain is zero. Do not collapse gross proceeds and gain into one number. Do not use outside prices. Do not make the final answer look cleaner than the records actually are.",
+    "id": "lh_raw_06_Expanded6",
+    "words": 284,
+    "p_llm": 0.12524886848890326,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 1",
+    "persona": "Eudora Ferncliffe",
+    "tier": "raw",
+    "blind_score": 46,
+    "text": "I need a sanity check before I promise my family something I cannot keep. Bram and I are thinking about setting up a monthly gift for the grandkids' education. I would also like to increase our annual charitable giving a little. The problem is that our 2025 files make me feel both comfortable and nervous at the same time: there is real retirement money, there is brokerage money, there is a mortgage, there is consulting income that comes in unevenly, and there is a budget line for investment transfers that I do not know how to interpret. Please use the 2025 household budget workbook, checking transactions, credit-card files, Bram's self-employment records, my payroll year-end package, brokerage statement, 403(b)/retirement statement, mortgage/escrow Form 1098, and consolidated 1099. Do not write a general retirement-planning answer. I need the answer to this question: \"What monthly gift can we safely promise if it has to come from normal cash flow and not retirement money?\" Please explain how you treat the investment transfers, credit-card payments, brokerage assets, Bram's consulting deposits, mortgage payments, and year-end checking/savings balances. Then give me one monthly gift amount, one annual charity increase, and the cash cushion you would keep untouched. If the honest answer is \"less than you hoped,\" say that. I would rather have the right number than a comforting one.",
+    "id": "lh_raw_07_Alt1",
+    "words": 221,
+    "p_llm": 0.18782749751968383,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 2",
+    "persona": "Ines Calderon Webb",
+    "tier": "raw",
+    "blind_score": 50,
+    "text": "Can you review my 2025 tax folder as if I handed you a draft that might be half right? The documents I want used are the draft tax tracker, W-2/earnings statement, bank/checking records, mortgage Form 1098, education records, medical billing records, multiple-support declaration, and the files about dependents/support. I am especially worried about the dependent questions and whether the draft tracker is letting too many things into the return. Please do not start with tax theory. Start with the filing answer you think the documents support: filing status, dependents, standard or itemized deduction, and refund or balance due. After that, explain the questionable parts. The things I need resolved are my mother's support situation, the children's treatment, the medical bills, the education or student-loan interest item, and whether the mortgage/property tax/state tax/charity/medical total really beats the standard deduction. If a document only suggests something but does not prove it, leave it out of the main calculation and tell me what is missing. I am fine with a tough answer. I am not fine with an answer that just copies the draft tracker.",
+    "id": "lh_raw_08_Alt2",
+    "words": 182,
+    "p_llm": 0.14066548627267503,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 3",
+    "persona": "Cornelius Whitaker",
+    "tier": "raw",
+    "blind_score": 35,
+    "text": "Please give me the \"what could go wrong if we file this as drafted\" version of the Holloway household tax review. Use the context note, draft 2025 tax tracker, Ashworth Settlement Forms 3520 and 3520-A, trustee accounts, foreign disclosure/FBAR/Form 8938 papers, foreign tax voucher, consulting income and expense records, investment statement, bank and checking records, mortgage Form 1098, and the three credit-card statements. I want the answer divided into three short memos: Memo 1 - Taxable income. What income is actually supported by the files, including trust distributions, consulting, investments, and anything else that belongs on the return? Memo 2 - Foreign reporting. What forms or disclosures appear required or likely required, and which of those are just reporting rather than tax due? Memo 3 - Liquidity reality. What do the checking account and credit cards say about the household's near-term cash risk, ignoring trust principal that cannot be accessed until age 45? The draft tracker is not reliable, so mark any draft figure that you think is unsupported, incomplete, or misleading. Please keep the large trust value out of the bill-paying analysis. I need the difference between \"wealth exists somewhere\" and \"cash is available now\" to be very clear.",
+    "id": "lh_raw_09_Alt3",
+    "words": 200,
+    "p_llm": 0.12442973899085642,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 4",
+    "persona": "Jolene Hartwell",
+    "tier": "raw",
+    "blind_score": 45,
+    "text": "I need the answer a banker would care about, not just the answer my tax return shows. Hartwell Family Farm had a good-looking Schedule F year, but I am considering a new equipment payment of 1,100 per month starting in March, and I need to know whether the farm can carry it. Please use Schedule F, the farm operating bank statement and transaction CSV, operating line statement, equipment loan statement, fuel records, Form 4562, payroll W-2, mortgage Form 1098, retirement statement, and draft 1040. Here is what I want you to test: The farm's tax profit is not the same as available cash. Operating-line advances are not crop sales. Principal paydowns are not seed or fuel. Depreciation is not a current cash bill. Land and machinery make us look wealthy, but they do not make March payroll. Walk me from Schedule F profit to usable operating cash. Then subtract the real debt-service pressure. Then tell me whether the 1,100 monthly equipment payment is affordable through the seasonal low points. Give me a yes/no answer and the dollar cushion or shortage behind it.",
+    "id": "lh_raw_10_Alt4",
+    "words": 182,
+    "p_llm": 0.05111085997487027,
+    "band": "GREEN",
+    "conformal_set": [
+      "human"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 5",
+    "persona": "Mai-Linh Tran",
+    "tier": "raw",
+    "blind_score": 39,
+    "text": "I own 40 percent of Jade Lotus Nail Spa, Inc., and I need you to help me separate my personal money from company money. Please use the corporate financial statements, corporate return, Forms 5472, business bank statement and transactions, business loan statement, my personal return, personal bank statement and transactions, payroll statements, and savings/investment statement. I am not asking you to prepare or redesign the corporation. I am asking: What money did I personally receive or control in 2025? What money belongs to the corporation or to the other shareholders? What corporate items affect my personal tax return? What related-party items are easy to misunderstand? How much personal cash should I keep available in 2026, considering the business loan guarantee and my own bank activity? Please be direct about the foreign shareholders' 60 percent ownership. If the company paid a distribution to all shareholders, only my portion is mine. If the company has cash, that does not automatically mean I have cash. Use exact figures from the files and call out any personal-return line that looks inconsistent with the company documents.",
+    "id": "lh_raw_11_Alt5",
+    "words": 181,
+    "p_llm": 0.14319511568210527,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 6",
+    "persona": "Adrian M. Holloway",
+    "tier": "raw",
+    "blind_score": 38,
+    "text": "I need a 90-day cash triage plan. Files to use: context note, bank checking statement, checking transactions, three credit-card statements, mortgage statement/Form 1098, consulting income and expense records, trust distribution documents, trustee annual accounts, investment statement, foreign tax voucher, and draft tax tracker. Please assume I am not allowed to use trust principal, because the files say it is not available until age 45. I receive trust distributions and some consulting income, but the checking account is thin and the cards are too high. In plain terms: What cash is actually available in the next 90 days? What has to be reserved first for mortgage, card minimums, taxes, or filings? Which card should be attacked first? How much should I send to each card? What should I stop counting as \"available\" even though it looks like wealth? Does the Range Rover lease still fit, yes or no? Show the numbers. I do not need a lecture about budgeting. I need a triage plan.",
+    "id": "lh_raw_12_Alt6",
+    "words": 163,
+    "p_llm": 0.08075596053434736,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 7",
+    "persona": "Tamsin Okeke",
+    "tier": "raw",
+    "blind_score": 54,
+    "text": "My budget says I should be fine, but my checking account disagrees. Please help me find the leak. Use my draft tax/budget tracker, checking statement, checking transactions, paystub, W-2, childcare year-end statement, student-loan statement, auto-loan statement, credit-card statement, retirement 403(b) statement, and IRS notice. I am deciding between three uncomfortable options: pause the 300 emergency-fund transfer for three months, reduce retirement contributions, or keep both and pay the credit card more slowly. Before you choose, rebuild my monthly cash flow from the actual files. The draft has blanks and the daycare number may not match the recurring records, so please do not trust the draft when the source documents say something else. I want an answer I can act on by the next payday. Tell me my monthly take-home pay, required bills, flexible spending that can realistically move, the card payment I should make for the next three months, and the checking balance floor I should not cross. Keep the answer conversational, but include the math.",
+    "id": "lh_raw_13_Alt7",
+    "words": 166,
+    "p_llm": 0.08734521808883305,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 8",
+    "persona": "Marisol Vega Holloway",
+    "tier": "raw",
+    "blind_score": 39,
+    "text": "I am trying to turn a messy 2025 tax folder into a filing position. Please do the cleanup work, not just a summary. Use the draft tax tracker, W-2/earnings statement, checking transactions, bank records, mortgage Form 1098, my mother's medical billing records, education records, multiple-support declaration, 2026 pay statements, and any childcare/dependent files. The questions I need answered are practical: Can I claim Mateo? Can I claim Camila? Can I claim my mother Dolores? Does the multiple-support declaration actually get me there? Do the medical bills help? Does any education or student-loan interest item belong on my return? Do I itemize? What is the corrected federal refund or balance due? For anything that changes the refund, show the dollar amount and the source file. If the draft tracker is wrong, say exactly how. If the answer is uncertain because the documents do not prove enough, keep it out of the main number and tell me what proof is missing.",
+    "id": "lh_raw_14_Alt8",
+    "words": 159,
+    "p_llm": 0.07994612065295967,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 9",
+    "persona": "Declan R. Brennan",
+    "tier": "raw",
+    "blind_score": 34,
+    "text": "I need help with a debt settlement tax issue, and I want the answer before it turns into a filing surprise. I received a 2025 Meridian 1099-C. Please use that document along with my compensation/tax statement, 401(k) statement, mortgage Form 1098, checking transactions, bank statement, Harborpoint Visa statement, BMW lease, and the 148 Marlborough appraisal. Do the analysis in this order: First, decide whether I was insolvent immediately before the debt cancellation. Show the assets, liabilities, and net insolvency or solvency amount. Second, decide how much of the canceled debt is taxable. Third, estimate my federal refund or amount due using wages, commissions, 401(k), reimbursements, withholding, and the cancellation-of-debt result. Last, give me a short credit cleanup plan based on the card, bank, mortgage, and lease documents. Please do not assume the whole 1099-C is taxable, and do not ignore assets just because excluding them would make the tax answer easier. I need the file-backed answer.",
+    "id": "lh_raw_15_Alt9",
+    "words": 156,
+    "p_llm": 0.05056313192616007,
+    "band": "GREEN",
+    "conformal_set": [
+      "human"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 10",
+    "persona": "Ngozi Balogun",
+    "tier": "raw",
+    "blind_score": 42,
+    "text": "Can you build a six-month money plan from my actual documents, not the version I wish were true? Use the draft budget/tax tracker, checking statement, checking transactions, paystub, W-2, childcare year-end statement, student-loan statement, auto-loan statement, credit-card statement, 403(b) statement, and IRS notice. I want the plan to answer one specific question: should I keep sending 300 per month to emergency savings while paying 250 to the Liberty card, or should part of that savings transfer go to the card for now? Please verify monthly take-home pay first. Then rebuild the monthly outflow for rent, childcare, utilities, groceries, auto loan, student loans, card payment, subscriptions, dining/miscellaneous, and retirement. After that, give me envelope amounts for essentials, debt, emergency savings, flexible spending, and subscriptions. The APRs matter. The Liberty card is much more expensive than the auto loan or student loans, so please explain the payment order. Do not suggest taking on new debt. Do not cut retirement unless the numbers show there is no other workable option.",
+    "id": "lh_raw_16_Alt10",
+    "words": 167,
+    "p_llm": 0.13594846954147863,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 11",
+    "persona": "Niamh A. Oonkwo Bauer",
+    "tier": "raw",
+    "blind_score": 32,
+    "text": "Please rebuild our 2025 federal tax estimate from the documents and tell me where the draft 1040 is incomplete. I am Niamh A. Oonkwo Bauer. Use my DOJ pay/W-2 files, Stefan's PGHS pay/W-2 files, the draft tracker, draft 1040, mortgage/property-tax files, student-loan records, bank/checking records, brokerage statement, consolidated 1099, and household employer/nanny records. I want the calculation trail, not just the final number. Include wages for each of us, taxable and tax-exempt interest, ordinary and qualified dividends, long-term gains, any allowed adjustment, itemized deductions after the SALT cap, comparison to the standard deduction, credits, household employment taxes, NIIT, Additional Medicare tax, withholding/payments, and the final refund or balance due. Please be especially careful with the nanny records. I do not want employee withholding counted twice, and I do not want Schedule H skipped. Also do not skip the high-income surtaxes just because the draft leaves blanks. At the end, give me a correction list for the draft 1040: wrong, blank, unsupported, or double-counted lines.",
+    "id": "lh_raw_17_Alt11",
+    "words": 164,
+    "p_llm": 0.07449753008851143,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 12",
+    "persona": "Octavia Reyes-Bloom",
+    "tier": "raw",
+    "blind_score": 42,
+    "text": "I am Octavia Reyes-Bloom, and I need to know how much to set aside for taxes before I spend the next good royalty deposit. Use the Meridian royalty statement, Bellwether contractor remittance, Pinnacle business checking statement and business transaction CSV, SummitOne credit-card statement and transactions, Sweetwater gear financing statement, and Larkspur Roth IRA statement. Please do not treat royalty deposits as the same thing as taxable royalty income. The statement has gross royalties, admin commissions, foreign withholding, and net distributions, and I need those kept separate. I also need contractor income, business expenses, card activity, gear financing, and the Roth contribution considered in the cash picture. Write this like a note I could reread before making the January estimated tax payment. Tell me where the money came from, why the deposits were lower than gross royalties, which months were cash-heavy or cash-light, what federal tax set-aside you recommend, and whether the Roth contribution still looks safe after preserving tax cash. Use exact figures. Do not give me generic freelancer advice.",
+    "id": "lh_raw_18_Alt12",
+    "words": 170,
+    "p_llm": 0.06029703255822868,
+    "band": "GREEN",
+    "conformal_set": [
+      "human"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 13",
+    "persona": "Gus Pendergast",
+    "tier": "raw",
+    "blind_score": 44,
+    "text": "My draft tax tracker says I am getting a comfortable refund. I do not believe it. Please try to prove it wrong from the source documents. Use the draft tracker, brokerage statement and consolidated 1099, Treasury/I-bond 1099-INT, Palouse K-1, rental package, consulting Schedule C records, retirement-income files, W-2/paystub files, bank statements, and 2025 transactions. I want a correction log. For each issue, show the draft treatment, the corrected treatment, the source file, and the dollar impact. Please check taxable interest versus tax-exempt interest, I-bond interest, dividends, capital gains, wash-sale details, consulting income, partnership income, rental loss, pension, inherited IRA, Social Security taxation, withholding, estimated payments, and the proposed refund split. Then rebuild the federal result. If the refund changes, say by how much. If the proposed split among I-bonds, Roth, and checking is not allowed or does not fit the corrected refund, say that plainly. Do not use the draft's refund as a starting point. Recalculate it.",
+    "id": "lh_raw_19_Alt13",
+    "words": 157,
+    "p_llm": 0.08859731615204194,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 14",
+    "persona": "Dmitri Volkov Hayes",
+    "tier": "raw",
+    "blind_score": 50,
+    "text": "My tax draft has the feel of a spreadsheet where someone left the hardest tab blank. Please use the payroll year-end package, draft tax tracker, bank checking statement and transactions, brokerage statement/1099, credit-card statement, student-loan annual statement, Coinhaven consolidated 1099-DA, and wallet on-chain activity report. Do not use outside crypto prices. The crypto line is what worries me. If the 1099-DA and wallet report show proceeds, basis, transfers, or missing basis, I need that reconciled. Gross proceeds are not the same as taxable gain. Missing basis is not the same as zero activity. If a lot cannot be resolved, isolate it and explain the risk. After the crypto reconciliation, rebuild the rest of the tax estimate: wages, withholding, interest/dividends if any, student-loan interest adjustment, digital-asset gain/loss, and final federal refund or amount due. Please list the files I should keep and the exact number each file supports. I do not want a clean answer if the records are messy. I want the honest answer.",
+    "id": "lh_raw_20_Alt14",
+    "words": 164,
+    "p_llm": 0.09186331693466025,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 15",
+    "persona": "Kwame Aadjei",
+    "tier": "raw",
+    "blind_score": 44,
+    "text": "I changed jobs in 2025, and I need to know whether the tax bill in my draft is real or just a bad estimate. Use my Northbridge W-2, Halstead Crane W-2, Halstead Crane offer letter and paystub, draft 2025 tax tracker, Lakeshore 1099-INT, checking statement and transactions, savings statement, brokerage statement, student-loan statement, and credit-card statement. Please answer first, then explain. In the first paragraph, tell me whether I owe or get a refund, the corrected amount, and how I should pay it if I owe. Then show the calculation: wages from both jobs, federal withholding, state withholding, 401(k), taxable interest, and whether the student-loan interest deduction survives at my income. After that, compare payment sources. I do not want to create a high-interest credit-card problem just to pay the IRS, but I also do not want to ignore a real tax bill. End with one concrete adjustment for the next three months, either withholding or savings. Use exact dollars and make one decision.",
+    "id": "lh_raw_21_Alt15",
+    "words": 164,
+    "p_llm": 0.1181956974593038,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 1",
+    "persona": "Eudora Ferncliffe",
+    "tier": "raw",
+    "blind_score": 47,
+    "text": "Subject: I need the real answer on the grandkids gift Hi - I think Bram and I can do this, but I do not want to be the person who promises a monthly gift and then quietly pulls from savings to make it work. Can you look at our 2025 files and tell me what monthly education gift is actually safe? The files I mean are the household budget workbook, checking transactions, bank checking statement, credit-card statement and card transactions, Bram's self-employment records, my payroll year-end package, brokerage statement, retirement/403(b) statement, mortgage/escrow Form 1098, and consolidated 1099. The numbers I am staring at are a little confusing. The budget shows my net pay around 61,005.38, Bram's consulting deposits around 38,000, and total cash income around 100,255.38. Checking ended at 9,520 and savings at 35,750, which feels okay. But there is also a 40,955.92 investment-transfer line, card payments, and regular card activity, and I am worried those could be counted wrong. The retirement balance is about 720,000, but I do not want that used in the plan. Brokerage is there too, but I do not want a monthly promise that depends on selling investments. Please answer like you are writing to me, not like you are filling in a template. I need to understand which cash income was dependable, which spending was really household spending, which items are transfers or payment mechanics, what checking-plus-savings floor should stay untouched, and what monthly gift number is safe. Also include the charity question. If we make the education gift, what is the additional annual charity increase we can still afford? A specific number is better than a range, even if it is smaller than I want.",
+    "id": "lh_raw_22_Add1",
+    "words": 282,
+    "p_llm": 0.17978021783374762,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 2",
+    "persona": "Adrian M. Holloway",
+    "tier": "raw",
+    "blind_score": 54,
+    "text": "I need a 90-day cash plan. Please do not let the trust number make this look prettier than it is. Use the Holloway context note, Ashworth Settlement trust documents, Forms 3520 and 3520-A, trustee accounts, foreign disclosure/FBAR/Form 8938 materials, foreign tax voucher, consulting income and expense records, Cornerstone bank statement, checking transactions, mortgage Form 1098, HartwellCole investment statement, the three credit-card statements, and the draft tax tracker. The file says the trust is worth roughly 2.1 million, but the principal is not available until age 45. What I can actually use is distribution cash and consulting income. The draft shows 120,000 of trust distributions and 11,300 of consulting profit, but checking is only around 3,151.84 and the three card balances total about 22,000. That is the part I want faced directly. Please keep the answer plain and practical. Tell me how much cash is actually available for the next 90 days, what has to be reserved before I attack the cards, how you would sequence payments across the three cards, whether the Range Rover lease still fits, and what in the files looks like wealth but should not be treated as bill-paying cash. I might be mixing tax and cash-flow terms here. If I am, separate them for me. But do not hand me a net-worth answer. I need a cash answer.",
+    "id": "lh_raw_23_Add2",
+    "words": 222,
+    "p_llm": 0.10286881200989859,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 3",
+    "persona": "Marisol Vega Holloway",
+    "tier": "raw",
+    "blind_score": 53,
+    "text": "I am trying to file 2025 and I keep finding one more \"wait, does this count?\" item. Please use my draft tax tracker, W-2/earnings statement, bank/checking records, checking transactions, mortgage Form 1098, medical billing records for my mother Dolores, education records, multiple-support declaration, 2026 pay statements, and the dependent/childcare files. The draft has wages of 78,645.20, withholding of 4,260, taxable interest of 438.16, mortgage interest of 5,565.07, property tax of 2,376, state tax of 2,040, charity of 1,200, and a 6,000 medical number for my mother that I am not sure belongs on my return. It also has open questions around Mateo, Camila, Dolores, filing status, and student-loan or Parent PLUS interest. So, basically, the parts that matter. Can you write this as a cleanup note for me? I want the filing position you think is supported, followed by an explanation of what happens to each dependent, what happens to the medical bills, whether education or student-loan interest belongs on the return, and whether itemizing beats the standard deduction. If the multiple-support declaration is not enough by itself, say that. If the draft refund changes, show why. I do not want a confident answer built on a missing document.",
+    "id": "lh_raw_24_Add3",
+    "words": 199,
+    "p_llm": 0.14972664237176342,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 4",
+    "persona": "Jolene Hartwell",
+    "tier": "raw",
+    "blind_score": 50,
+    "text": "I know Schedule F says we made money. That is not the same as knowing whether I can sign for another equipment payment. Please use the Hartwell Family Farm Schedule F, farm operating bank statement, farm operating transactions CSV, operating line of credit statement, equipment loan statement, fuel records, Form 4562 depreciation records, payroll W-2, mortgage statement/Form 1098, 401(k) statement, and draft 1040. The tax side shows 216,500 of gross farm income, 156,500 of expenses, and 60,000 of net farm profit. The cash-flow summary I saw in the file points to 257,870 of farm inflows, 209,394.50 of outflows, and 48,475.50 net cash flow. That seems positive, but I know some of the bank activity is operating-line movement and not ordinary crop or cattle income. Please answer the question a banker would ask: can the farm carry a new 1,100 monthly equipment payment starting in March? I need you to separate tax profit from cash flow, loan advances from revenue, principal paydowns from operating expenses, depreciation from current cash, and land/equipment/livestock wealth from liquid cushion. Give me the yes/no answer first. If it is \"yes, but tight,\" say how tight. If it is no, show the shortfall. Do not solve it by selling farmland.",
+    "id": "lh_raw_25_Add4",
+    "words": 203,
+    "p_llm": 0.123152757243946,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 5",
+    "persona": "Mai-Linh Tran",
+    "tier": "raw",
+    "blind_score": 57,
+    "text": "Okay, I am going to say this badly, but I need help separating \"the company had money\" from \"I had money.\" I am Mai-Linh Tran, president and 40 percent owner of Jade Lotus Nail Spa, Inc. Please use the corporate financial statements, corporate income tax return, Forms 5472, business bank statement and transactions, business loan statement, my personal 2025 income tax return, personal bank statement, 2026 personal transactions, payroll statements, and savings/investment statement. The company had 1,520,000 in revenue and about 153,500.61 in corporate cash at year end. I see officer compensation of 156,000, related-party rent of 144,000, interest to foreign shareholders, shareholder advances, and 90,000 of distributions paid pro rata. But I only own 40 percent, so I think my distribution piece is 36,000, not the whole 90,000. Also the two foreign shareholders own 60 percent, and I do not want their distributions treated as mine. Please help me answer this without drifting into corporate restructuring advice. I need to know what company money actually became my personal money, what company money should stay out of my personal cash picture, what from the business should appear on my personal return, which related-party item is easiest to misunderstand, and how much personal cash I should keep aside in 2026 given my payroll, personal bank activity, savings/investments, and the business loan guarantee. If something is a company problem but not a personal cash item, please say that plainly.",
+    "id": "lh_raw_26_Add5",
+    "words": 237,
+    "p_llm": 0.20515918774057312,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 6",
+    "persona": "Declan R. Brennan",
+    "tier": "raw",
+    "blind_score": 47,
+    "text": "I got a 2025 Form 1099-C from Meridian, and I am trying not to panic or underreact. Please use the Meridian settlement/1099-C, compensation tax statement, 401(k) statement, mortgage Form 1098, checking transactions, Harborpoint bank statement, Harborpoint Visa statement, BMW auto lease, and the appraisal for 148 Marlborough. My compensation statement shows 130,000 of gross pay, 94,000 base, 36,000 commissions, 7,800 of 401(k), 3,600 Section 125, 118,600 W-2 box 1 wages, 7,608 federal withholding, and 16,491.18 of reimbursements that I do not think are wages. Please check that instead of treating every company payment as income. The real question is whether the canceled debt is taxable. I need you to do the insolvency calculation right before the cancellation using the house/appraisal, mortgage, bank cash, card balance, 401(k), auto lease position, and whatever else the files support. Then tell me how much of the 1099-C is taxable and whether my 2025 withholding looks short after that. Please finish with one practical paragraph on what to clean up first from the card/bank/mortgage/lease picture. I need numbers, not reassurance.",
+    "id": "lh_raw_27_Add6",
+    "words": 175,
+    "p_llm": 0.09173208347718781,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 7",
+    "persona": "Niamh A. Oonkwo Bauer",
+    "tier": "raw",
+    "blind_score": 41,
+    "text": "I am Niamh A. Oonkwo Bauer. Stefan and I need the 2025 federal tax estimate rebuilt from the documents because the draft 1040 has too many blanks in exactly the places that make me nervous. Use my DOJ W-2/pay files, Stefan's PGHS W-2/pay files, draft tax tracker, draft 1040, mortgage and property-tax records, student-loan records, bank/checking records, brokerage statement, consolidated 1099, and the household employer/nanny records. Please do not skip the nanny records. That is one of the reasons I am asking. The draft has wages of 174,810 for me and 193,460 for Stefan. It also shows taxable interest, tax-exempt interest, ordinary dividends, qualified dividends, long-term capital gains, mortgage interest, charity, and SALT items. The nanny wages are 50,400, with employee Social Security and Medicare withheld, and I need to know what still lands on Schedule H. I am also worried about NIIT and Additional Medicare tax, because the draft seems to know we are high income but then leaves important totals blank. Please write the answer like a workpaper, but do not make it unreadable. I need income by type, deductions after the SALT cap, the standard-versus-itemized comparison, credits, Schedule H, NIIT, Additional Medicare tax, total payments, the final refund or balance due, and draft lines that are wrong, blank, or double-counted. If something is approximate, label it. If something is not supported, do not use it. And please do not count the nanny's withheld FICA twice.",
+    "id": "lh_raw_28_Add7",
+    "words": 238,
+    "p_llm": 0.07475063271997377,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 8",
+    "persona": "Octavia Reyes-Bloom",
+    "tier": "raw",
+    "blind_score": 48,
+    "text": "I am Octavia Reyes-Bloom, and I am trying to keep my next decent royalty month from turning into a tax problem later. Please use the Meridian royalty statement, Bellwether contractor remittance, Pinnacle business checking statement and transactions, SummitOne credit-card statement and transactions, Sweetwater gear financing statement, and Larkspur Roth IRA statement. The royalty statement is where I get lost. It shows 60,920 of gross royalties, 4,150 of admin commission, 2,710 of foreign tax withheld, and 54,060 net distributed. It also splits the royalties across streaming, mechanical, performance, and sync/master income, with some foreign-source royalties. That is not the same as \"I got 54,060, so that is the tax number,\" right? Please write me a note before I make the January estimated payment. I need to know how much taxable music income the files support, what is an expense versus a creditable foreign tax item, how the contractor remittance changes the total, which months were cash-light after card and gear-financing activity, and how much federal tax cash I should set aside now. Also check whether the Roth contribution still looks safe after the tax set-aside. I am not asking for generic freelancer advice. I am asking what these files say.",
+    "id": "lh_raw_29_Add8",
+    "words": 199,
+    "p_llm": 0.09830861030406103,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 9",
+    "persona": "Dmitri Volkov Hayes",
+    "tier": "raw",
+    "blind_score": 48,
+    "text": "My 2025 tax tracker looks like it has a crypto-shaped hole in it. Please use the draft tax tracker, payroll year-end package, bank checking statement and transactions, brokerage statement/1099, credit-card statement, student-loan annual statement, Coinhaven consolidated 1099-DA, and wallet on-chain activity report. Do not use outside crypto prices. The draft shows wages around 65,700 and federal withholding around 6,400.08, and it seems to use 1,224.52 of student-loan interest. But the part that bothers me is the zero or blank treatment for capital gains and other income when there is a 1099-DA and a wallet activity report sitting right there. Please treat this as a broken draft and name the assumptions that fail against the source files. Then rebuild the federal estimate. Keep digital-asset gross proceeds separate from basis and taxable gain. If basis is missing, isolate the unresolved lot instead of inventing a clean answer. If the draft refund changes, show exactly why, and end by naming the files that prove each important figure and whether each figure is final or still needs support.",
+    "id": "lh_raw_30_Add9",
+    "words": 174,
+    "p_llm": 0.07786156443012962,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 10",
+    "persona": "Kwame Aadjei",
+    "tier": "raw",
+    "blind_score": 46,
+    "text": "I changed jobs in 2025, and I need to know whether I actually owe the IRS or whether the draft tracker is overreacting. Please use my Northbridge W-2, Halstead Crane W-2, Halstead Crane offer letter and paystub, draft 2025 tax tracker, Lakeshore 1099-INT, checking statement and 2026 checking transactions, savings statement, brokerage statement, student-loan statement, and credit-card statement. Start with the answer in one paragraph: refund or amount due, the corrected amount, and what account or source I should use if I owe. Then show the calculation. The draft shows 38,000 of Northbridge wages, 164,166.67 of Halstead Crane wages, 202,166.67 total wages, 120 of taxable interest, and about 32,313 of federal withholding. It also uses a 2,500 student-loan interest deduction, and I am not sure that survives at my income. Please test that instead of copying it. For the payment decision, compare checking, savings, brokerage, the credit-card APR, and the student-loan rate. I do not want to create a worse credit-card problem just to pay a tax balance. End with one specific withholding or savings adjustment for the next three months.",
+    "id": "lh_raw_31_Add10",
+    "words": 181,
+    "p_llm": 0.11673391428285328,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 5",
+    "persona": "Mai-Linh Tran",
+    "tier": "T1_genuine",
+    "blind_score": 83,
+    "text": "okay this is going to sound dumb but I genuinely cannot tell anymore what is mine and what is the company's. We did really well at the salon this year, better than I expected honestly, and my husband keeps going \"we're fine, look at the bank\" but that's the business account, not ours, and I keep trying to tell him that's not the same thing and I'm not even a hundred percent sure I'm right. I own 40% of the place. My two partners are overseas and own the other 60, which I think matters for a bunch of this. There's the paycheck I take, the rent the company pays me for the building, and there was a payout at the end of the year, maybe ninety grand-ish, but it got split between the three of us so my piece is only part of that, not the whole number sitting on the company books. Can you go through the corporate statements and return, the 5472s, the business bank and loan stuff, my personal return and bank, the payroll, and my savings/investments, and actually tell me which money became MINE this year versus what just stayed in the company or went to my partners, and what of the company's stuff has to land on my personal return. The related-party things lose me the most, the rent and the loans going back and forth and the interest. And since I personally signed for the business loan I'm a little nervous how much I should keep in reserve heading into next year. Please don't turn this into \"you should restructure\" advice. I just need to know whose money is whose, with the real numbers.",
+    "id": "lh_T1_01_Add5",
+    "words": 281,
+    "p_llm": 0.2866470850216224,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 7",
+    "persona": "Tamsin Okeke",
+    "tier": "T1_genuine",
+    "blind_score": 74,
+    "text": "My budget swears I'm fine and my checking account keeps telling me otherwise, and I'm tired of being caught off guard around the 28th every month. Something is leaking and I can't see it. I started a tracker but half of it's blank and I don't even trust the daycare figure in it, it doesn't match what actually leaves the account. The real stuff is in the files: checking statement and transactions, my paystub and W-2, the daycare year-end thing, the student loan and the car loan, the credit card, the 403b, and there's an IRS notice in there I've kind of been avoiding. Here's what I keep flip-flopping on. I move $300 into emergency savings every month. I could pause that a few months, or ease off retirement, or just keep both going and pay the card down slower. I can't tell which one actually hurts the least. Can you rebuild what my month really looks like from the actual transactions, not the tracker when the tracker disagrees, and just tell me my real take-home, what has to get paid no matter what, what can actually bend, and what to put on the card for the next three months. And give me a checking floor I shouldn't drop below. I want to be doing something different by my next payday. Show the math but talk to me like a person, not a spreadsheet.",
+    "id": "lh_T1_02_Alt7",
+    "words": 234,
+    "p_llm": 0.12165704501730329,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 2",
+    "persona": "Adrian Holloway",
+    "tier": "T1_genuine",
+    "blind_score": 82,
+    "text": "On paper I look like someone who should never think about money, and the reality is I've got about three grand in checking and three credit cards I'm honestly scared to add up. So I need a plan for the next 90 days that's honest about that. The thing that trips everyone up looking at my situation is the trust. It's a big number but I can't touch the principal until I'm 45, so for paying a bill next month it might as well not exist. What I actually live on is the distributions and some consulting, and the consulting was thin this year. Please don't let that trust balance make the picture look prettier than it is. The files are all there, the trust paperwork and the foreign reporting forms, the trustee accounts, bank and checking, the three cards, the mortgage, the investment statement, the consulting records, the draft tracker. Tell me what cash I actually have for the next three months, what I have to hold back first (mortgage, card minimums, anything tax or filing related), and then which card to hit and how hard. And be straight with me about the Range Rover lease, does it still fit or not. I'll admit I probably mix up \"tax\" and \"cash flow\" when I talk about this. If I'm doing it, untangle it for me. I don't need my net worth, I know my net worth. I need to know what's actually in my hand.",
+    "id": "lh_T1_03_Add2",
+    "words": 246,
+    "p_llm": 0.19890742923740087,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 3",
+    "persona": "Marisol Vega Holloway",
+    "tier": "T1_genuine",
+    "blind_score": 78,
+    "text": "I'm finally sitting down to do my 2025 taxes and every time I think I'm done I hit another \"wait, does this even count?\" so I'm just going to hand you the whole pile. The ones tying me in knots are the people. Can I claim both kids, Mateo and Camila? And my mom, Dolores? She lives with us and I cover most of what she needs but my brother kicks in some too, and there's one of those multiple-support forms in the folder that I never really understood. On top of that I paid a good chunk of her medical bills this year, a few thousand, and I honestly don't know if those go on MY return since she's the one who was sick. It's all in the files, my W-2 and the draft tracker I started, the bank and checking, the mortgage 1098, her medical billing, the school records, that support form, my 2026 paystubs, the kid and childcare stuff. What I actually want is the filing position you'd stand behind, then walk me through what happens with each of the three of them, whether the medical helps me at all, whether any of the school or loan-interest stuff is mine, and whether itemizing is even worth it or I just take the standard deduction. If that support form doesn't actually get me there on my mom, tell me straight. And if any of this moves the refund my draft shows, I want to know what moved it, but don't build me a number off a document that isn't actually in the folder.",
+    "id": "lh_T1_04_Add3",
+    "words": 265,
+    "p_llm": 0.21364627116532545,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 4",
+    "persona": "Jolene Hartwell",
+    "tier": "T1_genuine",
+    "blind_score": 82,
+    "text": "Schedule F says we had a good year. That and four dollars gets me a coffee. What I need to know is whether I can actually sign for another piece of equipment without it sinking us come spring. It'd run about $1,100 a month starting in March. The trouble with a farm is the tax number and the money-actually-in-the-bank number are never the same animal. A big chunk of what runs through the operating account is just the line of credit going in and out, not corn or cattle money, and depreciation makes the profit look one way while the checkbook says another. We're land-rich and cash-poor like every outfit out here, the equity doesn't make payroll in March. It's all in there, the Schedule F, the farm bank statement and the transaction CSV, the operating line and the equipment loan, fuel, the depreciation schedule, the W-2, the mortgage, the 401k, the draft 1040. Walk it from the Schedule F profit down to real spendable cash, then put the debt payments against it and tell me whether March on through the slow season survives a new $1,100 payment. Give me the yes or no up top and then show your work. If it's yes-but-barely I need to know how barely. And whatever you come back with, the answer can't be \"sell some ground.\"",
+    "id": "lh_T1_05_Add4",
+    "words": 223,
+    "p_llm": 0.14674606776407878,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 2",
+    "persona": "Ines Calderon Webb",
+    "tier": "T1_genuine",
+    "blind_score": 71,
+    "text": "Can you go through my 2025 tax stuff like I handed you a draft that's maybe half right? Because that's about how sure I am of it. The thing actually keeping me up is the dependents. There's my mom and her whole support situation, there's the kids, and I've got this nagging feeling the tracker I started is letting in things that shouldn't be there just because I didn't know any better when I typed them in. It's all in the folder, the tracker, my W-2, bank and checking, the 1098, the school records, the medical bills, that multiple-support form, the dependent paperwork. Don't start me off with tax theory. Just tell me where you land: how I file, who I actually get to claim, itemize or take the standard deduction, and do I owe or am I getting something back. Then go back and pick apart the shaky parts, my mom's support, the kids, the medical, the school or loan-interest thing, and whether all the mortgage and property tax and charity and medical actually clears the standard deduction or I'm wasting my time itemizing. If a document only kind of hints at something but doesn't prove it, leave it out of the real number and just tell me what's missing. I can handle a rough answer. What I can't handle is you reading my own draft back to me.",
+    "id": "lh_T1_06_Alt2",
+    "words": 230,
+    "p_llm": 0.16640160029134987,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 14",
+    "persona": "Dmitri Volkov Hayes",
+    "tier": "T1_genuine",
+    "blind_score": 72,
+    "text": "My tax draft feels like a spreadsheet where somebody filled in the easy tabs and just left the hard one blank. And the hard one is the crypto, obviously. That's the part I actually need help with. There's a 1099-DA from Coinhaven and a wallet activity report sitting right there in the folder, and I've got a feeling the draft basically pretended none of it happened. I know enough to know what hit my wallet as \"proceeds\" isn't the same as what I owe tax on, and that if the basis is missing on some lot that doesn't mean nothing happened, it means there's a problem to work out. Don't go pulling coin prices off the internet though, just use what's in the files. If a lot can't be pinned down, set it aside and tell me how exposed I am rather than inventing a clean number. Once the crypto's sorted, rebuild the rest, wages, withholding, the student loan interest bit, any interest or dividends, and where I actually land on a refund or a bill. Use the payroll year-end package, the tracker, bank and checking, the brokerage 1099, the credit card, the student loan statement. Tell me which documents to hang onto and what each one actually proves. If the records are a mess I'd rather you say so than hand me something tidy that isn't real.",
+    "id": "lh_T1_07_Alt14",
+    "words": 228,
+    "p_llm": 0.20529592897714835,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 8",
+    "persona": "Octavia Reyes-Bloom",
+    "tier": "T1_genuine",
+    "blind_score": 72,
+    "text": "I've got a decent royalty month coming and I'm trying not to let it turn into a tax surprise next April. Music money is weird and I never feel like I'm setting aside the right amount. The royalty statement is where I get lost. The gross number on it is way bigger than what actually landed in my account, there's an admin cut, some foreign tax taken out, and it's chopped up across streaming and mechanical and performance and sync, some of it foreign-source. So the net that hit my checking isn't the number I pay tax on, right? That's what I need you to untangle. There's also a contractor remittance that changes the total, and I want to make sure the foreign tax they withheld counts as a credit and isn't just lost. Can you write me a plain note before I send my January estimated payment, how much music income is actually taxable from these files, what's an expense versus that foreign tax credit thing, which months were tight after the card and the gear financing, and what I should park for federal taxes right now. And after I set that aside, does the Roth contribution I made still look safe or did I get ahead of myself. Use the royalty statement, the contractor remittance, the business checking, the card, the gear financing, and the Roth statement. I don't want generic freelancer tips, just what these specific files say.",
+    "id": "lh_T1_08_Add8",
+    "words": 241,
+    "p_llm": 0.1239719830279971,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 9",
+    "persona": "Dmitri Volkov Hayes",
+    "tier": "T1_genuine",
+    "blind_score": 69,
+    "text": "My 2025 tracker's got a crypto-shaped hole in it. Everything else is sort of filled in, but the capital gains and the other income just sit there at zero like nothing happened all year, meanwhile there's a 1099-DA from Coinhaven and a whole wallet activity report right there in the same folder. That can't be right. Treat the draft like it's broken and call out the spots where it just doesn't match the actual files. Then rebuild the federal estimate properly. The crypto's the main event, keep what came in as gross proceeds separate from the basis and from what's actually a taxable gain, and if the basis on some lot is just missing, isolate that one and flag it instead of papering over it with a made-up number. Don't go look up coin prices online, only use what's in the files. The wages and withholding and the student-loan interest piece are in the payroll package and the loan statement, so tie those back to the documents too. When you're done, if the refund moved from what the draft says, show me exactly what moved it, and tell me which files back up each number and whether it's final or still needs something I haven't found yet. I'd rather have a messy honest answer than a clean wrong one.",
+    "id": "lh_T1_09_Add9",
+    "words": 219,
+    "p_llm": 0.1249003965644698,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 6",
+    "persona": "Declan Brennan",
+    "tier": "T1_genuine",
+    "blind_score": 71,
+    "text": "I got a 1099-C from Meridian for some debt that got cancelled in 2025, and I'm trying to land somewhere between panicking and pretending it's fine. I honestly don't know if this thing is going to blow up my return or not. Here's what I think I know. Not everything my company paid me is actually wages, my comp statement lumps in a pile of reimbursements, a good five figures' worth, that I'm pretty sure aren't income, and I don't want those getting taxed like salary. So check that first. The real question is the cancelled debt. From what I've read, if I was underwater right before they cancelled it, owed more than I owned, then some or all of it might not be taxable. So actually run that insolvency math for me using the house (there's an appraisal in there), the mortgage, what's in the bank, the card balance, the 401k, where I stand on the BMW lease, all of it. Then tell me how much of the cancelled debt I actually owe tax on, and whether my withholding this year ends up short once that's in. Use the 1099-C, the comp statement, the 401k, the mortgage 1098, checking, the bank and Visa statements, the lease, and the appraisal. End with one straight paragraph on what to clean up first across the card, bank, mortgage, and lease. Numbers, please, not a pep talk.",
+    "id": "lh_T1_10_Add6",
+    "words": 234,
+    "p_llm": 0.19063633158429769,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 1",
+    "persona": "Eudora Ferncliffe",
+    "tier": "T2_performed",
+    "blind_score": 50,
+    "text": "Hi - okay, I've been circling this for a couple of weeks and I think I just need someone to look at the real numbers and tell me the truth. Bram and I want to start sending the grandkids a monthly gift toward school, and I really do want to do it. What I do not want is to be the grandmother who makes a big warm promise at the table and then six months later is quietly pulling from savings to keep it going. That's the part that keeps me up. So could you go through our 2025 files and tell me what monthly education gift is actually safe to commit to? I've pulled together everything I could find from last year - the household budget workbook, our checking transactions and bank statement, the credit-card statement and its card transactions, Bram's self-employment records, my payroll year-end package, the brokerage statement, the 403(b)/retirement statement, the mortgage/escrow Form 1098, and the consolidated 1099 - but honestly I'm not confident I'm reading any of it the right way. Where I keep getting tangled is the cash flow. On paper it looks like we covered the year and then some, and the budget feels both reassuring and a little too good to trust. My pay is steady but Bram's consulting comes in lumps, so those deposits never sit right in my head. The one line that really stops me cold is a big investment-transfer entry, 40,955.92, and I genuinely cannot tell whether that's real spending, money we set aside on purpose, or just bookkeeping moving around. On top of that the card payments seem to show up in checking too, so I'm half-convinced something is being double-counted somewhere. And the retirement balance - it's around 720,000 - I do not want a single dollar of this plan leaning on that, and the same goes for the brokerage. If the gift only works because we'd be selling investments in a bad month, then it isn't safe and I'd rather know now. What I most need out of you is one number: the largest monthly gift we can promise out of normal, dependable cash flow, plus the checking-and-savings floor you'd leave untouched no matter what. Please walk me through how you got there - which income I can actually count on, and what was truly household spending versus transfers or just payment mechanics - because I'd rather understand it than be handed a figure I can't explain to Bram. And then, much smaller, if we do take on the education gift, is there any room left to nudge our annual charitable giving up a little? That one's a nice-to-have, not the point. Just write to me like a person, not a worksheet, and please don't send me off to go hire a financial planner - I'm asking you. A specific number beats a range, even if it lands smaller than I'm hoping for.",
+    "id": "lh_T2_01_Add1",
+    "words": 488,
+    "p_llm": 0.10772715298083929,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 10",
+    "persona": "Kwame Aadjei",
+    "tier": "T2_performed",
+    "blind_score": 48,
+    "text": "So I switched jobs partway through 2025 - went from Northbridge to Halstead Crane around the middle of the year, and the new one pays a good bit more - and now this draft tax tracker I threw together is telling me I owe the IRS a pile of money. I honestly can't tell if that's real or if the tracker is just panicking, and that's the thing I really need a straight answer on. The reason I'm suspicious is the withholding. When you've got two employers in one year they each withhold like they're your only job, so I half expect the number to be off - I just don't know which direction. Could you actually work it out from the files instead of guessing? I've got both W-2s (Northbridge and Halstead Crane), plus the Halstead Crane offer letter and a paystub, the draft 2025 tracker itself, a Lakeshore 1099-INT, my checking statement and the 2026 checking transactions, the savings statement, brokerage statement, the student-loan statement, and a credit-card statement - they should all be sitting in there. Combined, the two jobs put me a bit over 200 grand for the year, most of it from the Halstead Crane side, and the tracker says somewhere around 32k got withheld federally. There's a little interest income too, nothing dramatic. The one line I really want you to push on is the 2,500 student-loan interest deduction it's claiming - at my income I don't think that survives the phase-out, but I copied it straight in without checking, so please test it rather than trust it. If it's wrong I'd genuinely rather find out now than in April. What I want first, right up top, is the verdict: refund or balance due, the corrected number, and if I owe, which account I should pull from to pay it. Then walk me through how you got there so I can follow the wage and withholding math. Last thing, and this part is secondary - if I do end up owing, look at checking, savings, the brokerage, the card APR and the student-loan rate and tell me where the payment should come from. The one thing I don't want is to trade a tax bill for a credit-card balance at credit-card interest. And please don't just point me to a CPA - give me one concrete withholding or savings change to make over the next three months and actually commit to it.",
+    "id": "lh_T2_02_Add10",
+    "words": 408,
+    "p_llm": 0.1873195513749747,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 15",
+    "persona": "Kwame Aadjei",
+    "tier": "T2_performed",
+    "blind_score": 53,
+    "text": "So I switched jobs partway through 2025, and now my draft tax tracker is telling me I owe, and honestly I can't tell if that's a real number or just the spreadsheet being dramatic. That's the part keeping me up at night. Going from one employer to two in the same year always seems to do something weird with withholding, and I've got this nagging feeling both jobs withheld like I only earned what each of them paid me on its own, which would explain an ugly bill. But I genuinely don't know, which is why I'd rather you rebuild the thing than have me keep guessing at it. Everything you'd need is in the folder anyway: both W-2s (Northbridge and Halstead Crane), the Halstead Crane offer letter and that first paystub, the draft 2025 tracker I half-filled out, the Lakeshore 1099-INT, plus my checking statement and transactions, savings, brokerage, the student-loan statement, and the credit card. Can you just tell me up front whether I owe or I'm actually getting something back, and the corrected number? And if I owe, where the money should come from, because that's honestly the piece I care about most. Then walk me through how you got there: the wages from both jobs added together, what got withheld federally, the 401(k), the little bit of interest. The student-loan interest deduction is the one I'm genuinely unsure of, I'm not even sure it survives at what I made this year, so please don't just carry it over from the draft, actually check whether it holds. State withholding you can mention if it matters, but I'm less fussed about that one. The reason the \"where does it come from\" thing matters so much to me is that I do not want to dump a tax bill onto the credit card and trade an IRS problem for a worse one at card interest. But I'm also not going to pretend a real bill isn't there. So weigh checking, savings and brokerage against the card before you point me anywhere. And please don't hand me off to \"go talk to a CPA\" \u2014 just make the call. Give me one concrete thing to change over the next three months, either bump my withholding or start moving money into savings, with real dollar figures, and pick one. I'd genuinely rather you commit to a number and be a little off than give me a maybe.",
+    "id": "lh_T2_03_Alt15",
+    "words": 406,
+    "p_llm": 0.20212029170003634,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 12",
+    "persona": "Octavia Reyes-Bloom",
+    "tier": "T2_performed",
+    "blind_score": 60,
+    "text": "Okay, I need a gut check before I do something dumb with money I probably shouldn't think of as mine yet. A royalty deposit just hit \u2014 somewhere around fifty-four grand after everything got taken out \u2014 and my whole brain immediately went to the new gear I've been eyeing. But I've been burned before, treating a deposit like it's all spendable and then January rolls around and the estimated tax payment guts me. So before I touch a dime of it I want to know what I actually owe future-me. The thing that trips me up every single time is that the royalty deposit and the taxable royalty income are not the same number, and I can never quite untangle which is which. The Meridian statement shows a gross figure up near sixty, then there's an admin commission cut, then some foreign tax got withheld, and what landed in the account was the fifty-four-ish. So which of those is the number the IRS cares about? Why is the deposit so much lighter than the gross \u2014 is the commission an expense, is the foreign withholding something I get credit for later, or is it just gone? That gap is where I keep guessing wrong, and it's the part I really need walked through. Everything's sitting in the workspace if you'd rather actually check it than guess \u2014 the Meridian royalty statement, the Bellwether remittance from some contractor work I picked up, my Pinnacle business checking plus the transaction CSV, the SummitOne card statement and its transactions, the Sweetwater financing for the gear I already bought, and the Larkspur Roth statement. Some months I'm flush and some I'm scraping after the card and the financing payment, so the cash timing is part of this too. I don't have an accountant and honestly can't justify paying one for a question like this, so I need you to just commit to a number instead of hedging. Mostly: tell me where the money really came from, why the deposit came in so much lower than the gross, and what I should be parking for federal taxes before I spend any of it. And \u2014 smaller thing, but it's been nagging me \u2014 I did put money into the Roth this year, and I want to know whether that contribution still looks safe once the tax cash is set aside, or if I got ahead of myself there. Use the real figures from the files. I don't need generic freelancer advice about quarterly taxes; I need what these specific documents say I should do before the January payment.",
+    "id": "lh_T2_04_Alt12",
+    "words": 434,
+    "p_llm": 0.10814755284458126,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Add 7",
+    "persona": "Niamh A. Oonkwo Bauer",
+    "tier": "T2_performed",
+    "blind_score": 51,
+    "text": "Stefan and I have a draft 1040 sitting in front of us and honestly the empty cells are what's keeping me up at night, because they're blank in exactly the spots where I'd have no idea if we were about to get blindsided. I'd really rather you just rebuild our 2025 federal estimate from the actual documents than trust whatever that draft is doing. For files you've got my DOJ W-2 and pay stuff, Stefan's PGHS W-2 and pay files, the draft tracker and the draft 1040 themselves, our mortgage and property-tax paperwork, the student-loan records, the bank and checking records, the brokerage statement, the consolidated 1099, and \u2014 the one I really don't want you to skip past \u2014 the household employer records for our nanny. That nanny piece is genuinely half the reason I'm writing. We pay her about fifty grand a year (50,400, to be exact), we've been withholding her Social Security and Medicare out of every paycheck, and I cannot for the life of me figure out what's actually supposed to land on Schedule H versus what we've already covered along the way. The thing I'm scared of is double-counting her withheld FICA \u2014 I have this nagging feeling the draft does exactly that, or that I would if I filled it in the obvious way. So please walk me through the household-employer side slowly. That's the part I'd actually read twice. The wage side feels more straightforward to me, I think \u2014 mine runs around 175k, Stefan's a bit north of that, and the draft's got the usual spread of interest with some of it tax-exempt, dividends both flavors, the long-term gains, mortgage interest, charity, the SALT items. I trust those more, though by all means check them. The other thing I keep circling back to, besides the nanny, is that we're clearly high enough income that NIIT and the extra Medicare tax should be in the picture, and the draft seems to know that and then just leaves the totals empty. Whether that's an oversight or whether there's some reason, I honestly can't tell. Could you lay it out like a workpaper, but a readable one \u2014 income by type, deductions once the SALT cap bites, standard versus itemized, credits, the Schedule H math, NIIT and Additional Medicare, what we've already paid in, and the final refund or balance due \u2014 and flag every draft line that's wrong, blank, or double-counted as you go. If a number's really just an estimate, say so and label it; if the files don't support something, leave it out rather than forcing it in. And I'd much rather you commit to a real bottom-line figure than hand me back a \"go ask your CPA,\" because that's the exact thing I'm trying to get past.",
+    "id": "lh_T2_05_Add7",
+    "words": 466,
+    "p_llm": 0.30879371684277335,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 8",
+    "persona": "Marisol Vega Holloway",
+    "tier": "T2_performed",
+    "blind_score": 54,
+    "text": "Okay, I've been putting this off for weeks and now I'm sitting here with the 2025 tax folder open and it's honestly a mess. I'd really like to actually file instead of just staring at it, so I'm hoping you can do the cleanup work with me rather than hand me a summary I already half-wrote in my head. What I've got in front of me is the draft tax tracker (which I don't fully trust), my W-2/earnings statement, the bank records and checking transactions, the mortgage 1098, a stack of medical billing records for my mom, the education records, the multiple-support declaration, my 2026 pay statements, and the childcare/dependent files. The thing I keep going in circles on is my mother. Dolores lived with us most of the year and I covered a big chunk of her costs, but not all of it \u2014 my brother chipped in too, which is the whole reason there's a multiple-support declaration sitting in the folder. I genuinely don't know if that declaration actually gets me to claiming her, or if it's one of those forms that looks official but doesn't do anything on its own without something else I'm missing. And tied to that, there's a few thousand dollars in medical bills I paid for her, and I have no clue whether those help me on the return or just sit there doing nothing. If you only have the energy for one part of this, make it that part. The kids feel more straightforward \u2014 Mateo and Camila both lived with me all year, so I'm assuming I can claim both, but tell me if I'm wrong about that. The rest is smaller. Somewhere in the education records there might be a student-loan interest thing; I'm honestly not sure it even applies, so just glance at it. And I can never keep straight whether I'm better off itemizing or taking the standard deduction once the mortgage interest is in the picture, so please just make that call for me. At the end I need an actual number \u2014 the corrected federal refund or what I owe \u2014 not a \"go talk to a professional,\" because I can't really swing a CPA right now and I have to put something down. For anything that moves the refund, point me to the dollar amount and which file it came from, and if the draft tracker has something wrong, tell me flat out how. And if something just isn't provable from what's in the folder, keep it out of the number and tell me which document I'm missing so I can go dig for it.",
+    "id": "lh_T2_06_Alt8",
+    "words": 440,
+    "p_llm": 0.12575338077015777,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 3",
+    "persona": "Cornelius Whitaker",
+    "tier": "T2_performed",
+    "blind_score": 46,
+    "text": "I keep getting this nagging feeling that the draft 2025 tracker for the Holloway household is papering over a couple of things, and before anyone files it I want to know where this could blow up. The part I really can't get my head around is the cash side. On paper this family looks loaded \u2014 there's the Ashworth Settlement trust sitting in the background, the trustee accounts, distributions coming through \u2014 but the principal is locked up until age 45, so none of that is actually touchable right now. Meanwhile the checking account is thin and there are three credit cards that just keep climbing. So the thing I most need spelled out, plainly, is the gap between \"there's wealth somewhere\" and \"there's cash this month.\" Please keep that trust value completely out of any bill-paying math; I don't want it quietly making the household look more liquid than it is. Just tell me, from the checking and the card statements, how exposed they really are in the near term. The income question feels more straightforward to me, though maybe I'm wrong about that. Of everything floating around \u2014 trust distributions, the consulting income and expenses, the investment statement \u2014 what actually belongs on the return as taxable, and where is the draft getting it wrong? The tracker isn't reliable, so anywhere a figure looks unsupported, half-finished, or just plain misleading, flag it instead of repeating it back to me. And then, honestly, the part I understand the least is the foreign stuff. There's a whole pile of it \u2014 the 3520 and 3520-A for the Ashworth Settlement, the FBAR and Form 8938 disclosures, a foreign tax voucher \u2014 and I genuinely can't tell what's an actual tax bill versus what's just a form we're obligated to file. If you can sort the \"you owe this\" from the \"you only have to report it,\" that alone would be a relief. Everything's in the workspace \u2014 the context note, the draft tracker, those 3520/3520-A forms, the trustee accounts, the foreign disclosure papers, the foreign tax voucher, the consulting records, the investment statement, the bank and checking records, the mortgage Form 1098, and the three card statements. Use whatever you need. And please don't just hand it back with \"go ask a CPA.\" I know that's the safe answer. I want your actual read on where filing this as drafted goes wrong.",
+    "id": "lh_T2_07_Alt3",
+    "words": 401,
+    "p_llm": 0.11577201063345652,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 11",
+    "persona": "Niamh A. Oonkwo Bauer",
+    "tier": "T2_performed",
+    "blind_score": 46,
+    "text": "I think our draft 1040 is wrong, or at least full of holes, and I've been putting off dealing with it for weeks now. Could you rebuild our 2025 federal estimate from scratch using the actual documents instead of trusting whatever got typed into that draft? I'd rather see the whole calculation trail than just a number at the bottom, because honestly I don't trust the number at the bottom right now. The files are all there if you want them: my DOJ pay and W-2 stuff, Stefan's PGHS pay and W-2 files, the draft tracker and the draft 1040 themselves, the mortgage and property-tax paperwork, our student-loan records, the bank and checking records, the brokerage statement with the consolidated 1099, and then the household employer/nanny records. The nanny piece is really the reason I'm writing. We pay a nanny, and I have this nagging feeling the draft either skipped Schedule H entirely or somehow counted her withheld Social Security and Medicare twice \u2014 like once as something we already withheld and once as something we still owe. I genuinely can't tell which, and it's the part of all this I understand the least. So please go slow on the household-employment side: what we actually owe as the employers versus what was already taken out of her pay, and make sure it lands on Schedule H without getting double-counted. If I've got that one wrong I think it throws the whole estimate off. The other thing nagging me is the surtaxes. We're high enough income that NIIT and the Additional Medicare tax should be in play, and the draft just leaves those lines blank, which I'm assuming is laziness rather than them not applying. Don't let the blanks fool you into skipping them. Everything else I mostly just need done right and shown \u2014 wages for each of us separately, the interest and dividend stuff (taxable vs tax-exempt, ordinary vs qualified, the long-term gains), whatever adjustments we're actually allowed, itemized after the SALT cap versus just taking the standard, the credits, then withholding and payments down to a final refund or balance due. And at the end, could you give me a plain list of where the draft 1040 went wrong \u2014 lines that are flat wrong, blank, unsupported by anything in the files, or double-counted? Please don't just tell me to hand it to an accountant. I want your actual committed number, even if it turns out to be a balance due I'm not going to like.",
+    "id": "lh_T2_08_Alt11",
+    "words": 418,
+    "p_llm": 0.10448950206203002,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 6",
+    "persona": "Dmitri Volkov Hayes",
+    "tier": "T2_performed",
+    "blind_score": 50,
+    "text": "So my 2025 tax tracker is basically lying to me, or at least it's lying about the crypto \u2014 it's got the digital-asset stuff sitting in there like nothing ever happened, which can't be right because I definitely sold some last year. I'm doing this return on extension and the October deadline is creeping up, so I'd rather nail it now than keep shoving it off to next weekend. What I want is for you to treat the tracker as a bad draft and not trust a line of it \u2014 rebuild the federal estimate from the actual files instead. Everything's in the workspace: the draft tracker itself, my payroll year-end package, the usual bank checking statement and transactions, the brokerage statement/1099, the credit-card statement, the student-loan annual statement, and the two that matter most here, the Coinhaven consolidated 1099-DA and the wallet on-chain activity report. Please don't go pulling crypto prices off the internet \u2014 work only from what those files actually say. And if a lot doesn't have a basis I can point to, don't invent one; just flag it as unresolved and set it aside. The crypto is the part eating me. I moved a few thousand dollars' worth over the year, some through Coinhaven and some straight out of the wallet, and I have zero confidence the tracker did anything sensible with it \u2014 though I'm no tax person, so maybe I'm misreading what it even did. Either way I need the gross proceeds from the sales kept totally separate from the actual taxable gain, because those are not the same number and the draft feels like it smushed them into one. Show me cost basis where it's known, list the lots where the basis is a mystery on their own, and please don't just drop a zero in for the gain to make it tidy. Don't assume the crypto gain is nothing, and don't hand me something cleaner than the records support. While you're in there, give me a short rundown of whatever else the draft botched \u2014 name the line or the assumption, point me to the file that contradicts it, tell me the right treatment. I'd bet on at least the crypto, but glance at wages and withholding and tie those back to the year-end package, and check the taxable interest and any dividends against the bank and brokerage files. The student-loan interest piece I care about a lot less, but run it against the actual statement rather than whatever the tracker guessed. Then just land it for me: the corrected income inputs, the corrected digital-asset gain (or the unresolved chunk if it can't be pinned down), and the corrected federal refund or balance due. I want a real committed number, not a range, and please don't tell me to go pay a CPA \u2014 the whole point is I'm trying to work this out from the documents myself. If it's easy, tag which file backs which figure so I know what to hang onto.",
+    "id": "lh_T2_09_Expanded6",
+    "words": 502,
+    "p_llm": 0.1710606022925479,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 5",
+    "persona": "Gus Pendergast",
+    "tier": "T2_performed",
+    "blind_score": 47,
+    "text": "My draft tax tracker for 2025 is showing a refund that honestly looks too good, and after the year I've had I don't trust good news on a spreadsheet. I'd rather you tear it apart from the actual documents than try to make the draft's number hold together. Whatever you find, I want the real figure even if it comes out worse than the draft says. I'd much rather know now than get a letter in the summer. The thing I keep circling back to is this refund split the draft has me doing, where part supposedly goes into I-bonds, part into a Roth, and the rest to checking. I genuinely don't know if that's even allowed the way it's set up, and if the corrected refund ends up smaller than what the draft is splitting, the whole plan falls apart, so I really need that one checked against both the rules and the actual recalculated refund. If the Roth piece doesn't hold up, tell me why straight out instead of just quietly dropping it. The other thing is the interest. I think the draft may have dumped my tax-exempt muni interest in with the regular taxable interest, which I'm fairly sure is wrong, and I'm not confident it's handling the Treasury I-bond interest right either. I'm not an accountant so I could have this backwards, but please don't fold the muni interest into the taxable interest. And I've got money coming in from a lot of directions this year, consulting plus the Palouse partnership K-1 plus a rental plus a pension plus an inherited IRA on top of regular wages, and I suspect the draft just piled it all in without sorting out what's what, including how much of my Social Security actually turned out taxable. There might be a wash-sale thing buried in the dividends and gains too, but honestly that's lower on my list. The files you've got are the draft tracker itself, the brokerage statement and consolidated 1099, the Treasury/I-bond 1099-INT, the Palouse K-1, the rental package, my consulting Schedule C records, the retirement-income docs, the W-2 and paystubs, the bank statements, and the 2025 transactions. Don't assume zero basis on anything unless the brokerage file actually backs it up. For each thing you turn up, just walk me through what looks wrong, what it should be instead, which file shows it, and roughly what it does to the bottom line. Then start the federal calculation over from scratch, classified income, deductions, total tax, withholding and estimated payments, and the corrected refund or balance due, and don't anchor any of it to the draft's refund number. I want it rebuilt, not patched.",
+    "id": "lh_T2_10_Expanded5",
+    "words": 446,
+    "p_llm": 0.13744573312033953,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 4",
+    "persona": "Niamh A. Oonkwo Bauer",
+    "tier": "T2_performed",
+    "blind_score": 44,
+    "text": "Stefan and I are trying to nail down our 2025 federal taxes before we trust the draft 1040 we already have, and honestly the draft worries me because it's blank in exactly the spots I'd most want filled in. I'm not an accountant. I can read a spreadsheet fine, but the second it gets into surtaxes and household-employer stuff my eyes start to cross, and I'd rather someone actually run the numbers than keep guessing at them. Everything you'd need should be in the folder \u2014 the draft tax tracker and the draft 1040, my DOJ W-2 and pay files, Stefan's PGHS W-2 and pay files, the mortgage and property-tax paperwork, our student-loan records, the bank and checking stuff, the brokerage statement and the consolidated 1099, and the household-employer/nanny records. That last one matters more than it probably looks like it does, so please don't bury it as a footnote. Here's the thing I keep getting stuck on. This was the first year we had a nanny on the books, so we're household employers now, which I did not fully appreciate when we signed up for it. We withheld Social Security and Medicare out of her pay \u2014 she earns somewhere in the neighborhood of fifty grand for the year \u2014 and now I genuinely don't know what lands on Schedule H versus what we already covered, or what we still owe on top of that as the employer. I'm scared we're going to either double-pay or under-pay, and I don't want the IRS flagging us either way. Whatever you do, please don't count her withheld FICA twice \u2014 like once as something we paid and again as a credit. I have a feeling that's exactly the kind of mistake a tired person makes at 11pm, and the draft might already be doing it. Past that, I just want a clean rebuild I can follow. Walk me through the income with the wages split out between me and Stefan, then the investment income actually broken apart \u2014 taxable interest, the tax-exempt muni interest, ordinary versus qualified dividends, the long-term gains \u2014 because I think the draft is just lumping it all together. Then adjustments (the student-loan interest deduction probably just evaporates at our income, so don't spend any real time on it, just tell me yes or no), and then whether itemizing even beats the standard deduction once the SALT cap chops our state and property taxes down. After that the regular tax, then the credits \u2014 child tax credit, the child/dependent-care one \u2014 and then the part I really don't want skipped. We're high earners, well north of three hundred grand combined, so I'm fairly sure NIIT and the Additional Medicare tax both apply, and the draft seems to just leave them out because they're annoying. Don't leave them out. Show me the threshold math so I can actually see why they hit. Then land it on total tax, total payments, and the real refund or balance due. And at the very end, give me the honest list of where the draft is off \u2014 blank lines, anything double-counted, anything it's claiming that the files don't actually back up. If a document doesn't support something, leave it out and tell me, don't wedge it in to make the number look nicer. Use the real dollars wherever the files give them, and if you have to estimate part of the tax calc, just flag it clearly as an estimate so I know which pieces are soft. I don't need to be told to go hire a CPA \u2014 I need you to commit to a corrected number. Even if it comes out worse than the draft, I'd rather know now.",
+    "id": "lh_T2_11_Expanded4",
+    "words": 620,
+    "p_llm": 0.13286642104898838,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 1",
+    "persona": "Eudora Ferncliffe",
+    "tier": "T3_blatant",
+    "blind_score": 8,
+    "text": "I am Eudora Ferncliffe, and I require a rigorous, file-grounded determination of the maximum recurring monthly education gift that my husband Bram and I can commit to for our grandchildren, together with the maximum additional annual increase to our charitable giving, funded exclusively from ordinary household cash flow rather than from retirement assets. The relevant figures, drawn from the 2025 records, are as follows: - My net payroll income for 2025: 61,005.38. - Bram's consulting deposits for 2025: 38,000.00. - Investment and dividend income reported on the consolidated 1099: 1,250.00. - Total household cash income for 2025: 100,255.38. - Year-end checking balance: 9,520.00. - Year-end savings balance: 35,750.00. - Budget-workbook \"investment transfer\" line: 40,955.92. - 403(b)/retirement balance: 720,000.00 (excluded from all funding analysis). - Brokerage balance: 145,300.00 (eligible only as contingency reserve, not as a recurring funding source). - Mortgage monthly payment: 1,840.00. - Mortgage interest reported on Form 1098: 8,640.00. - Year-end credit-card balance: 3,180.00. - Current annual charitable giving: 2,400.00. Please base the analysis on the following documents in their entirety: the 2025 household budget workbook, the checking transactions, the credit-card files, Bram's self-employment records, my payroll year-end package, the brokerage statement, the 403(b)/retirement statement, the mortgage/escrow Form 1098, and the consolidated 1099. The governing question is precise: what monthly gift can we safely and durably promise if it must be funded from normal recurring cash flow and not from retirement money? Spendable cash flow is not the same as total household income, and an account balance is not the same as a sustainable funding source. Reported income is not the same as discretionary surplus, and apparent comfort on paper is not the same as genuine affordability. In deriving the answer, please address the following treatment items in order: 1. Identify reliable annual cash income, distinguishing dependable payroll from variable consulting deposits. 2. Classify the 40,955.92 investment-transfer line as discretionary saving, household spending, or an internal transfer, and state the effect on available cash flow. 3. Resolve the credit-card payment mechanics so that card charges and subsequent card payments from checking are not double-counted. 4. Separate ordinary living costs, tax and investment items, mortgage obligations, and irregular spending. 5. Establish the combined checking-plus-savings floor that must remain untouched. Conclude with the following deliverables, each expressed as a single exact figure: - The largest monthly education gift fundable from cash flow alone. - The largest additional annual increase to charitable giving fundable alongside that gift. - The cash cushion (checking plus savings) to be preserved and held untouched. - The single line in the files most likely to cause an overestimate or underestimate of affordability. Furthermore, please show the supporting arithmetic for each figure. Additionally, treat the brokerage balance strictly as a contingency reserve and the retirement balance as wholly off-limits. Moreover, if the supportable gift amount is smaller than hoped, state the smaller figure directly. Use exact dollar figures from the files. Do not give a vague range. Do not say \"talk to a financial advisor\" in place of performing the calculation. Do not propose drawing on retirement money. Do not present a comforting number in place of the correct one.",
+    "id": "lh_T3_01_Alt1",
+    "words": 523,
+    "p_llm": 0.24514197945196825,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 4",
+    "persona": "Jolene Hartwell",
+    "tier": "T3_blatant",
+    "blind_score": 7,
+    "text": "I am Jolene Hartwell, sole proprietor and operator of Hartwell Family Farm, and I require a lender-grade cash-flow assessment of whether the operation can absorb a new equipment obligation of $1,100.00 per month commencing March 1, 2026. The following figures are established by the source files and should anchor the analysis: 1. Schedule F gross farm income: $216,500.00. 2. Schedule F total deductible expenses: $156,500.00. 3. Schedule F net farm profit: $60,000.00. 4. Total farm cash inflows (operating bank statement and transaction CSV): $257,870.00. 5. Total farm cash outflows (operating bank statement and transaction CSV): $209,394.50. 6. Net cash flow before the proposed obligation: $48,475.50. 7. Form 4562 current-year depreciation: $34,750.00. 8. Fuel records, total fuel and lubricant cost: $18,300.00. 9. Operating line of credit: limit $150,000.00, outstanding balance $92,400.00, stated APR 8.25%. 10. Existing equipment loan: principal balance $48,200.00, monthly payment $1,420.00, APR 6.50%. 11. Mortgage (Form 1098): annual interest $11,240.00, monthly payment $1,860.00. 12. Payroll W-2 wages paid: $42,000.00. 13. Retirement 401(k) balance: $96,500.00. 14. Year-end operating checking balance: $14,820.00. 15. Proposed replacement equipment payment: $1,100.00 per month, first payment March 1, 2026. Source documents to be reconciled, in full: the Schedule F, the farm operating bank statement, the farm operating transaction CSV, the operating line of credit statement, the equipment loan statement, the fuel records, the Form 4562 depreciation schedule, the payroll W-2, the mortgage statement and Form 1098, the retirement statement, and the draft Form 1040. The analysis must respect the following distinctions. Taxable profit is not the same as available cash. An operating-line advance is not the same as crop or livestock revenue. A principal paydown is not the same as an input expense such as seed, fertilizer, fuel, repairs, labor, or insurance. Depreciation is not the same as a current-period cash outlay. Balance-sheet wealth in land, machinery, and breeding stock is not the same as the liquidity required to meet March payroll and debt service. Produce the following deliverables: 1. A reconciliation from Schedule F net farm profit ($60,000.00) to usable operating cash flow, adding back non-cash depreciation and removing financing inflows and principal movements. 2. A consolidated debt-service schedule covering the operating line, the existing equipment loan, and the mortgage, stated as monthly and annual obligations. 3. A seasonal liquidity analysis identifying the low-cash months and the minimum projected operating checking balance across the cycle. 4. A pro forma incorporating the additional $1,100.00 monthly payment, expressed as the resulting monthly cushion or shortfall. 5. A determination, stated as a yes or no, of whether the operation can carry the new payment without selling farmland or drawing further on the operating line. Address each of the following questions explicitly: What is usable operating cash after non-cash and financing adjustments? What is the total monthly and annual debt-service burden before and after the new payment? Which months fall below a safe operating reserve? What is the dollar cushion or shortage attributable to the proposed obligation? Furthermore, which specific transaction lines are most susceptible to misclassification, and how would each misclassification distort the result? Use exact figures from the files. Do not present a vague range. Do not defer the conclusion by recommending consultation with a lender or accountant. Do not propose selling farmland or refinancing into the operating line as the solution. Do not treat financing inflows as revenue, and do not treat depreciation as available cash.",
+    "id": "lh_T3_02_Alt4",
+    "words": 562,
+    "p_llm": 0.20560071990466,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 13",
+    "persona": "Gus Pendergast",
+    "tier": "T3_blatant",
+    "blind_score": 7,
+    "text": "I am Gus Pendergast, and I am requesting a rigorous, fully source-grounded reconstruction of my 2025 federal income tax position, because my draft tax tracker reports a comfortable refund that I have determined is implausible and require independently verified against the underlying documents. For reference, the relevant figures, as they appear across the source files, are as follows: 1. W-2 wages: $42,300.00; federal income tax withheld: $4,180.00. 2. Social Security benefits (gross): $28,400.00. 3. Pension distributions: $31,500.00. 4. Inherited IRA distribution: $12,000.00. 5. Consulting (Schedule C) gross receipts: $24,600.00; deductible expenses: $6,150.00; net profit: $18,450.00. 6. Rental activity: gross rents $21,600.00; total expenses $26,300.00; net rental loss ($4,700.00). 7. Palouse partnership Schedule K-1 ordinary business income: $7,800.00. 8. Taxable interest: $1,940.00; tax-exempt municipal interest: $3,260.00. 9. Treasury/I-bond 1099-INT interest: $2,875.00. 10. Ordinary dividends: $3,420.00; qualified dividends: $2,910.00; capital gain distributions: $1,560.00; net long-term capital gains: $9,240.00; wash-sale loss disallowed: $1,180.00. 11. Estimated tax payments: $6,000.00 total, remitted in four installments of $1,500.00 dated 2025-04-15, 2025-06-16, 2025-09-15, and 2026-01-15. 12. Draft tracker refund claimed: $4,512.00. 13. Proposed refund allocation: $2,000.00 directed to Series I bonds, $1,500.00 directed to a Roth IRA, and the remainder deposited to checking. Please use the following documents in their entirety: the draft 2025 tax tracker, the brokerage statement and consolidated Form 1099, the Treasury/I-bond Form 1099-INT, the Palouse Schedule K-1, the rental package, the consulting Schedule C records, the retirement-income files, the W-2 and paystub files, the bank statements, and the 2025 transaction records. Deliverable 1 is a correction log. For each issue, present four parallel fields: (a) draft treatment, (b) corrected treatment, (c) source file, and (d) dollar impact. The correction log must address each of the following items in turn: taxable interest, tax-exempt municipal interest, I-bond interest, ordinary dividends, qualified dividends, capital gain distributions, net long-term capital gains, wash-sale adjustments, consulting income, partnership income, rental loss, pension income, inherited IRA distributions, Social Security taxability, federal withholding, estimated payments, and the proposed refund allocation. Deliverable 2 is a complete federal recalculation built from the source documents rather than from the draft. It must present, in order: classified gross income by category; adjustments to income; the deduction position; taxable income; the federal tax before credits; total credits; total tax; total payments comprising withholding and estimated payments; and the final refund or balance due. Deliverable 3 is a resolution of the proposed refund allocation. State, item by item, whether the $2,000.00 I-bond directive, the $1,500.00 Roth IRA directive, and the checking remainder are each permissible and whether they fit the corrected refund. The following questions must each receive an explicit answer: Does the corrected refund differ from the $4,512.00 draft figure, and by exactly how much? Is any portion of the proposed allocation impermissible under the applicable rules? Does the corrected refund exceed, equal, or fall short of the proposed allocation total? Tax-exempt municipal interest is not the same as taxable interest. Gross proceeds are not the same as taxable gain. A rental loss claimed is not the same as a rental loss allowed. The existence of an account balance is not the same as the availability of a refund. Furthermore, a draft figure is not the same as a supported figure. Additionally, please treat every draft line as unverified until reconciled to its source document. Moreover, where a file is missing or insufficient to support an item, isolate that item and identify the specific support required. Use exact figures. Do not give a vague range. Do not say \"talk to an advisor.\" Do not use the draft's refund as a starting point. Do not include tax-exempt municipal interest in taxable interest. Do not assume zero basis unless the brokerage file establishes it. Do not present the final result as cleaner than the records support.",
+    "id": "lh_T3_03_Alt13",
+    "words": 628,
+    "p_llm": 0.30000224336406073,
+    "band": "MIXED",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 10",
+    "persona": "Ngozi Balogun",
+    "tier": "T3_blatant",
+    "blind_score": 7,
+    "text": "I am Ngozi Balogun, and I am requesting a complete, document-grounded six-month cash-flow plan covering July 2026 through December 2026, reconciled to my source records rather than to estimates. Reference figures (to be verified against the documents before use): 1. Gross biweekly pay: $3,560.00 2. Net biweekly take-home: $2,612.00 3. Derived monthly net take-home: $5,659.33 4. Monthly rent: $1,650.00 5. Monthly childcare: $1,100.00 (childcare year-end statement total: $13,200.00) 6. Monthly utilities: $312.00 7. Monthly groceries: $640.00 8. Monthly dining and miscellaneous: $415.00 9. Monthly subscriptions: $146.94 10. Auto loan: balance $11,480.00, payment $384.00/month, APR 6.90% 11. Student loans: balance $24,300.00, payment $410.00/month, weighted APR 5.30% 12. Liberty credit card: balance $6,820.00, minimum payment $205.00/month, current payment $250.00/month, APR 24.99% 13. 403(b): employee contribution 6.00% of gross pay, employer match 3.00% 14. Emergency savings: current transfer $300.00/month, current balance $2,150.00 15. IRS notice balance due: $487.00 Source documents to be used, in full: the draft budget/tax tracker, the checking statement, the checking transactions export, the paystub, the W-2, the childcare year-end statement, the student-loan statement, the auto-loan statement, the credit-card statement, the 403(b) statement, and the IRS notice. The plan must resolve one decision: whether to continue routing $300.00 per month to emergency savings while paying $250.00 per month to the Liberty card, or whether to redirect part of that $300.00 savings transfer to the card for the duration of the plan. Produce the following workpapers, in order: 1. Verified monthly take-home pay, derived from the paystub and W-2 and reconciled to deposits in the checking transactions. 2. A rebuilt monthly outflow schedule itemizing rent, childcare, utilities, groceries, auto loan, student loans, card payment, subscriptions, dining/miscellaneous, and retirement. 3. Envelope allocations for essentials, debt, emergency savings, flexible spending, and subscriptions. 4. A payment-priority analysis ordering the auto loan, student loans, and Liberty card by APR, with the projected six-month interest cost under each option. 5. A recommendation on the savings-versus-card allocation, stated as exact monthly dollar amounts. Address each of the following questions explicitly: What is the verified monthly net take-home? What is total monthly outflow against that figure? Which obligation carries the highest carrying cost, and in what payment order should the obligations be serviced? How much interest is avoided over six months by redirecting savings to the Liberty card versus retaining the $300.00 transfer? Does the IRS notice balance of $487.00 alter the allocation, and if so, how? Note the controlling distinctions. Emergency savings is not the same as debt reduction. A printed take-home figure is not the same as spendable monthly cash flow. A minimum payment is not the same as the payment required to retire a balance efficiently. Furthermore, the APRs are decisive: the Liberty card at 24.99% is materially more expensive than the auto loan at 6.90% or the student loans at 5.30%, and the payment order must follow from that fact. Additionally, the six-month horizon must be modeled month by month, not as a single average. Moreover, the recommendation must reconcile to the verified take-home pay with no unexplained residual. Use exact figures. Do not give a vague range. Do not say \"consult a financial advisor.\" Do not recommend taking on new debt. Do not reduce the 403(b) contribution unless the figures demonstrate that no other workable option exists.",
+    "id": "lh_T3_04_Alt10",
+    "words": 544,
+    "p_llm": 0.24095175804427044,
+    "band": "MIXED",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 5",
+    "persona": "Mai-Linh Tran",
+    "tier": "T3_blatant",
+    "blind_score": 7,
+    "text": "I am Mai-Linh Tran, President and 40 percent shareholder of Jade Lotus Nail Spa, Inc., and I require a precise reconciliation that separates my personal funds from corporate funds for the 2025 tax year. The following figures are established by the records and should anchor the analysis: - Corporate gross revenue: $1,520,000.00 - Corporate cash at year end: $153,500.61 - Ownership: 40 percent Mai-Linh Tran; 60 percent two foreign shareholders, 30 percent each - Officer compensation: $156,000.00 - Related-party rent paid: $144,000.00 - Interest paid to foreign shareholders: $18,000.00 - Shareholder advances: $25,000.00 - Total distributions paid pro rata: $90,000.00 (my 40 percent share: $36,000.00; foreign shareholders' 60 percent share: $54,000.00) - Business loan outstanding balance: $285,000.00; monthly payment: $4,250.00; personal guarantor: Mai-Linh Tran - My payroll wages: $156,000.00; federal withholding: $24,180.00 - My personal checking balance: $21,430.75 - My savings and investment balances: $84,910.40 Use the following documents in full: the corporate financial statements, the corporate income tax return, Forms 5472, the business bank statement and transaction records, the business loan statement, my personal income tax return, my personal bank statement and transaction records, the payroll statements, and the savings and investment statement. I am not requesting corporate preparation or restructuring; I am requesting a personal-versus-corporate reconciliation grounded in these files. Produce a workpaper addressing each of the following: 1. Personal receipts and control: every dollar I personally received or controlled in 2025, itemized by source. 2. Corporate and third-party funds: every dollar belonging to the corporation or to the other shareholders, segregated from my personal totals. 3. Pass-through to personal return: every corporate item that flows onto my personal tax return, with the corresponding return line identified. 4. Related-party exposures: every related-party item that is commonly misread, with the correct treatment stated. 5. Liquidity reserve: the personal cash I should keep available in 2026, accounting for the business loan guarantee and my own bank activity. Answer the following questions in parallel: - What money did I personally receive or control in 2025? - What money belongs to the corporation or to the other shareholders? - What corporate items affect my personal tax return? - What related-party items are easily misunderstood? - How much personal cash should I retain in 2026 given the loan guarantee and my bank activity? Apply the following distinctions. Corporate cash is not the same as personal cash. A pro-rata distribution to all shareholders is not the same as a distribution to me; only my 40 percent portion is mine. Officer compensation is not the same as a distribution. A loan guarantee is not the same as a present cash obligation, but it remains a contingent personal exposure. Furthermore, address the foreign shareholders' 60 percent ownership directly and confirm that their distributions, interest, and advances remain outside my personal totals. Additionally, reconcile each personal-return line against the corporate documents and flag every inconsistency. Moreover, where a figure is not supported by the files, state that explicitly rather than inferring it. Use exact figures from the files. Do not give a vague range. Do not say \"talk to an accountant\" instead of performing the reconciliation. Do not treat corporate cash as personal cash. Do not attribute the foreign shareholders' portion to me. Do not omit any related-party item.",
+    "id": "lh_T3_05_Alt5",
+    "words": 542,
+    "p_llm": 0.1716347720155142,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 6",
+    "persona": "Adrian M. Holloway",
+    "tier": "T3_blatant",
+    "blind_score": 8,
+    "text": "I am Adrian M. Holloway, and I am requesting a rigorous, file-grounded 90-day cash triage plan covering the period from June 26, 2026 through September 24, 2026. For reference, the relevant figures are enumerated as follows: 1. Trust corpus value: $2,100,000.00, with principal restricted and inaccessible until I attain age 45. 2. Annual trust distribution: $120,000.00, disbursed as $10,000.00 per month. 3. Year-to-date consulting net profit: $11,300.00. 4. Current checking balance: $3,151.84. 5. Credit-card balances: Card 1 (Apex Platinum) $9,480.22 at 24.99% APR, minimum payment $237.01; Card 2 (Cornerstone Visa) $7,310.55 at 21.49% APR, minimum payment $182.76; Card 3 (Harborline) $5,209.23 at 19.99% APR, minimum payment $130.23; aggregate card balance $22,000.00; aggregate minimum payments $550.00. 6. Mortgage monthly obligation: $3,420.00 (principal, interest, taxes, and insurance per the Form 1098 and escrow records). 7. Range Rover lease: $1,145.00 per month, with 9 scheduled payments remaining. 8. Foreign tax voucher credit: $1,847.00. 9. Estimated federal quarterly tax obligation due September 15, 2026: $4,600.00. The documents to be used are the following: the context note, the bank checking statement, the checking transactions, the three credit-card statements, the mortgage statement and Form 1098, the consulting income and expense records, the trust distribution documents, the trustee annual accounts, the investment statement, the foreign tax voucher, and the draft tax tracker. Several distinctions must govern this analysis. Trust principal is not the same as spendable cash. A high net worth is not the same as available liquidity. A gross trust distribution is not the same as discretionary income. Furthermore, the trust principal of $2,100,000.00 is excluded from this exercise in its entirety, because the files confirm it is unavailable until I reach age 45. Additionally, the spendable resources for this period consist solely of monthly trust distributions and consulting income, while the checking balance is constrained and the three card balances are elevated. Please produce the deliverable as a structured triage plan addressing each of the following: 1. Available cash: Quantify the precise cash actually available across the next 90 days, reconciled from the checking statement, trust distribution documents, and consulting records. 2. Mandatory reserves: Identify and total the obligations that must be reserved first, including the mortgage, card minimum payments, the September 15 estimated tax payment, and any filing-related costs. 3. Card prioritization: Determine which of the three cards should be retired first, with the determination justified by APR and balance. 4. Allocation: Specify the exact dollar amount to be directed to each card after mandatory reserves are satisfied. 5. Reclassification: Enumerate every item that appears as wealth in the files but must be reclassified out of the \"available cash\" category. 6. Lease decision: State, as a binary yes or no, whether the Range Rover lease at $1,145.00 per month remains affordable within the 90-day plan. The parallel questions to be answered are: What cash is genuinely available in the next 90 days? What must be reserved before any discretionary allocation? Which card is attacked first, and why? How much is sent to each card? What should be excluded from \"available\" despite appearing as wealth? Does the Range Rover lease still fit? Moreover, present every calculation explicitly with the supporting figures shown. Use exact figures. Do not provide a vague range. Do not advise me to consult a financial advisor. Do not recommend accessing trust principal. Do not recommend selling the residence. Do not deliver a budgeting lecture in place of the triage plan.",
+    "id": "lh_T3_06_Alt6",
+    "words": 569,
+    "p_llm": 0.26253440865147376,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Alt 9",
+    "persona": "Declan R. Brennan",
+    "tier": "T3_blatant",
+    "blind_score": 7,
+    "text": "I am Declan R. Brennan, and I require a rigorous, file-backed analysis of a 2025 cancellation-of-debt event before it becomes an unanticipated filing liability. The relevant figures are enumerated below. Income and withholding: - Gross compensation: $130,000.00 - Base salary: $94,000.00 - Commissions: $36,000.00 - 401(k) elective deferrals: $7,800.00 - Section 125 cafeteria-plan contributions: $3,600.00 - W-2 Box 1 taxable wages: $118,600.00 - Federal income tax withheld: $7,608.00 - Accountable-plan expense reimbursements (non-wage): $16,491.18 Cancellation of debt: - Meridian Form 1099-C, Box 2 (amount of debt discharged): $42,350.00 - Box 1 (date of identifiable event): 2025-09-14 - Box 3 (interest included in Box 2): $3,180.00 Assets immediately before September 14, 2025: - 148 Marlborough appraised fair market value: $548,000.00 - 401(k) account balance: $58,900.00 - Harborpoint checking balance: $3,180.45 Liabilities immediately before September 14, 2025: - Mortgage outstanding principal (Form 1098): $531,500.00 - Harborpoint Visa balance: $11,920.34 (APR 24.99%) - BMW lease remaining obligation: $14,400.00 ($600.00 per month) - Meridian discharged debt (pre-cancellation): $42,350.00 Supplemental: - Mortgage interest paid in 2025 (Form 1098): $18,950.42 - Filing deadline: April 15, 2026 The documents to be used are, in full: the Meridian Form 1099-C, the compensation/tax statement, the 401(k) statement, the mortgage Form 1098, the checking transaction record, the Harborpoint bank statement, the Harborpoint Visa statement, the BMW lease agreement, and the 148 Marlborough appraisal. Produce the following deliverables in order: 1. Insolvency determination. Compute total assets and total liabilities immediately before the discharge date, and report the net insolvency or solvency amount. A cancellation-of-debt event is not the same as taxable income, and the convenient exclusion of an asset is not the same as a legitimate omission; therefore every asset supported by the files must be included. 2. Taxable portion of the discharged debt. Apply the insolvency exclusion against the supported figures and report the includible amount. 3. Federal refund or balance due. Reconcile wages, commissions, 401(k) deferrals, non-wage reimbursements, withholding, and the includible cancellation-of-debt amount into a single estimate. Reimbursements under an accountable plan are not the same as wages and must be classified accordingly. 4. Credit-cleanup plan. Sequence remediation across the Visa balance, checking position, mortgage, and lease using the supported balances and rates. Address each of the following questions explicitly: - Was the taxpayer insolvent immediately before September 14, 2025, and by what amount? - What portion of the $42,350.00 discharge is excludable, and what portion is includible in gross income? - Do the non-wage reimbursements of $16,491.18 belong in Box 1 wages, and what is the corrected taxable-wage figure? - What is the estimated federal refund or balance due after the cancellation-of-debt result? - In what order should the Visa balance, mortgage, and lease obligations be addressed? Furthermore, present each computation alongside its source document and the exact figure it supports. Additionally, label any figure that the files do not substantiate as unsupported rather than estimating it. Moreover, distinguish at every step between fair market value and account balance, between principal and interest, and between wage and non-wage compensation. Use exact figures. Do not assume the entire $42,350.00 is taxable. Do not exclude any asset solely because its omission reduces the tax result. Do not substitute a vague range for a calculated amount. Do not defer the determination to a tax advisor. Do not present the analysis as final where a source document is missing.",
+    "id": "lh_T3_07_Alt9",
+    "words": 558,
+    "p_llm": 0.23147590586914688,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 3",
+    "persona": "Jolene Hartwell",
+    "tier": "T3_blatant",
+    "blind_score": 8,
+    "text": "I am Jolene Hartwell, proprietor of Hartwell Family Farm, and I require a rigorous, file-grounded determination of whether the operating line of credit can be renewed and whether a replacement equipment payment of $1,100.00 per month, commencing March 1, 2026, can be sustained through the complete seasonal cash cycle. This is a cash-flow carrying-capacity question, not a tax question; Schedule F reflects a profit, but taxable profit is not the same as spendable cash. The following figures are established by the source files and must anchor the analysis: - Schedule F gross farm income: $216,500.00 - Schedule F total deductible expenses: $156,500.00 - Schedule F net farm profit: $60,000.00 - Farm operating account total inflows (2025): $257,870.00 - Farm operating account total outflows (2025): $209,394.50 - Net operating cash flow (2025): $48,475.50 - Operating line of credit: limit $150,000.00; outstanding balance $92,400.00; interest rate 8.25% - Equipment loan: outstanding balance $48,200.00; monthly payment $1,475.00; interest rate 6.90% - Proposed replacement equipment payment: $1,100.00 per month, beginning March 1, 2026 - Form 4562 depreciation expense: $34,800.00 - Fuel records total: $21,640.00 - Payroll (W-2) wages paid: $42,000.00 - Mortgage (Form 1098): principal balance $185,000.00; annual interest $9,250.00; monthly payment $1,620.00; interest rate 5.75% - Retirement 401(k) balance: $128,500.00 - Draft 1040 total tax liability: $7,460.00 Base every conclusion exclusively on the following documents, and on no outside data: the Schedule F, the farm operating bank statement, the farm operating transaction CSV, the operating line of credit statement, the equipment loan statement, the fuel records, the Form 4562 depreciation schedule, the payroll W-2, the mortgage statement and Form 1098, the retirement 401(k) statement, and the draft 1040. Apply the following classification principles without exception. Loan advances are not crop revenue. Principal repayments are not operating expenses on the same footing as seed, fertilizer, fuel, repairs, labor, or insurance. Depreciation reduces taxable profit but is not a cash outflow in the month it is claimed. Book equity in land, machinery, and livestock is not liquidity. A land-rich farm can be simultaneously cash-poor. Structure the response as a lender-style credit decision memorandum containing the following components: 1. A decision statement in the opening paragraph: approve the new payment, reject it, or approve only subject to a stated condition. 2. A reconciliation from Schedule F net farm profit ($60,000.00) to actual operating cash flow ($48,475.50), itemizing every adjustment line by line. 3. A debt-service schedule covering the operating line, the equipment loan, the mortgage, and the proposed $1,100.00 payment, with monthly and annual totals before and after the new obligation. 4. A seasonal cushion analysis aligning the timing of farm receipts against required outflows, identifying the lowest projected cash month and its dollar balance. 5. An exception list naming the specific transactions or statement lines most likely to be misclassified on a rushed review, with the correct treatment for each. 6. A definitive yes/no answer to the controlling question. The memorandum must answer the following questions explicitly: What is the true operating cash flow after removing financing movements? What is the total monthly and annual debt-service obligation before and after the new payment? At which point in the seasonal cycle is the cash position weakest, and by how much? Which line items would most distort the analysis if misread, and how? Can the farm carry the new $1,100.00 monthly equipment payment beginning March 2026 without selling farmland or increasing the operating line balance? Furthermore, present the controlling question and its answer verbatim: Can the farm carry a new $1,100.00 monthly equipment payment starting in March without relying on selling farmland or rolling more debt into the operating line? Additionally, show all arithmetic at each step. Moreover, use only file-backed figures. Use exact dollar amounts. Do not give a vague range. Do not say \"consult a financial advisor.\" Do not treat loan advances as revenue. Do not treat depreciation as a cash expense. Do not recommend selling farmland or rolling additional debt into the operating line.",
+    "id": "lh_T3_08_Expanded3",
+    "words": 660,
+    "p_llm": 0.24176625565774437,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 1",
+    "persona": "Eudora Ferncliffe",
+    "tier": "T3_blatant",
+    "blind_score": 7,
+    "text": "I am Eudora Ferncliffe, a Madison, Wisconsin household principal preparing a long-term family gifting decision jointly with my spouse, Bram Ferncliffe, on the basis of our complete 2025 financial records. The objective is a definitive, file-grounded determination of the maximum recurring monthly education gift for our grandchildren that can be sustained from spendable household cash flow alone, without drawing on retirement assets and without relying on the liquidation of brokerage investments. For reference, the governing figures established by the 2025 files are enumerated as follows: 1. Eudora Ferncliffe net payroll income (year-end package): $61,005.38. 2. Bram Ferncliffe net self-employment consulting deposits: $38,000.00. 3. Consolidated 1099 investment income (interest and dividends): $1,250.00. 4. Total reliable annual cash income: $100,255.38. 5. Year-end checking balance: $9,520.00. 6. Year-end savings balance: $35,750.00. 7. Budget workbook \"investment transfer\" line: $40,955.92. 8. 403(b)/retirement account balance: $720,000.00. 9. Taxable brokerage account balance: $312,400.00. 10. Mortgage interest paid (Form 1098): $7,420.16. 11. Monthly mortgage and escrow payment: $1,845.00. 12. Year-end credit-card statement balance: $4,260.00. 13. Total credit-card payments cleared from checking during 2025: $18,300.00. 14. Estimated annual utilities: $4,800.00. 15. Estimated annual groceries: $9,600.00. 16. Current annual charitable giving: $3,600.00. Base the analysis exclusively on the following documents: the 2025 household budget workbook, the checking transaction register, the bank checking statement, the credit-card statement, the card transaction detail, Bram Ferncliffe's self-employment records, my payroll year-end package, the brokerage statement, the 403(b)/retirement statement, the mortgage and escrow Form 1098, and the consolidated 1099. A retirement balance is not the same as spendable income, and an internal investment transfer is not the same as household consumption. Accordingly, the 403(b) account is to be treated as strictly off-limits, and the brokerage account is to be referenced solely as a contingency reserve rather than as a recurring funding source for a fixed family commitment. Furthermore, the recommendation is to be reconstructed from the underlying documents rather than inferred from the budget workbook's category labels, which may misclassify transfers, payment mechanics, and irregular spending. Produce a structured family-finance analysis with visible arithmetic, comprising the following sections: 1. Reliable annual cash income: derive the dependable income base from payroll, consulting deposits, and documented investment income, and identify which components are recurring versus variable. 2. Outflow classification: separate ordinary living costs from (a) the investment transfer, (b) credit-card payment mechanics, (c) tax and investment items, and (d) irregular or non-recurring spending. 3. Double-counting reconciliation: identify any expense recorded on both the card transaction detail and the checking register, and net out card-payment movements so that no obligation is counted twice. 4. Liquidity floor: determine the combined checking-plus-savings balance that must be preserved given the mortgage, the credit-card balance, utilities, groceries, medical or home expenses, and the variability of consulting income. 5. Conclusions: resolve the gifting and charitable-giving questions against the preserved liquidity floor. The analysis must additionally answer the following question stack: - Is the $40,955.92 investment-transfer line properly classified as household spending, planned saving, or an internal capital movement? - Are any expenses double-counted across the card detail and the checking register? - Is Bram's consulting income sufficiently predictable to underwrite a fixed monthly obligation, given its lumpiness relative to payroll? - Which single line in the files is most likely to cause a reviewer to overestimate or underestimate affordable capacity? Conclude with the following four determinations, each stated as a specific dollar figure: - the largest recurring monthly education gift that can be safely committed; - the largest annual increase to charitable giving that can be sustained concurrently; - whether the combined commitment can be funded from cash flow alone; - the single file line most likely to distort the affordability assessment. Additionally, present the supporting computation for each determination. Moreover, reconcile every total back to the enumerated figures above. Use exact dollar figures drawn from the files. Do not give a vague range. Do not defer the calculation by advising consultation with a financial advisor. Do not propose selling the home. Do not propose reducing essential insurance coverage. Do not draw on retirement assets.",
+    "id": "lh_T3_09_Expanded1",
+    "words": 672,
+    "p_llm": 0.3287348579201038,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  },
+  {
+    "variant_id": "Expanded 2",
+    "persona": "Cornelius Whitaker",
+    "tier": "T3_blatant",
+    "blind_score": 7,
+    "text": "I am Cornelius Whitaker, fiduciary representative for the Holloway household, and I require a strict, file-based audit of the Holloway 2025 tax situation that distinguishes precisely among what constitutes income, what constitutes a disclosure obligation, what is deductible, and what is merely a large background figure carrying no immediate tax or liquidity consequence. The following figures are established by the source files and should anchor the analysis. Trust distributions for the year total $120,000.00. The Ashworth Settlement carries a total trust value of $2,100,000.00, of which the principal remains inaccessible until the beneficiary reaches age 45. Consulting gross receipts are $47,800.00, consulting expenses are $36,500.00, and consulting net profit is therefore $11,300.00. Sterling mortgage interest is $18,640.22, property tax is $9,850.00, and state income tax is $4,120.00, against a 2025 SALT deduction cap of $10,000.00 and a married-filing-jointly standard deduction of $30,000.00. HartwellCole investment income comprises taxable interest of $612.33, ordinary dividends of $1,920.45, qualified dividends of $1,510.00, and capital-gain distributions of $2,240.00. The foreign tax voucher reflects foreign tax paid of $3,480.00. Year-end Cornerstone checking is $3,151.84. The three credit-card balances are $9,420.55, $7,310.18, and $5,260.40, for a combined balance of $21,991.13. The FBAR filing threshold is an aggregate $10,000.00 in foreign accounts, and Forms 3520 and 3520-A apply to the foreign trust regardless of whether they produce tax. Use the complete document set: the context note, the draft 2025 tax tracker, Forms 3520 and 3520-A for the Ashworth Settlement, the trustee annual accounts, the foreign disclosure and FBAR and Form 8938 materials, the foreign tax voucher, the consulting income and expense records, the HartwellCole investment statement, the Cornerstone bank statement and checking transactions, the Sterling mortgage Form 1098, and the three credit-card statements. The draft tracker is labeled unreliable; therefore, do not restate it as the answer. A figure that appears in the draft is not the same as a figure the files support, and a large balance sheet is not the same as available cash. Identify only what the documents actually substantiate. Furthermore, recognize that the foreign reporting forms may be mandatory even where they generate no tax. Moreover, the large trust value shown in the trustee accounts must not be used to resolve cash-flow or credit-card problems, because the principal is locked until age 45. Structure the deliverable as an audit memo organized under three labels: Supported, Needs Correction, and Dangerous Assumption. 1. Under Supported, list every amount the files prove and trace how each flows into the tax return or the disclosure package. 2. Under Needs Correction, list every draft-tracker line that reflects the right concept but the wrong number, the wrong form, or incomplete source support. 3. Under Dangerous Assumption, list every item that would make the household appear more liquid, more deductible, or less exposed than the files justify. The memo must address, at minimum, the following issues: - Trust distributions and whether they belong in taxable income; - Consulting income, consulting expenses, and net profit; - Foreign reporting forms versus actual tax owed; - Foreign tax voucher treatment, including credit versus deduction; - Mortgage interest and property tax measured against the standard deduction; - Investment income and any other taxable items; - Checking cash, card balances, and the reasons trust principal is not a liquidity solution. Additionally, answer each of the following questions explicitly: Which portion of the $120,000.00 in trust distributions, if any, is includible in taxable income? What is the correct consulting net profit, and does it reconcile to $11,300.00? Which foreign forms are required for filing purposes only, and which carry tax consequences? Should the $3,480.00 of foreign tax be claimed as a credit or as an itemized deduction? Do total itemized deductions exceed the $30,000.00 standard deduction after applying the $10,000.00 SALT cap? What is the total of taxable investment income? And how does the $3,151.84 year-end checking balance compare to the $21,991.13 in aggregate card balances and near-term obligations? Close with three components: a corrected starting point for taxable income expressed as a single dollar figure; a concise foreign-reporting checklist enumerating each required form; and a cash-risk paragraph that compares year-end checking to total card balances and imminent obligations. Additionally, flag every location where a file is missing or insufficient. Use exact dollar figures wherever the files support them. Do not give a vague range. Do not summarize the draft tracker as the answer. Do not treat trust principal as available cash. Do not say \"consult a tax professional\" in place of performing the calculation. Do not omit a required foreign disclosure merely because it produces no tax.",
+    "id": "lh_T3_10_Expanded2",
+    "words": 761,
+    "p_llm": 0.14359590437440634,
+    "band": "UNCERTAIN",
+    "conformal_set": [
+      "human",
+      "LLM"
+    ],
+    "top_detector": null
+  }
+]

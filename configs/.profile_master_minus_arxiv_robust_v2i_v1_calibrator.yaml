@@ -1,0 +1,19 @@
+_profile: master_minus_arxiv_robust_v2i_v1_calibrator
+_extends: default
+
+# Exp 9: train EBM with v1's detector_calibration.json (only 10
+# calibrated detectors) but on v2 corpus + v8 cache + drop specdetect
+# and LAPD from EBM input. Tests whether v2's expanded calibrator
+# schema (added perturbation + specdetect) is the regression source.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

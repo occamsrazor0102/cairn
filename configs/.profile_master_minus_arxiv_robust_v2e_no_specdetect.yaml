@@ -1,0 +1,20 @@
+_profile: master_minus_arxiv_robust_v2e_no_specdetect
+_extends: default
+
+# Follow-up experiment 5 (H1 control): same as robust_v2 but EBM
+# trained with ALL 9 specdetect features dropped. Tests whether the
+# regression is from specdetect's mere presence in the EBM input
+# vector. Should approximately match v1 if H1 (dilution from extra
+# columns) is wrong.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

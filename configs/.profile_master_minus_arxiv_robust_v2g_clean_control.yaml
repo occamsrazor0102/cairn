@@ -1,0 +1,19 @@
+_profile: master_minus_arxiv_robust_v2g_clean_control
+_extends: default
+
+# Exp 8: TRUE v1-equivalent control. v2-pipeline retrain with ALL
+# specdetect AND LAPD features dropped from EBM input. Same feature
+# schema as v1 (77 features). If this matches v1, the retraining
+# itself is not the regression source.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

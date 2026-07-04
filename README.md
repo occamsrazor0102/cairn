@@ -139,7 +139,7 @@ scripts/                     Training pipeline:
                               cache_pipeline_features.py, modal_cache_features.py
                               run_profile_grid.py, run_per_source_loo.py, run_loss_filter.py
                               download_hc3.py, download_ood_samples.py, download_prompt_samples.py
-tests/                       ~35 test files (~340 passing) covering contracts, detectors,
+tests/                       ~80 test modules (~760+ passing) covering contracts, detectors,
                               router, cascade, fusion, decision, calibration, evaluation
 ```
 
@@ -161,7 +161,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-~35 test files (~340 passing) covering contracts, detectors, router,
+~80 test modules (~760+ passing) covering contracts, detectors, router,
 cascade, fusion, decision, calibration, evaluation, monitoring,
 privacy, provenance, history, the HTTP API, and the sidecar RPC.
 These are structural tests (did the field land in the report, did

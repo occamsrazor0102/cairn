@@ -37,6 +37,81 @@ venv/
 !/models/calib2000/profiles/master_minus_arxiv_robust_v1/ebm.pkl.meta.json
 !/models/calib2000/profiles/master_minus_arxiv_robust_v1/conformal.json
 !/models/calib2000/profiles/master_minus_arxiv_robust_v1/detector_calibration.json
+# SpecDetect-augmented variant (robust_v2). Same allowlist pattern.
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2/detector_calibration.json
+# robust_v2 follow-up ablation profiles (a/b/c/d). All four regressed
+# vs robust_v1 -- kept on disk for inspection but not promoted.
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/detector_calibration.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/detector_calibration.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/detector_calibration.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/detector_calibration.json
+# Second-round ablation profiles (e/f/g/h/i) from the H1/H2/H3 deep dive.
+# All regressed vs v1; kept on disk for inspection.
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/detector_calibration.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/detector_calibration.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/detector_calibration.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/detector_calibration.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/
+/models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/*
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/ebm.pkl.hmac
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/ebm.pkl.meta.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/conformal.json
+!/models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/detector_calibration.json
 
 # Local editor / IDE
 .vscode/

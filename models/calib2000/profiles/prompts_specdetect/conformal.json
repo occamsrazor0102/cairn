@@ -1,0 +1,1 @@
+{"alpha": 0.05, "threshold": 0.7604258307398127, "n_calibration": 800, "schema": "binary-split-conformal-v3", "threshold_per_class": {"0": 0.429641316031959, "1": 0.8251152409821274}, "n_per_class": {"0": 400, "1": 400}, "threshold_per_router": {"prose": {"0": 0.38294811350907354, "1": 0.8515829569583953}}, "n_per_router": {"prose": 734}}

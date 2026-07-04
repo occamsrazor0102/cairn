@@ -48,14 +48,41 @@ hf_cache = modal.Volume.from_name("cairn-hf-cache", create_if_missing=True)
 
 @app.function(
     image=image,
-    gpu="T4",
-    timeout=3600,
+    # H200 (141 GB HBM3e) -- top-tier inference card. A10G (24 GB) ran
+    # at ~0.05-0.09 s/sample on the 110k-row full_coverage cache pass;
+    # H200 is ~1.3x faster than H100 and ~3-4x faster than A10G on
+    # transformer token-decode (HBM3e bandwidth ~4.8 TB/s vs 3.35 on
+    # H100 vs 0.6 on A10G). Projected to land the full cache in
+    # ~30-45 min. Cost is higher per hour (~$5-6/hr on H200 vs ~$1.10/hr
+    # on A10G) but total spend is roughly net-neutral or only slightly
+    # higher because the faster GPU finishes sooner.
+    gpu="H200",
+    # 6 hours -- 110k unique training rows; H200 should finish much
+    # sooner but we keep the ceiling generous in case of cold-start
+    # or model-load stalls.
+    timeout=21600,
     secrets=[modal.Secret.from_dotenv()],
     volumes={"/root/.cache/huggingface": hf_cache},
 )
-def cache_features(dataset_jsonl: bytes, config_path: str = "configs/default.yaml") -> bytes:
-    """Run pipeline.analyze_detailed on each unique text. Returns JSONL bytes."""
-    import io
+def cache_features(
+    dataset_jsonl: bytes,
+    config_path: str = "configs/default.yaml",
+    run_id: str = "v8",
+) -> dict:
+    """Run pipeline.analyze_detailed on each unique text.
+
+    Returns a small manifest dict; the JSONL result lives on the
+    persistent ``cairn-hf-cache`` Modal Volume at
+    ``/cairn_cache_output/{run_id}_features.jsonl``. The local entrypoint
+    downloads the file via ``Volume.read_file`` to avoid Modal's
+    return-value blob path (which crashed in Modal 1.4.2 with
+    ``UnimplementedError: method BlobGet not implemented`` when returning
+    >~10 MB of bytes).
+
+    Checkpoints incrementally to the same path so Modal worker preemption
+    (auto-restart with same inputs) resumes where the previous run left
+    off instead of reprocessing from scratch.
+    """
     import json
     import os
     import sys
@@ -68,42 +95,164 @@ def cache_features(dataset_jsonl: bytes, config_path: str = "configs/default.yam
     from cairn.feature_cache import text_hash, write_record
     from cairn.pipeline import CairnPipeline, normalize_text
 
+    # Persistent checkpoint -- the HF volume survives worker preemption.
+    # On restart we read back already-processed text hashes so the next
+    # pass only does new work.
+    checkpoint_path = f"/root/.cache/huggingface/cairn_cache_output/{run_id}_features.jsonl"
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+
+    seen: set[str] = set()
+    if os.path.exists(checkpoint_path):
+        with open(checkpoint_path, "r", encoding="utf-8") as cp:
+            for ln in cp:
+                if not ln.strip():
+                    continue
+                try:
+                    rec = json.loads(ln)
+                except json.JSONDecodeError:
+                    # Partial line written when the worker was preempted
+                    # mid-record. Safe to skip -- we'll re-process that
+                    # text and append a fresh record below.
+                    continue
+                h = rec.get("hash")
+                if h:
+                    seen.add(h)
+        print(f"resuming from checkpoint: {len(seen)} entries already cached", flush=True)
+
     pipeline = CairnPipeline.from_config_file(config_path)
 
-    out = io.StringIO()
-    seen: set[str] = set()
     n_dup = 0
     n_done = 0
     text = dataset_jsonl.decode("utf-8")
     lines = [ln for ln in text.split("\n") if ln.strip()]
     print(f"processing {len(lines)} samples...", flush=True)
-    for line in lines:
-        sample = json.loads(line)
-        norm = normalize_text(sample["text"])
-        key = text_hash(norm)
-        if key in seen:
-            n_dup += 1
-            continue
-        seen.add(key)
-        _det, results, rd = pipeline.analyze_detailed(norm)
-        write_record(out, key, results, rd)
-        n_done += 1
-        if n_done % 100 == 0:
-            print(f"  {n_done} unique texts cached, {n_dup} duplicates", flush=True)
 
-    print(f"done: {n_done} unique features, {n_dup} duplicates", flush=True)
-    return out.getvalue().encode("utf-8")
+    with open(checkpoint_path, "a", encoding="utf-8") as cp:
+        for line in lines:
+            sample = json.loads(line)
+            norm = normalize_text(sample["text"])
+            key = text_hash(norm)
+            if key in seen:
+                n_dup += 1
+                continue
+            seen.add(key)
+            _det, results, rd = pipeline.analyze_detailed(norm)
+            write_record(cp, key, results, rd)
+            cp.flush()
+            n_done += 1
+            if n_done % 100 == 0:
+                # Periodic volume commit -- writes only become durable
+                # across preemption when committed.
+                hf_cache.commit()
+                print(
+                    f"  {n_done} new cached this run, "
+                    f"{len(seen)} total in checkpoint, {n_dup} duplicates",
+                    flush=True,
+                )
+
+    hf_cache.commit()
+    print(
+        f"done: {n_done} new this run; {len(seen)} total in checkpoint; "
+        f"{n_dup} duplicates skipped",
+        flush=True,
+    )
+
+    return {
+        "run_id": run_id,
+        "remote_path": f"cairn_cache_output/{run_id}_features.jsonl",
+        "n_total": len(seen),
+        "n_new_this_run": n_done,
+        "n_duplicates": n_dup,
+    }
 
 
 @app.local_entrypoint()
-def main(dataset_path: str, out_path: str, config_path: str = "configs/default.yaml") -> None:
-    """Local driver: read dataset, send to GPU, write cache to disk."""
+def main(
+    dataset_path: str,
+    out_path: str,
+    config_path: str = "configs/default.yaml",
+    run_id: str = "v8",
+    shards: int = 1,
+) -> None:
+    """Local driver: read dataset, send to GPU, write cache to disk.
+
+    When ``shards > 1``, splits the input into N contiguous shards and
+    runs them in parallel containers via Modal ``starmap``. Each shard
+    uses its own resumable checkpoint (``{run_id}_shard{i}``). Outputs
+    are merged with hash dedup on the local side.
+    """
+    import json
     from pathlib import Path
 
     src = Path(dataset_path).read_bytes()
-    print(f"sending {len(src):,} bytes to Modal GPU function ({dataset_path})...")
-    cache_bytes = cache_features.remote(src, config_path)
+
+    def _download_shard_bytes(remote_path: str) -> bytes:
+        # Local-side reads see the latest committed-by-the-worker state
+        # by the time the manifest is returned. ``Volume.reload()`` can
+        # only be called from inside a running Modal function, not here.
+        buf = bytearray()
+        for chunk in hf_cache.read_file(remote_path):
+            buf.extend(chunk)
+        return bytes(buf)
+
+    if shards <= 1:
+        print(f"sending {len(src):,} bytes to Modal GPU function ({dataset_path})...")
+        manifest = cache_features.remote(src, config_path, run_id)
+        print(f"worker manifest: {manifest}")
+        print(f"downloading {manifest['remote_path']} from cairn-hf-cache volume...")
+        cache_bytes = _download_shard_bytes(manifest["remote_path"])
+        Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_path).write_bytes(cache_bytes)
+        n_lines = cache_bytes.count(b"\n")
+        print(f"wrote {n_lines:,} cached features to {out_path}")
+        return
+
+    text = src.decode("utf-8")
+    lines = [ln for ln in text.split("\n") if ln.strip()]
+    n = len(lines)
+    shard_size = (n + shards - 1) // shards
+    shard_args = []
+    for i in range(shards):
+        start = i * shard_size
+        end = min((i + 1) * shard_size, n)
+        if start >= end:
+            continue
+        shard_bytes = ("\n".join(lines[start:end]) + "\n").encode("utf-8")
+        shard_args.append((shard_bytes, config_path, f"{run_id}_shard{i}"))
+        print(f"  shard {i}: rows [{start}, {end}) -> {len(shard_bytes):,} bytes")
+
+    print(f"fanning out {len(shard_args)} parallel shards to Modal...")
+    manifests = list(cache_features.starmap(shard_args))
+    for m in manifests:
+        print(f"  worker manifest: {m}")
+
+    seen: set[str] = set()
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(out_path).write_bytes(cache_bytes)
-    n_lines = cache_bytes.count(b"\n")
-    print(f"wrote {n_lines:,} cached features to {out_path}")
+    n_total = 0
+    n_dup_xshard = 0
+    with open(out_path, "w", encoding="utf-8") as out:
+        for idx, manifest in enumerate(manifests):
+            remote_path = manifest["remote_path"]
+            print(f"  shard {idx}: downloading {remote_path}...", flush=True)
+            shard_bytes = _download_shard_bytes(remote_path)
+            for raw in shard_bytes.decode("utf-8").splitlines():
+                if not raw.strip():
+                    continue
+                try:
+                    rec = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                h = rec.get("hash")
+                if not h:
+                    continue
+                if h in seen:
+                    n_dup_xshard += 1
+                    continue
+                seen.add(h)
+                out.write(raw + "\n")
+                n_total += 1
+            print(f"  shard {idx}: merged ({n_total} unique so far)")
+    print(
+        f"wrote {n_total:,} unique features to {out_path} "
+        f"({n_dup_xshard} cross-shard duplicates merged)"
+    )

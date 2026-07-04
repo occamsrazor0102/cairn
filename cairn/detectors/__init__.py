@@ -6,7 +6,6 @@ implementing the Detector protocol.
 import importlib
 import logging
 import pkgutil
-from pathlib import Path
 from cairn.contracts import Detector
 
 _logger = logging.getLogger("cairn.detectors")
@@ -18,19 +17,24 @@ _discovered = False
 
 def _discover() -> None:
     global _discovered
-    package_dir = Path(__file__).parent
-    for module_info in pkgutil.iter_modules([str(package_dir)]):
-        if module_info.name == "__init__" or module_info.name.startswith("_"):
+    # Enumerate submodules via the package's own __path__/__name__ rather
+    # than a raw filesystem directory string. pkgutil.iter_modules over a
+    # literal path only sees real files on disk, which finds nothing in a
+    # PyInstaller frozen build where modules live in the embedded archive;
+    # the frozen importer participates only when given the package __path__.
+    for module_info in pkgutil.iter_modules(__path__, __name__ + "."):
+        short_name = module_info.name.rsplit(".", 1)[-1]
+        if short_name == "__init__" or short_name.startswith("_"):
             continue
         try:
-            mod = importlib.import_module(f"cairn.detectors.{module_info.name}")
+            mod = importlib.import_module(module_info.name)
             if hasattr(mod, "DETECTOR"):
                 d = mod.DETECTOR
                 _registry[d.id] = d
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
-            _missing[module_info.name] = f"{type(e).__name__}: {e}"
+            _missing[short_name] = f"{type(e).__name__}: {e}"
             # Preserve the full traceback so deep import-chain failures
             # (e.g., a detector whose optional dep fails partway through
             # its own __init__) can be diagnosed from logs. The single-
@@ -38,7 +42,7 @@ def _discover() -> None:
             # the traceback is what an operator needs when triaging.
             _logger.debug(
                 "detector discovery failed for %s",
-                module_info.name,
+                short_name,
                 exc_info=True,
             )
     _discovered = True

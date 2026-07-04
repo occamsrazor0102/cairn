@@ -381,7 +381,61 @@ in_domain when removed by 0.005–0.015 — keep them. `prompt_*`
 sources hurt prompts_heldout/fresh by 0.02–0.10 when removed —
 keep for prompt detection.
 
-## Reproducing the calibrated benchmark
+## Reproducing the HC3 benchmark grid (one command)
+
+For the canonical HC3 evaluation across all subsets and the calibrated
+`general_hc3` profile, use the harness:
+
+```bash
+python scripts/run_hc3_benchmark.py
+```
+
+That orchestrates download → stratified split → benchmark across the
+six HC3 subsets (`finance`, `medicine`, `open_qa`, `reddit_eli5`,
+`wiki_csai`, `all`) and writes a consolidated CSV + Markdown table to
+`docs/benchmarks/hc3_grid/`. Use `--skip-existing` to resume an
+interrupted run, `--limit N` for a quick smoke pass, and
+`--features-cache data/all_features_v6.jsonl` to reuse cached detector
+outputs. Default configs are `configs/default.yaml` (heuristic) and
+`configs/.profile_general_hc3.yaml` (calibrated); override with
+`--configs <path> [<path> ...]`.
+
+### Run on Modal GPU (no local CUDA required)
+
+If your local box has no GPU, dispatch the same harness to a Modal T4:
+
+```bash
+pip install modal
+modal token new                 # one-time auth
+modal run scripts/modal_run_hc3_benchmark.py
+modal run scripts/modal_run_hc3_benchmark.py \
+    --subsets finance,medicine \
+    --configs configs/.profile_general_hc3.yaml \
+    --limit 200
+```
+
+The remote function downloads HC3, builds a deduplicated feature cache
+on the GPU (the bottleneck), runs the full grid, and ships back a
+tarball that unpacks into `docs/benchmarks/hc3_grid_modal/` along with
+`data/all_features_hc3_modal.jsonl`. Re-runs are near-instant — HF
+weights and HC3 splits are persisted on Modal Volumes
+(`cairn-hf-cache`, `cairn-hc3-data`).
+
+The returned feature cache also accelerates **local** follow-on
+analyses, so per-detector AUROC and LOO sweeps can stay on CPU:
+
+```bash
+python scripts/per_detector_auroc.py \
+    --features-cache data/all_features_hc3_modal.jsonl \
+    --datasets data/hc3_*_test.jsonl
+```
+
+Cost: ~$0.10 per fresh full grid on a T4 (~10 min wall-clock).
+
+## Reproducing the calibrated benchmark (manual recipe)
+
+The harness above wraps these per-step calls; run them yourself for a
+single-subset training cycle:
 
 ```bash
 # 1. Pull HC3 finance and stratified-split into train/calib/test.

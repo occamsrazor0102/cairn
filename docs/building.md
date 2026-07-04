@@ -8,7 +8,7 @@ Three shells are supported and share one frontend (`cairn/gui/static/index.html`
 | `cairn serve` | FastAPI (requires `cairn[api]` extras) | `fetch()` | Python package |
 | Tauri desktop | Python sidecar subprocess over stdio JSON-RPC | `invoke()` | `.dmg` / `.msi` / `.AppImage` |
 
-The `index.html` auto-detects the host (`window.__TAURI_INTERNALS__`) and routes calls through `beetApi`. The same file works in all three.
+The `index.html` auto-detects the host (`window.__TAURI_INTERNALS__`) and routes calls through `cairnApi`. The same file works in all three.
 
 ---
 
@@ -38,14 +38,14 @@ python --version
 
 ```
 .
-├── beet/                    # Python package (unchanged)
+├── cairn/                   # Python package
 │   ├── gui/
 │   │   ├── server.py        # HTTP shell
 │   │   └── static/index.html # single-file SPA, dual-mode (fetch + invoke)
 │   └── sidecar.py           # JSON-RPC loop over stdio (Tauri backend)
 ├── src-tauri/
 │   ├── Cargo.toml
-│   ├── tauri.conf.json      # frontendDist: ../beet/gui/static
+│   ├── tauri.conf.json      # frontendDist: ../cairn/gui/static
 │   ├── build.rs
 │   ├── src/
 │   │   ├── main.rs          # Tauri app entry + sidecar lifecycle
@@ -90,13 +90,13 @@ cd src-tauri
 cargo tauri dev
 ```
 
-First run compiles the Rust dependencies (~2–5 min). Subsequent runs are incremental. The window opens with the BEET frontend; paste text, analyze, submit feedback, all backed by your local Python.
+First run compiles the Rust dependencies (~2–5 min). Subsequent runs are incremental. The window opens with the CAIRN frontend; paste text, analyze, submit feedback, all backed by your local Python.
 
 **Debugging tips:**
 - Sidecar stderr (Python warnings, logs) is inherited into the Tauri process stderr. Watch the terminal.
 - Add `--log-level DEBUG` to `CAIRN_SIDECAR_CMD` for verbose logs.
 - Frontend DevTools: right-click in the window (dev builds only) → Inspect Element.
-- Rust logs: `RUST_LOG=beet=debug cargo tauri dev`.
+- Rust logs: `RUST_LOG=cairn=debug cargo tauri dev`.
 
 ---
 
@@ -122,9 +122,9 @@ Each wrapper does two things:
 Useful flags: `--no-smoke` / `-SkipSmoke` skips the sidecar smoke; `--sidecar-only` / `-SidecarOnly` stops after step 1.
 
 **Output paths:**
-- macOS: `src-tauri/target/release/bundle/dmg/BEET_2.0.0_aarch64.dmg` (or `x86_64`)
-- Windows: `src-tauri/target/release/bundle/msi/BEET_2.0.0_x64_en-US.msi`
-- Linux: `src-tauri/target/release/bundle/appimage/beet_2.0.0_amd64.AppImage`
+- macOS: `src-tauri/target/release/bundle/dmg/CAIRN_2.0.0_aarch64.dmg` (or `x86_64`)
+- Windows: `src-tauri/target/release/bundle/msi/CAIRN_2.0.0_x64_en-US.msi`
+- Linux: `src-tauri/target/release/bundle/appimage/cairn_2.0.0_amd64.AppImage`
 
 **Smoke test the bundle:**
 1. Launch the installed app.
@@ -147,7 +147,7 @@ cd src-tauri && cargo tauri build
 
 Shipping without code signing is fine for internal use. End users will see:
 
-- **macOS**: *"BEET can't be opened because it is from an unidentified developer."* Right-click → Open → Open again dismisses it. Gatekeeper may also require `xattr -d com.apple.quarantine /Applications/BEET.app` the first time.
+- **macOS**: *"CAIRN can't be opened because it is from an unidentified developer."* Right-click → Open → Open again dismisses it. Gatekeeper may also require `xattr -d com.apple.quarantine /Applications/CAIRN.app` the first time.
 - **Windows**: SmartScreen warning. Click *More info* → *Run anyway*.
 - **Linux**: no warning. Users just `chmod +x` the AppImage.
 
@@ -187,7 +187,7 @@ For an unattended build without cutting a tag, trigger the workflow manually (Ac
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `sidecar binary not found at ... and CAIRN_SIDECAR_CMD not set` | Dev without env var, or production without PyInstaller output | Set `CAIRN_SIDECAR_CMD` or build the sidecar binary into `src-tauri/binaries/` |
-| White window, no content | `frontendDist` path wrong | Check `tauri.conf.json`: should be `../beet/gui/static` (relative to `src-tauri/`) |
+| White window, no content | `frontendDist` path wrong | Check `tauri.conf.json`: should be `../cairn/gui/static` (relative to `src-tauri/`) |
 | `invoke is not defined` in browser mode | Someone opened `index.html` directly as `file://` | Always serve via `cairn gui` (HTTP) or Tauri (invoke) |
 | `ERR_SIDECAR_GONE` on every call | Python subprocess died at startup | Run `CAIRN_SIDECAR_CMD` manually in a shell; check the error |
 | `cargo tauri icon` fails | Source image is not square | Crop to square before running |

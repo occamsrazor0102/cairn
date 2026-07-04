@@ -1,0 +1,42 @@
+{
+  "n_samples": 479,
+  "n_failed": 0,
+  "config_hash": "097896b04974",
+  "metrics": {
+    "auroc": 0.8821,
+    "ece": 0.029,
+    "brier": 0.1344,
+    "tpr_at_fpr_01": 0.4733
+  },
+  "per_tier": {
+    "A0": {
+      "auroc": null,
+      "ece": 0.2011,
+      "brier": 0.1128,
+      "tpr_at_fpr_01": null
+    },
+    "human": {
+      "auroc": null,
+      "ece": 0.3433,
+      "brier": 0.1707,
+      "tpr_at_fpr_01": null
+    }
+  },
+  "per_attack": {},
+  "confusion": {
+    "threshold": 0.5,
+    "tp": 247,
+    "fp": 42,
+    "tn": 137,
+    "fn": 53,
+    "precision": 0.8547,
+    "recall": 0.8233,
+    "f1": 0.8387,
+    "accuracy": 0.8017
+  },
+  "failed_samples": [],
+  "predictions": [],
+  "dataset": "/root/data/hc3_open_qa_test.jsonl",
+  "config": "configs/.profile_general_hc3.yaml",
+  "duration_seconds": 79.34
+}

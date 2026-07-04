@@ -1,0 +1,19 @@
+_profile: master_minus_arxiv_robust_v2c_lowint
+_extends: default
+
+# Follow-up experiment 3: same as robust_v2 but EBM trained with
+# interactions=5 (matches v1 baseline) instead of 15. Tests whether
+# the v2 regression is driven by EBM overfitting in the larger
+# interaction space.
+
+fusion:
+  model_path: models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/ebm.pkl
+  conformal_path: models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/conformal.json
+  detector_calibration_path: models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/detector_calibration.json
+
+detectors:
+  specdetect:
+    enabled: true
+    weight: 0.85
+    model: "gpt2"
+    max_tokens: 512

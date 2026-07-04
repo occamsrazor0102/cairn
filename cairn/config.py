@@ -1,13 +1,23 @@
 # cairn/config.py
 import logging
 import re
+import sys
 from pathlib import Path
 import yaml
 import copy
 
 logger = logging.getLogger("cairn.config")
 
-CONFIGS_DIR = Path(__file__).parent.parent / "configs"
+# Base directory for bundled data files (configs/). In a normal source
+# checkout this is the repo root (cairn/..). In a PyInstaller frozen build
+# the package and its --add-data payload are unpacked under sys._MEIPASS,
+# so resolve there instead — Path(__file__) points inside the archive.
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    _BASE_DIR = Path(sys._MEIPASS)
+else:
+    _BASE_DIR = Path(__file__).parent.parent
+
+CONFIGS_DIR = _BASE_DIR / "configs"
 PATTERNS_DIR = CONFIGS_DIR / "patterns"
 
 _PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")

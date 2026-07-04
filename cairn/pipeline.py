@@ -97,7 +97,7 @@ def detector_availability(config: dict) -> list[dict]:
             row["reason"] = "batch-only (needs 2+ submissions)"
             out.append(row)
             continue
-        if det_id in {"contrastive_lm", "surprisal_dynamics", "perturbation", "token_cohesiveness"}:
+        if det_id in {"contrastive_lm", "surprisal_dynamics", "perturbation", "token_cohesiveness", "lapd", "specdetect"}:
             row["requires"] = ["transformers", "torch"]
             if not has_transformers:
                 row["reason"] = "requires cairn[tier2] (transformers + torch)"
@@ -299,7 +299,14 @@ class CairnPipeline:
                 conformal = None
         if model is None and conformal is None:
             return DEFAULT_FUSION
-        return EBMFusion(model=model, conformal=conformal)
+        # OOD-length guard (opt-in per profile). Caps word_count before the
+        # length features so prompts far longer than the training distribution
+        # don't inherit the EBM's saturated long-tail length contribution.
+        clamp = fusion_cfg.get("word_count_clamp")
+        return EBMFusion(
+            model=model, conformal=conformal,
+            word_count_clamp=int(clamp) if clamp is not None else None,
+        )
 
     @staticmethod
     def _build_detector_calibrator(config: dict):
@@ -334,6 +341,19 @@ class CairnPipeline:
         cfg = self._config
         # Reset per-call detector-failure accumulator (initialised in __init__).
         self._phase_errors = []
+        # Auto-derive task_description when caller didn't supply one and the
+        # config opts in. Default auto_mode is "off" (no behavior change for
+        # existing callers). Warning is attached after decide() so the
+        # decision engine can still own Determination.warnings normally.
+        auto_warning: str | None = None
+        td_cfg = cfg.get("task_description") or {}
+        if td_cfg.get("auto_mode", "off") not in ("off", None, False):
+            existing_td = (task_metadata or {}).get("task_description")
+            if not existing_td:
+                from cairn.task_description import auto_derive
+                desc, _mode_used, auto_warning = auto_derive(text, td_cfg)
+                if desc:
+                    task_metadata = {**(task_metadata or {}), "task_description": desc}
         results: list[LayerResult] = []
         phases_run = [1]
         phase1_results = self._run_phase(1, text, cfg, router_decision.skip_detectors, task_metadata)
@@ -354,6 +374,12 @@ class CairnPipeline:
         determination = self._decision.decide(fusion_result, results)
         determination.cascade_phases = phases_run
         determination.detector_errors = list(self._phase_errors)
+        # decide() defaults calibration_status to "heuristic"; stamp the
+        # pipeline's actual status so the determination (and report.py) agree
+        # with /health instead of always claiming heuristic.
+        determination.calibration_status = self._calibration_status
+        if auto_warning:
+            determination.warnings = list(determination.warnings or []) + [auto_warning]
         if self._monitor is not None:
             try:
                 vec = self._fusion._assembler.assemble(
@@ -431,6 +457,7 @@ class CairnPipeline:
                 )
                 enriched = self._decision.decide(fusion_result, results)
                 enriched.cascade_phases = det.cascade_phases + [4]
+                enriched.calibration_status = self._calibration_status
                 per_sub[sid] = (enriched, results, rd)
 
         return {sid: triple[0] for sid, triple in per_sub.items()}
