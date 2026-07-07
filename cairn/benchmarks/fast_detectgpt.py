@@ -169,18 +169,30 @@ class FastDetectGPTAdapter:
 
     # ------------------------------------------------------------------ api
 
-    def score(self, text: str) -> float:
-        """Return p(LLM) ∈ [0, 1] for ``text`` under the Fast-DetectGPT curvature."""
+    def curvature(self, text: str) -> float:
+        """Return the raw conditional-probability curvature for ``text``.
+
+        Public entry point so in-tree consumers (the ``fast_detectgpt``
+        detector, and ``token_cohesiveness``'s base channel) can read the
+        unbounded curvature statistic — not just the squashed p(LLM) —
+        without reaching into ``_curvature``/``_ensure_loaded``. Raises if
+        the adapter is unavailable; guard with :meth:`is_available` first.
+        """
         if not self.is_available():
             raise RuntimeError(
                 "FastDetectGPTAdapter is not available; "
                 "install cairn[tier2] (torch + transformers)."
             )
         if not text or not text.strip():
-            return 0.5
+            return 0.0
         self._ensure_loaded()
-        curvature = self._curvature(text)
-        return _heuristic_curvature_to_p_llm(curvature)
+        return self._curvature(text)
+
+    def score(self, text: str) -> float:
+        """Return p(LLM) ∈ [0, 1] for ``text`` under the Fast-DetectGPT curvature."""
+        if not text or not text.strip():
+            return 0.5
+        return _heuristic_curvature_to_p_llm(self.curvature(text))
 
 
 # Module-level singleton instance.

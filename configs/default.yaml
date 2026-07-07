@@ -7,6 +7,12 @@ runtime:
                       # instead of using the explicitly-loaded profile.
 
 detectors:
+  # preamble / fingerprint_vocab score near chance as standalone *calibrated*
+  # p(LLM) on calib2000 (AUROC 0.52 / 0.54 — see
+  # docs/benchmarks/calib2000/per_detector_auroc.csv) but remain high-precision
+  # in heuristic mode for overt cases (e.g. "As an AI language model…"), so
+  # they stay enabled here. Whether to drop them from a *calibrated profile's*
+  # EBM is a per-profile LOO call made at retrain, not a blanket default.
   preamble:
     enabled: true
     weight: 1.0
@@ -31,12 +37,25 @@ detectors:
   contrastive_lm:
     enabled: true
     weight: 0.90
+  # perturbation (classic DetectGPT, ~100 word-swap forward passes) is
+  # superseded by fast_detectgpt's analytic curvature (~340x cheaper).
   perturbation:
     enabled: false
     weight: 0.80
+  fast_detectgpt:
+    enabled: true
+    weight: 0.90
+    # Scoring LM. gpt2 keeps the base install lean; for the paper's 0.93
+    # black-box AUROC set this to EleutherAI/gpt-neo-2.7B (also via the
+    # CAIRN_FAST_DETECTGPT_MODEL env var). Requires cairn[tier2].
+    model: "gpt2"
+  # Faithful TOCSIN rebuild (EMNLP 2024): BART-base cohesiveness + a
+  # Fast-DetectGPT base channel. The prior MiniLM-cosine implementation
+  # scored at chance (AUROC 0.50); this restores the published method.
   token_cohesiveness:
     enabled: true
     weight: 0.75
+    model: "facebook/bart-base"
   contrastive_gen:
     enabled: false
     weight: 0.95
@@ -72,6 +91,11 @@ detectors:
     weight: 0.85
     model: "gpt2"
     max_tokens: 512
+  # mixed_boundary (CUSUM over lexical word-list dissonance) scored at chance
+  # as a standalone p(LLM) (AUROC 0.51). Left enabled (it drives the
+  # mixed-authorship report, not just a fusion feature); a SeqXGPT-style
+  # sentence-waveform replacement is the deferred follow-up (no public
+  # checkpoints yet). Drop-from-fusion is a retrain-time LOO decision.
   mixed_boundary:
     enabled: true
     weight: 0.80

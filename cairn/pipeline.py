@@ -97,7 +97,7 @@ def detector_availability(config: dict) -> list[dict]:
             row["reason"] = "batch-only (needs 2+ submissions)"
             out.append(row)
             continue
-        if det_id in {"contrastive_lm", "surprisal_dynamics", "perturbation", "token_cohesiveness", "lapd", "specdetect"}:
+        if det_id in {"contrastive_lm", "surprisal_dynamics", "perturbation", "token_cohesiveness", "fast_detectgpt", "lapd", "specdetect"}:
             row["requires"] = ["transformers", "torch"]
             if not has_transformers:
                 row["reason"] = "requires cairn[tier2] (transformers + torch)"
