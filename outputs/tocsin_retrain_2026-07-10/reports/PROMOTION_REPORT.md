@@ -3,12 +3,16 @@
 ## Preflight
 
 - Candidate `prompts_only_tocsin_v2`: VALID
-- Comparator `prompts_only`: VALID
+- Comparator `prompts_only`: INVALID
 - Comparator `prompts_specdetect`: INVALID
 
-## Verified provenance
+## Provenance status
 
-- Status: `VERIFIED`
+- Provenance status: `VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND`
+- Diagnostic allowed: `True`
+- Promotion allowed: `False`
+- Retrospective manifest: `outputs/tocsin_retrain_2026-07-10/manifests/retrospective-cache-provenance.json` SHA-256 `bdc8576acac8d2b2cecfdcd6fc425eea984741116821316147fa35ec7dc7bd38`
+- Unbound fields: `modal_output_lineage`, `modal_output_sha256`, `actual_base_identity`, `huggingface_model_revisions`, `modal_image_digest`
 - Candidate integrity manifest: `outputs\tocsin_retrain_2026-07-10\manifests\candidate-integrity.json` SHA-256 `5e55416397af3052deda4e6f9e0a59ff25a96f2109b378e587098c4e52ffbed4`
   - `configs/.profile_prompts_only_tocsin_v2.yaml` SHA-256 `b99b36e91b19c6e5229b478715a58d7bd207b6172e4ff362221a1487fcf8fce3` (382 bytes)
   - `models/calib2000/profiles/prompts_only_tocsin_v2/conformal.json` SHA-256 `4ac78138983bd433a381c872547a2d191f1c49f5cf63b992db6c70fcc343a323` (509 bytes)
@@ -46,8 +50,9 @@
 | Status | Gate ID | Scope | Profile | Slice | Observed | Operator | Reference | Detail |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | PASS | `preflight.comparator_identity` | preflight | NA | NA | true | is | true |  |
+| FAIL | `preflight.provenance` | preflight | NA | NA | VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND | == | promotion-grade provenance distinct from cairn.tocsin-cache-retrospective.v1/VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND | UNPROMOTABLE_PROVENANCE: schema=cairn.tocsin-cache-retrospective.v1; status=VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND; promotion_allowed=False; unbound_fields=['modal_output_lineage', 'modal_output_sha256', 'actual_base_identity', 'huggingface_model_revisions', 'modal_image_digest'] |
 | PASS | `preflight.candidate_artifacts` | preflight | prompts_only_tocsin_v2 | NA | true | is | true |  |
-| PASS | `preflight.comparator.prompts_only.artifacts` | preflight | prompts_only | NA | true | is | true |  |
+| FAIL | `preflight.comparator.prompts_only.artifacts` | preflight | prompts_only | NA | false | is | true | INVALID_COMPARATOR prompts_only:<br>smoke calibration_status=degraded, expected calibrated* |
 | FAIL | `preflight.comparator.prompts_specdetect.artifacts` | preflight | prompts_specdetect | NA | false | is | true | INVALID_COMPARATOR prompts_specdetect:<br>missing models/calib2000/profiles/prompts_specdetect/ebm.skops<br>missing models/calib2000/profiles/prompts_specdetect/ebm.skops.hmac |
 | PASS | `detector.eligible_rows` | detector | token_cohesiveness | prompt_test | 1822 | == | 1822 |  |
 | PASS | `detector.support_coverage` | detector | token_cohesiveness | prompt_test | 1.0 | == | 1.0 |  |
@@ -79,37 +84,37 @@
 | PASS | `candidate.ood_mage_test.in_unit_interval` | candidate | prompts_only_tocsin_v2 | ood_mage_test | true | is | true |  |
 | PASS | `candidate.ood_mage_test.max_ebm_reconstruction_error` | candidate | prompts_only_tocsin_v2 | ood_mage_test | 4.440892098500626e-16 | <= | 1e-09 |  |
 | PASS | `candidate.prompt_test.conformal_truth_coverage_count` | candidate | prompts_only_tocsin_v2 | prompt_test | 5816 | between_inclusive | [5759,5826] |  |
-| PASS | `comparator.prompts_only.prompt_test.all_ebm` | comparator | prompts_only | prompt_test | true | is | true |  |
-| PASS | `comparator.prompts_only.prompt_test.finite` | comparator | prompts_only | prompt_test | true | is | true |  |
-| PASS | `comparator.prompts_only.prompt_test.in_unit_interval` | comparator | prompts_only | prompt_test | true | is | true |  |
-| PASS | `comparator.prompts_only.prompt_test.max_ebm_reconstruction_error` | comparator | prompts_only | prompt_test | 2.220446049250313e-16 | <= | 1e-09 |  |
-| PASS | `comparator.prompts_only.humanized_hard.all_ebm` | comparator | prompts_only | humanized_hard | true | is | true |  |
-| PASS | `comparator.prompts_only.humanized_hard.finite` | comparator | prompts_only | humanized_hard | true | is | true |  |
-| PASS | `comparator.prompts_only.humanized_hard.in_unit_interval` | comparator | prompts_only | humanized_hard | true | is | true |  |
-| PASS | `comparator.prompts_only.humanized_hard.max_ebm_reconstruction_error` | comparator | prompts_only | humanized_hard | 3.3306690738754696e-16 | <= | 1e-09 |  |
-| PASS | `comparator.prompts_only.ood_m4_test.all_ebm` | comparator | prompts_only | ood_m4_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_m4_test.finite` | comparator | prompts_only | ood_m4_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_m4_test.in_unit_interval` | comparator | prompts_only | ood_m4_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_m4_test.max_ebm_reconstruction_error` | comparator | prompts_only | ood_m4_test | 2.220446049250313e-16 | <= | 1e-09 |  |
-| PASS | `comparator.prompts_only.ood_raid_test.all_ebm` | comparator | prompts_only | ood_raid_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_raid_test.finite` | comparator | prompts_only | ood_raid_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_raid_test.in_unit_interval` | comparator | prompts_only | ood_raid_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_raid_test.max_ebm_reconstruction_error` | comparator | prompts_only | ood_raid_test | 2.220446049250313e-16 | <= | 1e-09 |  |
-| PASS | `comparator.prompts_only.ood_mage_test.all_ebm` | comparator | prompts_only | ood_mage_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_mage_test.finite` | comparator | prompts_only | ood_mage_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_mage_test.in_unit_interval` | comparator | prompts_only | ood_mage_test | true | is | true |  |
-| PASS | `comparator.prompts_only.ood_mage_test.max_ebm_reconstruction_error` | comparator | prompts_only | ood_mage_test | 1.6653345369377348e-16 | <= | 1e-09 |  |
-| PASS | `comparator.prompts_only.prompt_test.brier` | comparator | prompts_only | prompt_test | 0.11969087765849079 | <= | 0.16873460543911678 |  |
-| PASS | `comparator.prompts_only.prompt_test.log_loss` | comparator | prompts_only | prompt_test | 0.3771571715517195 | <= | 0.5242738183610238 |  |
-| PASS | `comparator.prompts_only.prompt_test.balanced_accuracy` | comparator | prompts_only | prompt_test | 0.832896031485733 | >= | 0.7645162348310921 |  |
-| PASS | `comparator.prompts_only.prompt_test.auroc` | comparator | prompts_only | prompt_test | 0.9103609558150515 | >= | 0.8123902454293872 |  |
-| FAIL | `comparator.prompts_only.prompt_test.human_fpr` | comparator | prompts_only | prompt_test | 0.1774352246638242 | <= | 0.15874057067891112 | prompts_only prompt_test Human FPR: candidate regressed |
-| PASS | `comparator.prompts_only.humanized_hard.auroc` | comparator | prompts_only | humanized_hard | 0.9179583995760466 | >= | 0.5341202967673556 |  |
-| PASS | `comparator.prompts_only.humanized_hard.tpr_at_fpr_05` | comparator | prompts_only | humanized_hard | 0.6372549019607843 | >= | 0.0976470588235294 |  |
-| PASS | `comparator.prompts_only.humanized_hard.tpr_at_fpr_10` | comparator | prompts_only | humanized_hard | 0.7058823529411765 | >= | 0.15647058823529414 |  |
-| FAIL | `comparator.prompts_only.ood_m4_test.auroc` | comparator | prompts_only | ood_m4_test | 0.5334 | >= | 0.607 | prompts_only ood_m4_test auroc: regression exceeds 0.02 |
-| FAIL | `comparator.prompts_only.ood_raid_test.auroc` | comparator | prompts_only | ood_raid_test | 0.5489 | >= | 0.6476000000000001 | prompts_only ood_raid_test auroc: regression exceeds 0.02 |
-| FAIL | `comparator.prompts_only.ood_mage_test.auroc` | comparator | prompts_only | ood_mage_test | 0.43839999999999996 | >= | 0.4992 | prompts_only ood_mage_test auroc: regression exceeds 0.02 |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.all_ebm` | comparator | prompts_only | prompt_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.finite` | comparator | prompts_only | prompt_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.in_unit_interval` | comparator | prompts_only | prompt_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.max_ebm_reconstruction_error` | comparator | prompts_only | prompt_test | NA | <= | 1e-09 | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.humanized_hard.all_ebm` | comparator | prompts_only | humanized_hard | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.humanized_hard.finite` | comparator | prompts_only | humanized_hard | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.humanized_hard.in_unit_interval` | comparator | prompts_only | humanized_hard | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.humanized_hard.max_ebm_reconstruction_error` | comparator | prompts_only | humanized_hard | NA | <= | 1e-09 | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_m4_test.all_ebm` | comparator | prompts_only | ood_m4_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_m4_test.finite` | comparator | prompts_only | ood_m4_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_m4_test.in_unit_interval` | comparator | prompts_only | ood_m4_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_m4_test.max_ebm_reconstruction_error` | comparator | prompts_only | ood_m4_test | NA | <= | 1e-09 | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_raid_test.all_ebm` | comparator | prompts_only | ood_raid_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_raid_test.finite` | comparator | prompts_only | ood_raid_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_raid_test.in_unit_interval` | comparator | prompts_only | ood_raid_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_raid_test.max_ebm_reconstruction_error` | comparator | prompts_only | ood_raid_test | NA | <= | 1e-09 | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_mage_test.all_ebm` | comparator | prompts_only | ood_mage_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_mage_test.finite` | comparator | prompts_only | ood_mage_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_mage_test.in_unit_interval` | comparator | prompts_only | ood_mage_test | NA | is | true | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_mage_test.max_ebm_reconstruction_error` | comparator | prompts_only | ood_mage_test | NA | <= | 1e-09 | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.brier` | comparator | prompts_only | prompt_test | NA | <= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.log_loss` | comparator | prompts_only | prompt_test | NA | <= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.balanced_accuracy` | comparator | prompts_only | prompt_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.auroc` | comparator | prompts_only | prompt_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.prompt_test.human_fpr` | comparator | prompts_only | prompt_test | NA | <= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.humanized_hard.auroc` | comparator | prompts_only | humanized_hard | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.humanized_hard.tpr_at_fpr_05` | comparator | prompts_only | humanized_hard | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.humanized_hard.tpr_at_fpr_10` | comparator | prompts_only | humanized_hard | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_m4_test.auroc` | comparator | prompts_only | ood_m4_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_raid_test.auroc` | comparator | prompts_only | ood_raid_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_only.ood_mage_test.auroc` | comparator | prompts_only | ood_mage_test | NA | >= | NA | comparator artifacts are invalid |
 | NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.all_ebm` | comparator | prompts_specdetect | prompt_test | NA | is | true | comparator artifacts are invalid |
 | NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.finite` | comparator | prompts_specdetect | prompt_test | NA | is | true | comparator artifacts are invalid |
 | NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.in_unit_interval` | comparator | prompts_specdetect | prompt_test | NA | is | true | comparator artifacts are invalid |
@@ -130,17 +135,17 @@
 | NOT_EVALUATED | `comparator.prompts_specdetect.ood_mage_test.finite` | comparator | prompts_specdetect | ood_mage_test | NA | is | true | comparator artifacts are invalid |
 | NOT_EVALUATED | `comparator.prompts_specdetect.ood_mage_test.in_unit_interval` | comparator | prompts_specdetect | ood_mage_test | NA | is | true | comparator artifacts are invalid |
 | NOT_EVALUATED | `comparator.prompts_specdetect.ood_mage_test.max_ebm_reconstruction_error` | comparator | prompts_specdetect | ood_mage_test | NA | <= | 1e-09 | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.brier` | comparator | prompts_specdetect | prompt_test | 0.11969087765849079 | <= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.log_loss` | comparator | prompts_specdetect | prompt_test | 0.3771571715517195 | <= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.balanced_accuracy` | comparator | prompts_specdetect | prompt_test | 0.832896031485733 | >= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.auroc` | comparator | prompts_specdetect | prompt_test | 0.9103609558150515 | >= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.human_fpr` | comparator | prompts_specdetect | prompt_test | 0.1774352246638242 | <= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.humanized_hard.auroc` | comparator | prompts_specdetect | humanized_hard | 0.9179583995760466 | >= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.humanized_hard.tpr_at_fpr_05` | comparator | prompts_specdetect | humanized_hard | 0.6372549019607843 | >= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.humanized_hard.tpr_at_fpr_10` | comparator | prompts_specdetect | humanized_hard | 0.7058823529411765 | >= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.ood_m4_test.auroc` | comparator | prompts_specdetect | ood_m4_test | 0.5334 | >= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.ood_raid_test.auroc` | comparator | prompts_specdetect | ood_raid_test | 0.5489 | >= | NA | comparator artifacts are invalid |
-| NOT_EVALUATED | `comparator.prompts_specdetect.ood_mage_test.auroc` | comparator | prompts_specdetect | ood_mage_test | 0.43839999999999996 | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.brier` | comparator | prompts_specdetect | prompt_test | NA | <= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.log_loss` | comparator | prompts_specdetect | prompt_test | NA | <= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.balanced_accuracy` | comparator | prompts_specdetect | prompt_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.auroc` | comparator | prompts_specdetect | prompt_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.human_fpr` | comparator | prompts_specdetect | prompt_test | NA | <= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.humanized_hard.auroc` | comparator | prompts_specdetect | humanized_hard | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.humanized_hard.tpr_at_fpr_05` | comparator | prompts_specdetect | humanized_hard | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.humanized_hard.tpr_at_fpr_10` | comparator | prompts_specdetect | humanized_hard | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.ood_m4_test.auroc` | comparator | prompts_specdetect | ood_m4_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.ood_raid_test.auroc` | comparator | prompts_specdetect | ood_raid_test | NA | >= | NA | comparator artifacts are invalid |
+| NOT_EVALUATED | `comparator.prompts_specdetect.ood_mage_test.auroc` | comparator | prompts_specdetect | ood_mage_test | NA | >= | NA | comparator artifacts are invalid |
 
 ## Detector calibration
 

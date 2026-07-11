@@ -1,13 +1,12 @@
 {
   "failures": [
+    "UNPROMOTABLE_PROVENANCE: schema=cairn.tocsin-cache-retrospective.v1; status=VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND; promotion_allowed=False; unbound_fields=['modal_output_lineage', 'modal_output_sha256', 'actual_base_identity', 'huggingface_model_revisions', 'modal_image_digest']",
+    "INVALID_COMPARATOR prompts_only:\nsmoke calibration_status=degraded, expected calibrated*",
     "INVALID_COMPARATOR prompts_specdetect:\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops.hmac",
-    "detector: candidate Brier must beat constant prevalence",
-    "prompts_only prompt_test Human FPR: candidate regressed",
-    "prompts_only ood_m4_test auroc: regression exceeds 0.02",
-    "prompts_only ood_raid_test auroc: regression exceeds 0.02",
-    "prompts_only ood_mage_test auroc: regression exceeds 0.02"
+    "detector: candidate Brier must beat constant prevalence"
   ],
   "provenance": {
+    "calibration_identity": null,
     "candidate_integrity": {
       "artifacts": {
         "configs/.profile_prompts_only_tocsin_v2.yaml": {
@@ -38,6 +37,13 @@
       "manifest_path": "outputs\\tocsin_retrain_2026-07-10\\manifests\\candidate-integrity.json",
       "manifest_sha256": "5e55416397af3052deda4e6f9e0a59ff25a96f2109b378e587098c4e52ffbed4"
     },
+    "diagnostic_allowed": true,
+    "promotion_allowed": false,
+    "retrospective_manifest": {
+      "path": "outputs/tocsin_retrain_2026-07-10/manifests/retrospective-cache-provenance.json",
+      "sha256": "bdc8576acac8d2b2cecfdcd6fc425eea984741116821316147fa35ec7dc7bd38"
+    },
+    "schema": "cairn.tocsin-cache-retrospective.v1",
     "slices": {
       "hard_human": {
         "cache_path": "outputs\\tocsin_retrain_2026-07-10\\caches\\_hard_human_clean.features.jsonl",
@@ -94,7 +100,14 @@
         "unique_hashes": 6098
       }
     },
-    "status": "VERIFIED"
+    "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+    "unbound_fields": [
+      "modal_output_lineage",
+      "modal_output_sha256",
+      "actual_base_identity",
+      "huggingface_model_revisions",
+      "modal_image_digest"
+    ]
   },
   "status": "DO_NOT_PROMOTE"
 }

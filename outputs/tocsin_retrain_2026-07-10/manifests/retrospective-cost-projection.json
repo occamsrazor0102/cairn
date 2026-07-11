@@ -1,0 +1,46 @@
+{
+  "actual_cost": {
+    "cumulative_compute_usd": "3.74629304587930356",
+    "full_run_compute_usd": "3.65594809910513184",
+    "pilot_run_compute_usd": "0.09034494677417172"
+  },
+  "caps": {
+    "effective_run_cap_usd": "14.70",
+    "original_total_exposure_cap_usd": "15.00"
+  },
+  "corrected_cost_model": {
+    "eligible_seconds_per_row": "0.1715504180546874609375",
+    "ineligible_seconds_per_row": "0.0114690100859376484375",
+    "unattributed_seconds_per_row": "0.0414337779374999453125",
+    "warmup_seconds": "29.591460253"
+  },
+  "corrected_projection": {
+    "eligible_rows": 11926,
+    "gate": "PASS",
+    "ineligible_rows": 19266,
+    "projected_cumulative_usd": "5.186391248046176582109975000",
+    "projected_full_compute_usd": "5.096046301272004862109975000",
+    "projected_full_seconds": "3588.8660957153756881250000",
+    "total_rows": 31192,
+    "worker_count": 1
+  },
+  "original_projection": {
+    "gate": "PASS",
+    "projected_cumulative_usd": "3.351231534116606064295492500",
+    "projected_full_seconds": "2296.4636942888774"
+  },
+  "schema": "cairn.tocsin-cost-retrospective.v1",
+  "source_manifests": {
+    "full": {
+      "bytes": 4295,
+      "path": "outputs/tocsin_retrain_2026-07-10/manifests/modal-full.json",
+      "sha256": "d0159e1dedd6c24371272e9ea38701658e2d29e91499caa81b7c791a9110905f"
+    },
+    "pilot": {
+      "bytes": 4146,
+      "path": "outputs/tocsin_retrain_2026-07-10/manifests/modal-pilot.json",
+      "sha256": "f752f280e5de0d4c580201cfaf4281203296b7a9be07e92b0d3af7ad948aaf55"
+    }
+  },
+  "unattributed_worker_seconds": "10.607047151999986"
+}

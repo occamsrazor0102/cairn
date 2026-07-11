@@ -491,497 +491,7 @@
   "candidate_name": "prompts_only_tocsin_v2",
   "challenge": null,
   "challenge_not_run_reason": "invalid_comparator_avoided_additional_compute",
-  "comparators": {
-    "prompts_only": {
-      "humanized_hard": {
-        "all_ebm": true,
-        "auroc": 0.5541202967673556,
-        "balanced_accuracy": 0.5437864334923158,
-        "brier": 0.20396441224022718,
-        "conformal_truth_coverage": 0.9371859296482412,
-        "conformal_truth_coverage_count": 373,
-        "conformal_truth_coverage_n": 398,
-        "ece": 0.1475463638237873,
-        "endpoint_fraction": 0.0,
-        "finite": true,
-        "human_fpr": 0.02027027027027027,
-        "human_mean": 0.1316659519300703,
-        "in_unit_interval": true,
-        "log_loss": 0.6446151832481309,
-        "max_ebm_reconstruction_error": 3.3306690738754696e-16,
-        "n": 398,
-        "n_unique": 398,
-        "positive_mean": 0.20543639475656114,
-        "reliability_curve": [
-          {
-            "count": 165,
-            "lower": 0.0,
-            "mean_probability": 0.06398008085300434,
-            "positive_rate": 0.22424242424242424,
-            "upper": 0.1
-          },
-          {
-            "count": 181,
-            "lower": 0.1,
-            "mean_probability": 0.13449625702268914,
-            "positive_rate": 0.2596685082872928,
-            "upper": 0.2
-          },
-          {
-            "count": 21,
-            "lower": 0.2,
-            "mean_probability": 0.22886668672076485,
-            "positive_rate": 0.2857142857142857,
-            "upper": 0.30000000000000004
-          },
-          {
-            "count": 12,
-            "lower": 0.30000000000000004,
-            "mean_probability": 0.33866060636689227,
-            "positive_rate": 0.08333333333333333,
-            "upper": 0.4
-          },
-          {
-            "count": 2,
-            "lower": 0.4,
-            "mean_probability": 0.47354513069287246,
-            "positive_rate": 0.0,
-            "upper": 0.5
-          },
-          {
-            "count": 2,
-            "lower": 0.5,
-            "mean_probability": 0.5381065330623251,
-            "positive_rate": 0.0,
-            "upper": 0.6000000000000001
-          },
-          {
-            "count": 1,
-            "lower": 0.6000000000000001,
-            "mean_probability": 0.6599458188553307,
-            "positive_rate": 0.0,
-            "upper": 0.7000000000000001
-          },
-          {
-            "count": 0,
-            "lower": 0.7000000000000001,
-            "mean_probability": null,
-            "positive_rate": null,
-            "upper": 0.8
-          },
-          {
-            "count": 1,
-            "lower": 0.8,
-            "mean_probability": 0.8953543343128382,
-            "positive_rate": 1.0,
-            "upper": 0.9
-          },
-          {
-            "count": 13,
-            "lower": 0.9,
-            "mean_probability": 0.9675666920307895,
-            "positive_rate": 0.7692307692307693,
-            "upper": 1.0
-          }
-        ],
-        "selective_accuracy": 0.7967479674796748,
-        "singleton_rate": 0.30904522613065327,
-        "specificity": 0.9797297297297297,
-        "tpr_at_fpr_05": 0.11764705882352941,
-        "tpr_at_fpr_10": 0.17647058823529413
-      },
-      "ood": {
-        "ood_m4_test": {
-          "all_ebm": true,
-          "auroc": 0.627,
-          "balanced_accuracy": 0.515,
-          "brier": 0.33262891864284994,
-          "conformal_truth_coverage": 0.94,
-          "conformal_truth_coverage_count": 188,
-          "conformal_truth_coverage_n": 200,
-          "ece": 0.3015717320763754,
-          "endpoint_fraction": 0.0,
-          "finite": true,
-          "human_fpr": 0.06,
-          "human_mean": 0.18591871714893074,
-          "in_unit_interval": true,
-          "log_loss": 0.9473002943833602,
-          "max_ebm_reconstruction_error": 2.220446049250313e-16,
-          "n": 200,
-          "n_unique": 200,
-          "positive_mean": 0.2357604456638535,
-          "reliability_curve": [
-            {
-              "count": 46,
-              "lower": 0.0,
-              "mean_probability": 0.07180146448461516,
-              "positive_rate": 0.3695652173913043,
-              "upper": 0.1
-            },
-            {
-              "count": 80,
-              "lower": 0.1,
-              "mean_probability": 0.15201159633821543,
-              "positive_rate": 0.4375,
-              "upper": 0.2
-            },
-            {
-              "count": 39,
-              "lower": 0.2,
-              "mean_probability": 0.23890502688732349,
-              "positive_rate": 0.6153846153846154,
-              "upper": 0.30000000000000004
-            },
-            {
-              "count": 9,
-              "lower": 0.30000000000000004,
-              "mean_probability": 0.3482673534514331,
-              "positive_rate": 0.6666666666666666,
-              "upper": 0.4
-            },
-            {
-              "count": 11,
-              "lower": 0.4,
-              "mean_probability": 0.44038940401185395,
-              "positive_rate": 0.8181818181818182,
-              "upper": 0.5
-            },
-            {
-              "count": 4,
-              "lower": 0.5,
-              "mean_probability": 0.5417510464633082,
-              "positive_rate": 0.75,
-              "upper": 0.6000000000000001
-            },
-            {
-              "count": 10,
-              "lower": 0.6000000000000001,
-              "mean_probability": 0.6363307844170905,
-              "positive_rate": 0.6,
-              "upper": 0.7000000000000001
-            },
-            {
-              "count": 0,
-              "lower": 0.7000000000000001,
-              "mean_probability": null,
-              "positive_rate": null,
-              "upper": 0.8
-            },
-            {
-              "count": 1,
-              "lower": 0.8,
-              "mean_probability": 0.8778235041058441,
-              "positive_rate": 0.0,
-              "upper": 0.9
-            },
-            {
-              "count": 0,
-              "lower": 0.9,
-              "mean_probability": null,
-              "positive_rate": null,
-              "upper": 1.0
-            }
-          ],
-          "selective_accuracy": 0.52,
-          "singleton_rate": 0.125,
-          "specificity": 0.94,
-          "tpr_at_fpr_05": 0.06,
-          "tpr_at_fpr_10": 0.21
-        },
-        "ood_mage_test": {
-          "all_ebm": true,
-          "auroc": 0.5192,
-          "balanced_accuracy": 0.515,
-          "brier": 0.3505332609010008,
-          "conformal_truth_coverage": 0.955,
-          "conformal_truth_coverage_count": 191,
-          "conformal_truth_coverage_n": 200,
-          "ece": 0.31138278206030096,
-          "endpoint_fraction": 0.0,
-          "finite": true,
-          "human_fpr": 0.07,
-          "human_mean": 0.21957501704869856,
-          "in_unit_interval": true,
-          "log_loss": 0.9901946950099125,
-          "max_ebm_reconstruction_error": 1.6653345369377348e-16,
-          "n": 200,
-          "n_unique": 200,
-          "positive_mean": 0.2233167091786122,
-          "reliability_curve": [
-            {
-              "count": 25,
-              "lower": 0.0,
-              "mean_probability": 0.07357458994873954,
-              "positive_rate": 0.48,
-              "upper": 0.1
-            },
-            {
-              "count": 94,
-              "lower": 0.1,
-              "mean_probability": 0.14503093946806775,
-              "positive_rate": 0.46808510638297873,
-              "upper": 0.2
-            },
-            {
-              "count": 46,
-              "lower": 0.2,
-              "mean_probability": 0.23700631969839495,
-              "positive_rate": 0.5869565217391305,
-              "upper": 0.30000000000000004
-            },
-            {
-              "count": 10,
-              "lower": 0.30000000000000004,
-              "mean_probability": 0.34316137847756356,
-              "positive_rate": 0.4,
-              "upper": 0.4
-            },
-            {
-              "count": 8,
-              "lower": 0.4,
-              "mean_probability": 0.46046298724754064,
-              "positive_rate": 0.375,
-              "upper": 0.5
-            },
-            {
-              "count": 8,
-              "lower": 0.5,
-              "mean_probability": 0.5445714031214512,
-              "positive_rate": 0.75,
-              "upper": 0.6000000000000001
-            },
-            {
-              "count": 6,
-              "lower": 0.6000000000000001,
-              "mean_probability": 0.6553108786285314,
-              "positive_rate": 0.5,
-              "upper": 0.7000000000000001
-            },
-            {
-              "count": 1,
-              "lower": 0.7000000000000001,
-              "mean_probability": 0.7268638081318832,
-              "positive_rate": 0.0,
-              "upper": 0.8
-            },
-            {
-              "count": 1,
-              "lower": 0.8,
-              "mean_probability": 0.8435593307451712,
-              "positive_rate": 1.0,
-              "upper": 0.9
-            },
-            {
-              "count": 1,
-              "lower": 0.9,
-              "mean_probability": 0.9404315395122358,
-              "positive_rate": 0.0,
-              "upper": 1.0
-            }
-          ],
-          "selective_accuracy": 0.18181818181818182,
-          "singleton_rate": 0.055,
-          "specificity": 0.93,
-          "tpr_at_fpr_05": 0.08,
-          "tpr_at_fpr_10": 0.13
-        },
-        "ood_raid_test": {
-          "all_ebm": true,
-          "auroc": 0.6676000000000001,
-          "balanced_accuracy": 0.63,
-          "brier": 0.2778798281094233,
-          "conformal_truth_coverage": 0.95,
-          "conformal_truth_coverage_count": 190,
-          "conformal_truth_coverage_n": 200,
-          "ece": 0.251543579816368,
-          "endpoint_fraction": 0.0,
-          "finite": true,
-          "human_fpr": 0.03,
-          "human_mean": 0.164428098819153,
-          "in_unit_interval": true,
-          "log_loss": 0.8260051419250252,
-          "max_ebm_reconstruction_error": 2.220446049250313e-16,
-          "n": 200,
-          "n_unique": 200,
-          "positive_mean": 0.3447449504370784,
-          "reliability_curve": [
-            {
-              "count": 56,
-              "lower": 0.0,
-              "mean_probability": 0.06785612246549573,
-              "positive_rate": 0.48214285714285715,
-              "upper": 0.1
-            },
-            {
-              "count": 70,
-              "lower": 0.1,
-              "mean_probability": 0.15191597154381414,
-              "positive_rate": 0.3142857142857143,
-              "upper": 0.2
-            },
-            {
-              "count": 27,
-              "lower": 0.2,
-              "mean_probability": 0.2452543144973497,
-              "positive_rate": 0.4444444444444444,
-              "upper": 0.30000000000000004
-            },
-            {
-              "count": 7,
-              "lower": 0.30000000000000004,
-              "mean_probability": 0.36356480784514184,
-              "positive_rate": 0.42857142857142855,
-              "upper": 0.4
-            },
-            {
-              "count": 8,
-              "lower": 0.4,
-              "mean_probability": 0.4561873269820691,
-              "positive_rate": 0.875,
-              "upper": 0.5
-            },
-            {
-              "count": 5,
-              "lower": 0.5,
-              "mean_probability": 0.5314391916915372,
-              "positive_rate": 0.8,
-              "upper": 0.6000000000000001
-            },
-            {
-              "count": 10,
-              "lower": 0.6000000000000001,
-              "mean_probability": 0.629902713878468,
-              "positive_rate": 0.9,
-              "upper": 0.7000000000000001
-            },
-            {
-              "count": 6,
-              "lower": 0.7000000000000001,
-              "mean_probability": 0.7329362682905961,
-              "positive_rate": 1.0,
-              "upper": 0.8
-            },
-            {
-              "count": 3,
-              "lower": 0.8,
-              "mean_probability": 0.8710034814827862,
-              "positive_rate": 0.6666666666666666,
-              "upper": 0.9
-            },
-            {
-              "count": 8,
-              "lower": 0.9,
-              "mean_probability": 0.9625092682316363,
-              "positive_rate": 1.0,
-              "upper": 1.0
-            }
-          ],
-          "selective_accuracy": 0.7058823529411765,
-          "singleton_rate": 0.17,
-          "specificity": 0.97,
-          "tpr_at_fpr_05": 0.36,
-          "tpr_at_fpr_10": 0.4
-        }
-      },
-      "prompt_test": {
-        "all_ebm": true,
-        "auroc": 0.8223902454293872,
-        "balanced_accuracy": 0.7745162348310921,
-        "brier": 0.16873460543911678,
-        "conformal_truth_coverage": 0.9781895703509347,
-        "conformal_truth_coverage_count": 5965,
-        "conformal_truth_coverage_n": 6098,
-        "ece": 0.057474078666098646,
-        "endpoint_fraction": 0.0,
-        "finite": true,
-        "human_fpr": 0.15874057067891112,
-        "human_mean": 0.25137537654891196,
-        "in_unit_interval": true,
-        "log_loss": 0.5242738183610238,
-        "max_ebm_reconstruction_error": 2.220446049250313e-16,
-        "n": 6098,
-        "n_unique": 4484,
-        "positive_mean": 0.6475964487009689,
-        "reliability_curve": [
-          {
-            "count": 1000,
-            "lower": 0.0,
-            "mean_probability": 0.06276133377845922,
-            "positive_rate": 0.201,
-            "upper": 0.1
-          },
-          {
-            "count": 1297,
-            "lower": 0.1,
-            "mean_probability": 0.14625228553953565,
-            "positive_rate": 0.2536622976098689,
-            "upper": 0.2
-          },
-          {
-            "count": 716,
-            "lower": 0.2,
-            "mean_probability": 0.24078700126891714,
-            "positive_rate": 0.2388268156424581,
-            "upper": 0.30000000000000004
-          },
-          {
-            "count": 260,
-            "lower": 0.30000000000000004,
-            "mean_probability": 0.3476111785727765,
-            "positive_rate": 0.36153846153846153,
-            "upper": 0.4
-          },
-          {
-            "count": 183,
-            "lower": 0.4,
-            "mean_probability": 0.44336721347036656,
-            "positive_rate": 0.5245901639344263,
-            "upper": 0.5
-          },
-          {
-            "count": 204,
-            "lower": 0.5,
-            "mean_probability": 0.5486812015463782,
-            "positive_rate": 0.5588235294117647,
-            "upper": 0.6000000000000001
-          },
-          {
-            "count": 289,
-            "lower": 0.6000000000000001,
-            "mean_probability": 0.6461389948794242,
-            "positive_rate": 0.6089965397923875,
-            "upper": 0.7000000000000001
-          },
-          {
-            "count": 971,
-            "lower": 0.7000000000000001,
-            "mean_probability": 0.7712126282263766,
-            "positive_rate": 0.8032955715756952,
-            "upper": 0.8
-          },
-          {
-            "count": 284,
-            "lower": 0.8,
-            "mean_probability": 0.8498686721157744,
-            "positive_rate": 0.8450704225352113,
-            "upper": 0.9
-          },
-          {
-            "count": 894,
-            "lower": 0.9,
-            "mean_probability": 0.9571819330389263,
-            "positive_rate": 0.9485458612975392,
-            "upper": 1.0
-          }
-        ],
-        "selective_accuracy": 0.9010416666666666,
-        "singleton_rate": 0.2204001311905543,
-        "specificity": 0.8412594293210889,
-        "tpr_at_fpr_05": 0.4519514594949164,
-        "tpr_at_fpr_10": 0.6297146605444408
-      }
-    }
-  },
+  "comparators": {},
   "detector_calibration": {
     "candidate": {
       "auroc": 0.49812359770647097,
@@ -1270,6 +780,19 @@
       "status": "PASS"
     },
     {
+      "failure_detail": "UNPROMOTABLE_PROVENANCE: schema=cairn.tocsin-cache-retrospective.v1; status=VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND; promotion_allowed=False; unbound_fields=['modal_output_lineage', 'modal_output_sha256', 'actual_base_identity', 'huggingface_model_revisions', 'modal_image_digest']",
+      "gate_id": "preflight.provenance",
+      "label": "Identity-bound retrospective provenance",
+      "not_evaluated_reason": null,
+      "observed": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+      "operator": "==",
+      "profile": null,
+      "reference": "promotion-grade provenance distinct from cairn.tocsin-cache-retrospective.v1/VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+      "scope": "preflight",
+      "slice": null,
+      "status": "FAIL"
+    },
+    {
       "failure_detail": null,
       "gate_id": "preflight.candidate_artifacts",
       "label": "Candidate artifact validity",
@@ -1283,17 +806,17 @@
       "status": "PASS"
     },
     {
-      "failure_detail": null,
+      "failure_detail": "INVALID_COMPARATOR prompts_only:\nsmoke calibration_status=degraded, expected calibrated*",
       "gate_id": "preflight.comparator.prompts_only.artifacts",
       "label": "Comparator prompts_only artifact validity",
       "not_evaluated_reason": null,
-      "observed": true,
+      "observed": false,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "preflight",
       "slice": null,
-      "status": "PASS"
+      "status": "FAIL"
     },
     {
       "failure_detail": "INVALID_COMPARATOR prompts_specdetect:\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops.hmac",
@@ -1705,404 +1228,404 @@
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.all_ebm",
       "label": "comparator prompts_only prompt_test: All rows use fusion_mode=ebm",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.finite",
       "label": "comparator prompts_only prompt_test: All p_llm values are finite",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.in_unit_interval",
       "label": "comparator prompts_only prompt_test: All p_llm values are in [0, 1]",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.max_ebm_reconstruction_error",
       "label": "comparator prompts_only prompt_test: maximum EBM reconstruction error",
-      "not_evaluated_reason": null,
-      "observed": 2.220446049250313e-16,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
       "reference": 1e-09,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.humanized_hard.all_ebm",
       "label": "comparator prompts_only humanized_hard: All rows use fusion_mode=ebm",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "humanized_hard",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.humanized_hard.finite",
       "label": "comparator prompts_only humanized_hard: All p_llm values are finite",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "humanized_hard",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.humanized_hard.in_unit_interval",
       "label": "comparator prompts_only humanized_hard: All p_llm values are in [0, 1]",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "humanized_hard",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.humanized_hard.max_ebm_reconstruction_error",
       "label": "comparator prompts_only humanized_hard: maximum EBM reconstruction error",
-      "not_evaluated_reason": null,
-      "observed": 3.3306690738754696e-16,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
       "reference": 1e-09,
       "scope": "comparator",
       "slice": "humanized_hard",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_m4_test.all_ebm",
       "label": "comparator prompts_only ood_m4_test: All rows use fusion_mode=ebm",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_m4_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_m4_test.finite",
       "label": "comparator prompts_only ood_m4_test: All p_llm values are finite",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_m4_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_m4_test.in_unit_interval",
       "label": "comparator prompts_only ood_m4_test: All p_llm values are in [0, 1]",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_m4_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_m4_test.max_ebm_reconstruction_error",
       "label": "comparator prompts_only ood_m4_test: maximum EBM reconstruction error",
-      "not_evaluated_reason": null,
-      "observed": 2.220446049250313e-16,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
       "reference": 1e-09,
       "scope": "comparator",
       "slice": "ood_m4_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_raid_test.all_ebm",
       "label": "comparator prompts_only ood_raid_test: All rows use fusion_mode=ebm",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_raid_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_raid_test.finite",
       "label": "comparator prompts_only ood_raid_test: All p_llm values are finite",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_raid_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_raid_test.in_unit_interval",
       "label": "comparator prompts_only ood_raid_test: All p_llm values are in [0, 1]",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_raid_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_raid_test.max_ebm_reconstruction_error",
       "label": "comparator prompts_only ood_raid_test: maximum EBM reconstruction error",
-      "not_evaluated_reason": null,
-      "observed": 2.220446049250313e-16,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
       "reference": 1e-09,
       "scope": "comparator",
       "slice": "ood_raid_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_mage_test.all_ebm",
       "label": "comparator prompts_only ood_mage_test: All rows use fusion_mode=ebm",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_mage_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_mage_test.finite",
       "label": "comparator prompts_only ood_mage_test: All p_llm values are finite",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_mage_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_mage_test.in_unit_interval",
       "label": "comparator prompts_only ood_mage_test: All p_llm values are in [0, 1]",
-      "not_evaluated_reason": null,
-      "observed": true,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "is",
       "profile": "prompts_only",
       "reference": true,
       "scope": "comparator",
       "slice": "ood_mage_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_mage_test.max_ebm_reconstruction_error",
       "label": "comparator prompts_only ood_mage_test: maximum EBM reconstruction error",
-      "not_evaluated_reason": null,
-      "observed": 1.6653345369377348e-16,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
       "reference": 1e-09,
       "scope": "comparator",
       "slice": "ood_mage_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.brier",
       "label": "prompts_only prompt_test brier",
-      "not_evaluated_reason": null,
-      "observed": 0.11969087765849079,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
-      "reference": 0.16873460543911678,
+      "reference": null,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.log_loss",
       "label": "prompts_only prompt_test log_loss",
-      "not_evaluated_reason": null,
-      "observed": 0.3771571715517195,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
-      "reference": 0.5242738183610238,
+      "reference": null,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.balanced_accuracy",
       "label": "prompts_only prompt_test balanced accuracy",
-      "not_evaluated_reason": null,
-      "observed": 0.832896031485733,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.7645162348310921,
+      "reference": null,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.auroc",
       "label": "prompts_only prompt_test auroc",
-      "not_evaluated_reason": null,
-      "observed": 0.9103609558150515,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.8123902454293872,
+      "reference": null,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
-      "failure_detail": "prompts_only prompt_test Human FPR: candidate regressed",
+      "failure_detail": null,
       "gate_id": "comparator.prompts_only.prompt_test.human_fpr",
       "label": "prompts_only prompt_test Human FPR",
-      "not_evaluated_reason": null,
-      "observed": 0.1774352246638242,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_only",
-      "reference": 0.15874057067891112,
+      "reference": null,
       "scope": "comparator",
       "slice": "prompt_test",
-      "status": "FAIL"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.humanized_hard.auroc",
       "label": "prompts_only humanized_hard auroc",
-      "not_evaluated_reason": null,
-      "observed": 0.9179583995760466,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.5341202967673556,
+      "reference": null,
       "scope": "comparator",
       "slice": "humanized_hard",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.humanized_hard.tpr_at_fpr_05",
       "label": "prompts_only humanized_hard tpr_at_fpr_05",
-      "not_evaluated_reason": null,
-      "observed": 0.6372549019607843,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.0976470588235294,
+      "reference": null,
       "scope": "comparator",
       "slice": "humanized_hard",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
       "gate_id": "comparator.prompts_only.humanized_hard.tpr_at_fpr_10",
       "label": "prompts_only humanized_hard tpr_at_fpr_10",
-      "not_evaluated_reason": null,
-      "observed": 0.7058823529411765,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.15647058823529414,
+      "reference": null,
       "scope": "comparator",
       "slice": "humanized_hard",
-      "status": "PASS"
+      "status": "NOT_EVALUATED"
     },
     {
-      "failure_detail": "prompts_only ood_m4_test auroc: regression exceeds 0.02",
+      "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_m4_test.auroc",
       "label": "prompts_only ood_m4_test auroc",
-      "not_evaluated_reason": null,
-      "observed": 0.5334,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.607,
+      "reference": null,
       "scope": "comparator",
       "slice": "ood_m4_test",
-      "status": "FAIL"
+      "status": "NOT_EVALUATED"
     },
     {
-      "failure_detail": "prompts_only ood_raid_test auroc: regression exceeds 0.02",
+      "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_raid_test.auroc",
       "label": "prompts_only ood_raid_test auroc",
-      "not_evaluated_reason": null,
-      "observed": 0.5489,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.6476000000000001,
+      "reference": null,
       "scope": "comparator",
       "slice": "ood_raid_test",
-      "status": "FAIL"
+      "status": "NOT_EVALUATED"
     },
     {
-      "failure_detail": "prompts_only ood_mage_test auroc: regression exceeds 0.02",
+      "failure_detail": null,
       "gate_id": "comparator.prompts_only.ood_mage_test.auroc",
       "label": "prompts_only ood_mage_test auroc",
-      "not_evaluated_reason": null,
-      "observed": 0.43839999999999996,
+      "not_evaluated_reason": "comparator artifacts are invalid",
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_only",
-      "reference": 0.4992,
+      "reference": null,
       "scope": "comparator",
       "slice": "ood_mage_test",
-      "status": "FAIL"
+      "status": "NOT_EVALUATED"
     },
     {
       "failure_detail": null,
@@ -2369,7 +1892,7 @@
       "gate_id": "comparator.prompts_specdetect.prompt_test.brier",
       "label": "prompts_specdetect prompt_test brier",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.11969087765849079,
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2382,7 +1905,7 @@
       "gate_id": "comparator.prompts_specdetect.prompt_test.log_loss",
       "label": "prompts_specdetect prompt_test log_loss",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.3771571715517195,
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2395,7 +1918,7 @@
       "gate_id": "comparator.prompts_specdetect.prompt_test.balanced_accuracy",
       "label": "prompts_specdetect prompt_test balanced accuracy",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.832896031485733,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2408,7 +1931,7 @@
       "gate_id": "comparator.prompts_specdetect.prompt_test.auroc",
       "label": "prompts_specdetect prompt_test auroc",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.9103609558150515,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2421,7 +1944,7 @@
       "gate_id": "comparator.prompts_specdetect.prompt_test.human_fpr",
       "label": "prompts_specdetect prompt_test Human FPR",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.1774352246638242,
+      "observed": null,
       "operator": "<=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2434,7 +1957,7 @@
       "gate_id": "comparator.prompts_specdetect.humanized_hard.auroc",
       "label": "prompts_specdetect humanized_hard auroc",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.9179583995760466,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2447,7 +1970,7 @@
       "gate_id": "comparator.prompts_specdetect.humanized_hard.tpr_at_fpr_05",
       "label": "prompts_specdetect humanized_hard tpr_at_fpr_05",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.6372549019607843,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2460,7 +1983,7 @@
       "gate_id": "comparator.prompts_specdetect.humanized_hard.tpr_at_fpr_10",
       "label": "prompts_specdetect humanized_hard tpr_at_fpr_10",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.7058823529411765,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2473,7 +1996,7 @@
       "gate_id": "comparator.prompts_specdetect.ood_m4_test.auroc",
       "label": "prompts_specdetect ood_m4_test auroc",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.5334,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2486,7 +2009,7 @@
       "gate_id": "comparator.prompts_specdetect.ood_raid_test.auroc",
       "label": "prompts_specdetect ood_raid_test auroc",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.5489,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2499,7 +2022,7 @@
       "gate_id": "comparator.prompts_specdetect.ood_mage_test.auroc",
       "label": "prompts_specdetect ood_mage_test auroc",
       "not_evaluated_reason": "comparator artifacts are invalid",
-      "observed": 0.43839999999999996,
+      "observed": null,
       "operator": ">=",
       "profile": "prompts_specdetect",
       "reference": null,
@@ -2517,9 +2040,11 @@
     "comparator_identity_valid": true,
     "comparators": {
       "prompts_only": {
-        "failures": [],
+        "failures": [
+          "smoke calibration_status=degraded, expected calibrated*"
+        ],
         "name": "prompts_only",
-        "valid": true
+        "valid": false
       },
       "prompts_specdetect": {
         "failures": [
@@ -2531,9 +2056,11 @@
       }
     },
     "failures": [
+      "INVALID_COMPARATOR prompts_only:\nsmoke calibration_status=degraded, expected calibrated*",
       "INVALID_COMPARATOR prompts_specdetect:\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops.hmac"
     ],
     "provenance": {
+      "calibration_identity": null,
       "candidate_integrity": {
         "artifacts": {
           "configs/.profile_prompts_only_tocsin_v2.yaml": {
@@ -2564,6 +2091,13 @@
         "manifest_path": "outputs\\tocsin_retrain_2026-07-10\\manifests\\candidate-integrity.json",
         "manifest_sha256": "5e55416397af3052deda4e6f9e0a59ff25a96f2109b378e587098c4e52ffbed4"
       },
+      "diagnostic_allowed": true,
+      "promotion_allowed": false,
+      "retrospective_manifest": {
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/retrospective-cache-provenance.json",
+        "sha256": "bdc8576acac8d2b2cecfdcd6fc425eea984741116821316147fa35ec7dc7bd38"
+      },
+      "schema": "cairn.tocsin-cache-retrospective.v1",
       "slices": {
         "hard_human": {
           "cache_path": "outputs\\tocsin_retrain_2026-07-10\\caches\\_hard_human_clean.features.jsonl",
@@ -2620,7 +2154,14 @@
           "unique_hashes": 6098
         }
       },
-      "status": "VERIFIED"
+      "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+      "unbound_fields": [
+        "modal_output_lineage",
+        "modal_output_sha256",
+        "actual_base_identity",
+        "huggingface_model_revisions",
+        "modal_image_digest"
+      ]
     }
   }
 }

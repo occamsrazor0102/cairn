@@ -1,0 +1,1278 @@
+{
+  "calibration_identity": null,
+  "config": {
+    "bytes": 842,
+    "path": "configs/.profile_full_coverage_with_specdetect.yaml",
+    "sha256": "10e7113edf2f9691eb69e456bc7de917518f77470144dedfa45799f177a1da54"
+  },
+  "corroboration": {
+    "active_rows": 11926,
+    "base_v_vs_fast_detectgpt": {
+      "absolute_tolerance": "0.00001",
+      "interpretation": "corroborating value match only; actual base identity remains unbound",
+      "matched_rows": 11926,
+      "max_absolute_delta": "0.00000499904155731",
+      "mismatched_rows": 0,
+      "standalone_scoring_models": [
+        "gpt2"
+      ]
+    }
+  },
+  "diagnostic_allowed": true,
+  "git_revision": "3632e2cadd843431aea65735d432745729e118ef",
+  "observed_static_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+  "promotion_allowed": false,
+  "schema": "cairn.tocsin-cache-retrospective.v1",
+  "slices": {
+    "_hard_human_clean": {
+      "cache": {
+        "bytes": 1804215,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/_hard_human_clean.features.jsonl",
+        "sha256": "d2b4d27c64b626fcf414ea60c893deedcf96de799a8f0ae3e4949b8a35597791"
+      },
+      "dataset": {
+        "bytes": 351128,
+        "path": "data/_hard_human_clean.jsonl",
+        "sha256": "cb1cb45b17c884e1fdd95d43b62969858ed09998c84a213503758722332f2142"
+      },
+      "validation_manifest": {
+        "bytes": 2703,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/_hard_human_clean.cache.json",
+        "sha256": "d76f8137871e8b4946c545d87d9e94dfe97b455256c98d5fa9fccf7af27a1a85"
+      },
+      "validator_summary": {
+        "active_rows": 296,
+        "api_layer_ids": [],
+        "cache_sha256": "d2b4d27c64b626fcf414ea60c893deedcf96de799a8f0ae3e4949b8a35597791",
+        "cached_unique_hashes": 296,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "cb1cb45b17c884e1fdd95d43b62969858ed09998c84a213503758722332f2142",
+        "expected_unique_hashes": 296,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 4,
+            "present": 4,
+            "router_skipped": 292,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 285,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 11,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 4,
+            "present": 4,
+            "router_skipped": 292,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 296,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 296,
+            "present": 296,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 4,
+            "present": 4,
+            "router_skipped": 292,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.2363721369212239,
+        "raw_min": -17.588961534709654,
+        "skip_rows": 0,
+        "unexpected_layer_ids": []
+      }
+    },
+    "_humanized_eval": {
+      "cache": {
+        "bytes": 2949073,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/_humanized_eval.features.jsonl",
+        "sha256": "a1dab063ea76835ec39e159b85c6b6513990f2da51d803989090cace1011dc67"
+      },
+      "dataset": {
+        "bytes": 451403,
+        "path": "data/_humanized_eval.jsonl",
+        "sha256": "6d3a946fa88c386807def5b90f7a727516308f909210eecd61f89a93e503680c"
+      },
+      "validation_manifest": {
+        "bytes": 2707,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/_humanized_eval.cache.json",
+        "sha256": "fb5b78af913ed4272146ce4d67a5689d0040442262fd32ae3ed2bc2cca8c9126"
+      },
+      "validator_summary": {
+        "active_rows": 440,
+        "api_layer_ids": [],
+        "cache_sha256": "a1dab063ea76835ec39e159b85c6b6513990f2da51d803989090cace1011dc67",
+        "cached_unique_hashes": 502,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "6d3a946fa88c386807def5b90f7a727516308f909210eecd61f89a93e503680c",
+        "expected_unique_hashes": 502,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 502,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 502,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 502,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 6,
+            "present": 6,
+            "router_skipped": 496,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 272,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 230,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 502,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 292,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 210,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 502,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 6,
+            "present": 6,
+            "router_skipped": 496,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 502,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 502,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 502,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 440,
+            "present": 502,
+            "router_skipped": 0,
+            "skip": 62,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 6,
+            "present": 6,
+            "router_skipped": 496,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.2379029512086664,
+        "raw_min": -47.27107207985714,
+        "skip_rows": 62,
+        "unexpected_layer_ids": []
+      }
+    },
+    "ood_m4_test": {
+      "cache": {
+        "bytes": 1195351,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/ood_m4_test.features.jsonl",
+        "sha256": "6ebf3d6d4329bcae9fab529806a7e12ae49834f27da44716a2c9a24538a46594"
+      },
+      "dataset": {
+        "bytes": 322169,
+        "path": "data/ood_m4_test.jsonl",
+        "sha256": "d074bc99480cca4868a1e991b70f05b67727a61ca67a51485a5a303d7fde2db3"
+      },
+      "validation_manifest": {
+        "bytes": 2715,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/ood_m4_test.cache.json",
+        "sha256": "b61f630a79c6b0dd7c0bcef62faa4da303454f6bcddf4d090e676bc924835be0"
+      },
+      "validator_summary": {
+        "active_rows": 160,
+        "api_layer_ids": [],
+        "cache_sha256": "6ebf3d6d4329bcae9fab529806a7e12ae49834f27da44716a2c9a24538a46594",
+        "cached_unique_hashes": 200,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "d074bc99480cca4868a1e991b70f05b67727a61ca67a51485a5a303d7fde2db3",
+        "expected_unique_hashes": 200,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 165,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 35,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 178,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 22,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 12,
+            "present": 12,
+            "router_skipped": 188,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 132,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 68,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 144,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 56,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 12,
+            "present": 12,
+            "router_skipped": 188,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 200,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 165,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 35,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 199,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 1,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 160,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 40,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 12,
+            "present": 12,
+            "router_skipped": 188,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.3609289411370202,
+        "raw_min": -29.640756458111383,
+        "skip_rows": 40,
+        "unexpected_layer_ids": []
+      }
+    },
+    "ood_mage_test": {
+      "cache": {
+        "bytes": 1161118,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/ood_mage_test.features.jsonl",
+        "sha256": "bb9b4bdd21452872b74c7634ee07215412ea75c553a9bfda9adb188070c6d4c3"
+      },
+      "dataset": {
+        "bytes": 266927,
+        "path": "data/ood_mage_test.jsonl",
+        "sha256": "393c533e8bec02270ccf9f272397b75201e1673b50ea51b3e0f17c2feae5a31f"
+      },
+      "validation_manifest": {
+        "bytes": 2716,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/ood_mage_test.cache.json",
+        "sha256": "89fcfdbbc8b6cfb3b2a6ba1f50c91cfc0fc8f3ee4ae2bc07d7c314583c6ed226"
+      },
+      "validator_summary": {
+        "active_rows": 135,
+        "api_layer_ids": [],
+        "cache_sha256": "bb9b4bdd21452872b74c7634ee07215412ea75c553a9bfda9adb188070c6d4c3",
+        "cached_unique_hashes": 200,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "393c533e8bec02270ccf9f272397b75201e1673b50ea51b3e0f17c2feae5a31f",
+        "expected_unique_hashes": 200,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 151,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 49,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 166,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 34,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 11,
+            "present": 11,
+            "router_skipped": 189,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 94,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 106,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 107,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 93,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 11,
+            "present": 11,
+            "router_skipped": 189,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 200,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 151,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 49,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 199,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 1,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 135,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 65,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 11,
+            "present": 11,
+            "router_skipped": 189,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.35423706432650715,
+        "raw_min": -0.3690443971060828,
+        "skip_rows": 65,
+        "unexpected_layer_ids": []
+      }
+    },
+    "ood_raid_test": {
+      "cache": {
+        "bytes": 1254887,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/ood_raid_test.features.jsonl",
+        "sha256": "b3a9358c8b8d1fcda638022f6cb2429bd18afd77109d1a7a20a7cde83ba26c92"
+      },
+      "dataset": {
+        "bytes": 374349,
+        "path": "data/ood_raid_test.jsonl",
+        "sha256": "a4d967f3adbf4e4e11c10d0b45acafbd23c2ddd31bdc86d05e9d78efbe73b23d"
+      },
+      "validation_manifest": {
+        "bytes": 2710,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/ood_raid_test.cache.json",
+        "sha256": "1e7e6647447b2c8220e83ae15a052226bd04877cecaa839b53bbc155d8211e3d"
+      },
+      "validator_summary": {
+        "active_rows": 197,
+        "api_layer_ids": [],
+        "cache_sha256": "b3a9358c8b8d1fcda638022f6cb2429bd18afd77109d1a7a20a7cde83ba26c92",
+        "cached_unique_hashes": 200,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "a4d967f3adbf4e4e11c10d0b45acafbd23c2ddd31bdc86d05e9d78efbe73b23d",
+        "expected_unique_hashes": 200,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 198,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 2,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 199,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 1,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 11,
+            "present": 11,
+            "router_skipped": 189,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 151,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 49,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 181,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 19,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 11,
+            "present": 11,
+            "router_skipped": 189,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 200,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 198,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 2,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 200,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 197,
+            "present": 200,
+            "router_skipped": 0,
+            "skip": 3,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 11,
+            "present": 11,
+            "router_skipped": 189,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.4480276375821587,
+        "raw_min": -23.377450323502533,
+        "skip_rows": 3,
+        "unexpected_layer_ids": []
+      }
+    },
+    "prompts_only_calib": {
+      "cache": {
+        "bytes": 20121168,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/prompts_only_calib.features.jsonl",
+        "sha256": "996c35014e842b87d763a60ce640abb5a3b2b763fbb83e86c422529061cdaec3"
+      },
+      "dataset": {
+        "bytes": 1519885,
+        "path": "data/prompts_only_calib.jsonl",
+        "sha256": "1ea4d7bd2ce61e355f3ddb9adb8240750a2fc1bab10158961b8874fc58a76035"
+      },
+      "validation_manifest": {
+        "bytes": 2770,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/prompts_only_calib.cache.json",
+        "sha256": "58a0e6c0eb9b232e36065504380cdca36becf8de8f8afe16435eb9207c53a5e3"
+      },
+      "validator_summary": {
+        "active_rows": 1026,
+        "api_layer_ids": [],
+        "cache_sha256": "996c35014e842b87d763a60ce640abb5a3b2b763fbb83e86c422529061cdaec3",
+        "cached_unique_hashes": 3660,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "1ea4d7bd2ce61e355f3ddb9adb8240750a2fc1bab10158961b8874fc58a76035",
+        "expected_unique_hashes": 3660,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 1231,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 2429,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 1526,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 2134,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 3660,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 1881,
+            "present": 1881,
+            "router_skipped": 1779,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 545,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 3115,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 3627,
+            "present": 3627,
+            "router_skipped": 33,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 602,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 3058,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 3660,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 1881,
+            "present": 1881,
+            "router_skipped": 1779,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 3660,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 1231,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 2429,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 2515,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 1145,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 1026,
+            "present": 3660,
+            "router_skipped": 0,
+            "skip": 2634,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 1881,
+            "present": 1881,
+            "router_skipped": 1779,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.3118107454599872,
+        "raw_min": -73.54759810937323,
+        "skip_rows": 2634,
+        "unexpected_layer_ids": []
+      }
+    },
+    "prompts_v2_train": {
+      "cache": {
+        "bytes": 116009899,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/prompts_v2_train.features.jsonl",
+        "sha256": "8c7bc250c42f6b7e5a04e5b1d355a0e28435b8b3f25670b10b71b69a1ac52808"
+      },
+      "dataset": {
+        "bytes": 11929340,
+        "path": "data/prompts_v2_train.jsonl",
+        "sha256": "950342668d4b50ff91fb9822c8162ab278bd7be6c64f3a20f84daa27fa6ffc74"
+      },
+      "validation_manifest": {
+        "bytes": 2801,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/prompts_v2_train.cache.json",
+        "sha256": "4cc1ab91046061ecb7e6f2fc19669b368b12a83976f8ba848a25f80254b6338c"
+      },
+      "validator_summary": {
+        "active_rows": 8484,
+        "api_layer_ids": [],
+        "cache_sha256": "8c7bc250c42f6b7e5a04e5b1d355a0e28435b8b3f25670b10b71b69a1ac52808",
+        "cached_unique_hashes": 20732,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "950342668d4b50ff91fb9822c8162ab278bd7be6c64f3a20f84daa27fa6ffc74",
+        "expected_unique_hashes": 20732,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 9525,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 11207,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 10989,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 9743,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 20732,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 8433,
+            "present": 8433,
+            "router_skipped": 12299,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 5741,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 14991,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 20575,
+            "present": 20575,
+            "router_skipped": 157,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 6074,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 14658,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 20732,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 8433,
+            "present": 8433,
+            "router_skipped": 12299,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 20732,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 9525,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 11207,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 15723,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 5009,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 8484,
+            "present": 20732,
+            "router_skipped": 0,
+            "skip": 12248,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 8433,
+            "present": 8433,
+            "router_skipped": 12299,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.4100659212904795,
+        "raw_min": -208.7164371206058,
+        "skip_rows": 12248,
+        "unexpected_layer_ids": []
+      }
+    },
+    "prompts_v5_test": {
+      "cache": {
+        "bytes": 33553161,
+        "path": "outputs/tocsin_retrain_2026-07-10/caches/prompts_v5_test.features.jsonl",
+        "sha256": "22d83b9c60e6215bf27747a53cb5d59c55a4356181c6598d032618f215209755"
+      },
+      "dataset": {
+        "bytes": 2602039,
+        "path": "data/prompts_v5_test.jsonl",
+        "sha256": "30dd89ce7f50ed2fca8f0019ade08bb10e78ec21d870a9c34259e635d9635a3b"
+      },
+      "validation_manifest": {
+        "bytes": 2771,
+        "path": "outputs/tocsin_retrain_2026-07-10/manifests/prompts_v5_test.cache.json",
+        "sha256": "6cc248328b8aef7a3dd44aa8bb86f199fbf25df7098140bac3d805f25da23fca"
+      },
+      "validator_summary": {
+        "active_rows": 1822,
+        "api_layer_ids": [],
+        "cache_sha256": "22d83b9c60e6215bf27747a53cb5d59c55a4356181c6598d032618f215209755",
+        "cached_unique_hashes": 6098,
+        "calibration_raw_channel": "combined_w",
+        "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+        "dataset_sha256": "30dd89ce7f50ed2fca8f0019ade08bb10e78ec21d870a9c34259e635d9635a3b",
+        "expected_unique_hashes": 6098,
+        "identical_duplicate_hashes": 0,
+        "layer_counts": {
+          "contrastive_lm": {
+            "active": 2164,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 3934,
+            "unexpected_absent": 0
+          },
+          "fast_detectgpt": {
+            "active": 2637,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 3461,
+            "unexpected_absent": 0
+          },
+          "fingerprint_vocab": {
+            "active": 6098,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "instruction_density": {
+            "active": 3040,
+            "present": 3040,
+            "router_skipped": 3058,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "mixed_boundary": {
+            "active": 966,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 5132,
+            "unexpected_absent": 0
+          },
+          "nssi": {
+            "active": 6036,
+            "present": 6036,
+            "router_skipped": 62,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "perturbation": {
+            "active": 1056,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 5042,
+            "unexpected_absent": 0
+          },
+          "preamble": {
+            "active": 6098,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "prompt_structure": {
+            "active": 3040,
+            "present": 3040,
+            "router_skipped": 3058,
+            "skip": 0,
+            "unexpected_absent": 0
+          },
+          "semantic_kinematics": {
+            "active": 0,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 6098,
+            "unexpected_absent": 0
+          },
+          "specdetect": {
+            "active": 2164,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 3934,
+            "unexpected_absent": 0
+          },
+          "surprisal_dynamics": {
+            "active": 4205,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 1893,
+            "unexpected_absent": 0
+          },
+          "token_cohesiveness": {
+            "active": 1822,
+            "present": 6098,
+            "router_skipped": 0,
+            "skip": 4276,
+            "unexpected_absent": 0
+          },
+          "voice_spec": {
+            "active": 3040,
+            "present": 3040,
+            "router_skipped": 3058,
+            "skip": 0,
+            "unexpected_absent": 0
+          }
+        },
+        "raw_max": 0.3932385191415747,
+        "raw_min": -49.91209297104977,
+        "skip_rows": 4276,
+        "unexpected_layer_ids": []
+      }
+    }
+  },
+  "source_manifests": {
+    "input_corpora": {
+      "bytes": 2285,
+      "path": "outputs/tocsin_retrain_2026-07-10/manifests/input-corpora.json",
+      "sha256": "bc4c8580430670d301e13a8533133b83f0646bc21908b7175ad3726a91fc8cf6"
+    },
+    "modal_full": {
+      "bytes": 4295,
+      "path": "outputs/tocsin_retrain_2026-07-10/manifests/modal-full.json",
+      "sha256": "d0159e1dedd6c24371272e9ea38701658e2d29e91499caa81b7c791a9110905f"
+    },
+    "modal_pilot": {
+      "bytes": 4146,
+      "path": "outputs/tocsin_retrain_2026-07-10/manifests/modal-pilot.json",
+      "sha256": "f752f280e5de0d4c580201cfaf4281203296b7a9be07e92b0d3af7ad948aaf55"
+    }
+  },
+  "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+  "unbound": {
+    "actual_base_identity": null,
+    "huggingface_model_revisions": null,
+    "modal_image_digest": null,
+    "modal_output_lineage": null,
+    "modal_output_sha256": null
+  },
+  "unbound_fields": [
+    "modal_output_lineage",
+    "modal_output_sha256",
+    "actual_base_identity",
+    "huggingface_model_revisions",
+    "modal_image_digest"
+  ],
+  "union": {
+    "cache": {
+      "bytes": 173932910,
+      "path": "outputs/tocsin_retrain_2026-07-10/caches/all_corpora_union.features.jsonl",
+      "sha256": "9f3c398ec93f9445934e08df4e16e35d740bf0056b79fe92fdf2ed3b16997bf0"
+    },
+    "dataset": {
+      "bytes": 17044263,
+      "path": "outputs/tocsin_retrain_2026-07-10/inputs/all_corpora_union.jsonl",
+      "sha256": "6b8a148630becb7c39dbd03d8e3bbab3cc6f36131e30855664a8fbae48ae1acf"
+    },
+    "validation_manifest": {
+      "bytes": 2812,
+      "path": "outputs/tocsin_retrain_2026-07-10/manifests/all_corpora_union.cache.json",
+      "sha256": "d5e9804dcf7e572334a17eba7d64e7340ed3dbaa19d08ab218bf1918dfd292d8"
+    },
+    "validator_summary": {
+      "active_rows": 11926,
+      "api_layer_ids": [],
+      "cache_sha256": "9f3c398ec93f9445934e08df4e16e35d740bf0056b79fe92fdf2ed3b16997bf0",
+      "cached_unique_hashes": 31192,
+      "calibration_raw_channel": "combined_w",
+      "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+      "dataset_sha256": "6b8a148630becb7c39dbd03d8e3bbab3cc6f36131e30855664a8fbae48ae1acf",
+      "expected_unique_hashes": 31192,
+      "identical_duplicate_hashes": 0,
+      "layer_counts": {
+        "contrastive_lm": {
+          "active": 13536,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 17656,
+          "unexpected_absent": 0
+        },
+        "fast_detectgpt": {
+          "active": 15797,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 15395,
+          "unexpected_absent": 0
+        },
+        "fingerprint_vocab": {
+          "active": 31192,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 0,
+          "unexpected_absent": 0
+        },
+        "instruction_density": {
+          "active": 13390,
+          "present": 13390,
+          "router_skipped": 17802,
+          "skip": 0,
+          "unexpected_absent": 0
+        },
+        "mixed_boundary": {
+          "active": 7728,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 23464,
+          "unexpected_absent": 0
+        },
+        "nssi": {
+          "active": 30940,
+          "present": 30940,
+          "router_skipped": 252,
+          "skip": 0,
+          "unexpected_absent": 0
+        },
+        "perturbation": {
+          "active": 8266,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 22926,
+          "unexpected_absent": 0
+        },
+        "preamble": {
+          "active": 31192,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 0,
+          "unexpected_absent": 0
+        },
+        "prompt_structure": {
+          "active": 13390,
+          "present": 13390,
+          "router_skipped": 17802,
+          "skip": 0,
+          "unexpected_absent": 0
+        },
+        "semantic_kinematics": {
+          "active": 0,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 31192,
+          "unexpected_absent": 0
+        },
+        "specdetect": {
+          "active": 13536,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 17656,
+          "unexpected_absent": 0
+        },
+        "surprisal_dynamics": {
+          "active": 23143,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 8049,
+          "unexpected_absent": 0
+        },
+        "token_cohesiveness": {
+          "active": 11926,
+          "present": 31192,
+          "router_skipped": 0,
+          "skip": 19266,
+          "unexpected_absent": 0
+        },
+        "voice_spec": {
+          "active": 13390,
+          "present": 13390,
+          "router_skipped": 17802,
+          "skip": 0,
+          "unexpected_absent": 0
+        }
+      },
+      "raw_max": 0.4480276375821587,
+      "raw_min": -208.7164371206058,
+      "skip_rows": 19266,
+      "unexpected_layer_ids": []
+    }
+  },
+  "validator": {
+    "disabled_layer_ids": [
+      "contrastive_gen",
+      "dna_gpt",
+      "lapd"
+    ],
+    "enabled_layer_ids": [
+      "preamble",
+      "fingerprint_vocab",
+      "prompt_structure",
+      "voice_spec",
+      "instruction_density",
+      "nssi",
+      "surprisal_dynamics",
+      "contrastive_lm",
+      "fast_detectgpt",
+      "token_cohesiveness",
+      "mixed_boundary",
+      "semantic_kinematics",
+      "specdetect",
+      "perturbation"
+    ],
+    "expected_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+    "implementation": "cairn.tocsin_cache.validate_tocsin_cache",
+    "source": {
+      "bytes": 25962,
+      "path": "cairn/tocsin_cache.py",
+      "sha256": "3198fba6c90c98b67be72404debb5a9b2ba1f14dd629fcbc426abb16607fb55a"
+    }
+  }
+}
