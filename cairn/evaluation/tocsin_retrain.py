@@ -36,6 +36,14 @@ from cairn.normalizer import normalize_text
 
 _TOCSIN_ID = "token_cohesiveness"
 _RECONSTRUCTION_TOLERANCE = 1e-9
+_LOCKED_EVALUATION_SLICES = (
+    "prompt_test",
+    "humanized_hard",
+    "ood_m4_test",
+    "ood_raid_test",
+    "ood_mage_test",
+)
+_LOCKED_COMPARATOR_PROFILES = ("prompts_only", "prompts_specdetect")
 
 
 @dataclass(frozen=True)
@@ -599,197 +607,725 @@ def preflight_profiles(
     }
 
 
-def _append_integrity_failures(
-    failures: list[str], label: str, metrics: Mapping[str, object]
-) -> None:
-    if not bool(metrics.get("all_ebm")):
-        failures.append(f"{label}: not every row used fusion_mode=ebm")
-    if not bool(metrics.get("finite")):
-        failures.append(f"{label}: non-finite p_llm")
-    if not bool(metrics.get("in_unit_interval")):
-        failures.append(f"{label}: p_llm outside [0, 1]")
-    error = _finite_number(metrics.get("max_ebm_reconstruction_error"))
-    if error is None or error > _RECONSTRUCTION_TOLERANCE:
-        failures.append(f"{label}: EBM reconstruction error exceeds 1e-9")
+def _as_mapping(value: object) -> Mapping[str, object]:
+    return value if isinstance(value, Mapping) else {}
 
 
-def _append_maximum_gate(
-    failures: list[str],
+def _audit_row(
+    *,
+    gate_id: str,
     label: str,
+    scope: str,
+    profile: str | None,
+    slice_name: str | None,
+    evaluated: bool,
+    passed: bool,
+    observed: object,
+    operator: str,
+    reference: object,
+    failure_detail: str,
+    not_evaluated_reason: str | None = None,
+) -> dict[str, object]:
+    status = "NOT_EVALUATED" if not evaluated else ("PASS" if passed else "FAIL")
+    return {
+        "gate_id": gate_id,
+        "label": label,
+        "scope": scope,
+        "profile": profile,
+        "slice": slice_name,
+        "status": status,
+        "observed": observed,
+        "operator": operator,
+        "reference": reference,
+        "failure_detail": failure_detail if status == "FAIL" else None,
+        "not_evaluated_reason": (
+            not_evaluated_reason if status == "NOT_EVALUATED" else None
+        ),
+    }
+
+
+def _take_preflight_failure(
+    failures: Sequence[str], consumed: set[int], prefix: str
+) -> str | None:
+    for index, failure in enumerate(failures):
+        if index not in consumed and failure.startswith(prefix):
+            consumed.add(index)
+            return failure
+    return None
+
+
+def _profile_slice(
+    profile: Mapping[str, object], slice_name: str
+) -> Mapping[str, object] | None:
+    if slice_name == "prompt_test":
+        value = profile.get("prompt_test")
+    elif slice_name == "humanized_hard":
+        value = profile.get("humanized_hard")
+    else:
+        value = _as_mapping(profile.get("ood")).get(slice_name)
+    return value if isinstance(value, Mapping) else None
+
+
+def _append_integrity_audit(
+    audit: list[dict[str, object]],
+    *,
+    gate_prefix: str,
+    label_prefix: str,
+    scope: str,
+    profile: str,
+    slice_name: str,
+    metrics: Mapping[str, object] | None,
+    evaluated: bool,
+    not_evaluated_reason: str | None,
+) -> None:
+    metrics_missing = metrics is None
+    values = metrics or {}
+    missing_detail = f"{label_prefix}: metrics missing"
+    flag_specs = (
+        (
+            "all_ebm",
+            "All rows use fusion_mode=ebm",
+            "not every row used fusion_mode=ebm",
+        ),
+        ("finite", "All p_llm values are finite", "non-finite p_llm"),
+        (
+            "in_unit_interval",
+            "All p_llm values are in [0, 1]",
+            "p_llm outside [0, 1]",
+        ),
+    )
+    for metric, label, failure_suffix in flag_specs:
+        raw = values.get(metric)
+        observed = bool(raw) if raw is not None else None
+        audit.append(
+            _audit_row(
+                gate_id=f"{gate_prefix}.{metric}",
+                label=f"{label_prefix}: {label}",
+                scope=scope,
+                profile=profile,
+                slice_name=slice_name,
+                evaluated=evaluated,
+                passed=not metrics_missing and bool(raw),
+                observed=observed,
+                operator="is",
+                reference=True,
+                failure_detail=(
+                    missing_detail
+                    if metrics_missing
+                    else f"{label_prefix}: {failure_suffix}"
+                ),
+                not_evaluated_reason=not_evaluated_reason,
+            )
+        )
+
+    error = _finite_number(values.get("max_ebm_reconstruction_error"))
+    audit.append(
+        _audit_row(
+            gate_id=f"{gate_prefix}.max_ebm_reconstruction_error",
+            label=f"{label_prefix}: maximum EBM reconstruction error",
+            scope=scope,
+            profile=profile,
+            slice_name=slice_name,
+            evaluated=evaluated,
+            passed=(
+                not metrics_missing
+                and error is not None
+                and error <= _RECONSTRUCTION_TOLERANCE
+            ),
+            observed=error,
+            operator="<=",
+            reference=_RECONSTRUCTION_TOLERANCE,
+            failure_detail=(
+                missing_detail
+                if metrics_missing
+                else f"{label_prefix}: EBM reconstruction error exceeds 1e-9"
+            ),
+            not_evaluated_reason=not_evaluated_reason,
+        )
+    )
+
+
+def _append_comparison_audit(
+    audit: list[dict[str, object]],
+    *,
+    gate_id: str,
+    label: str,
+    profile: str,
+    slice_name: str,
     candidate: object,
     baseline: object,
-) -> None:
-    candidate_value = _finite_number(candidate)
-    baseline_value = _finite_number(baseline)
-    if candidate_value is None or baseline_value is None:
-        failures.append(f"{label}: metric missing or non-finite")
-    elif candidate_value > baseline_value:
-        failures.append(f"{label}: candidate regressed")
-
-
-def _append_minimum_gate(
-    failures: list[str],
-    label: str,
-    candidate: object,
-    baseline: object,
+    operator: str,
     allowance: float,
+    evaluated: bool,
+    not_evaluated_reason: str | None,
 ) -> None:
     candidate_value = _finite_number(candidate)
     baseline_value = _finite_number(baseline)
-    if candidate_value is None or baseline_value is None:
-        failures.append(f"{label}: metric missing or non-finite")
-    elif candidate_value < baseline_value - allowance:
-        failures.append(f"{label}: regression exceeds {allowance:.2f}")
+    if operator == "<=":
+        reference = baseline_value
+        passed = (
+            candidate_value is not None
+            and reference is not None
+            and candidate_value <= reference
+        )
+        regression_detail = f"{label}: candidate regressed"
+    else:
+        reference = (
+            baseline_value - allowance if baseline_value is not None else None
+        )
+        passed = (
+            candidate_value is not None
+            and reference is not None
+            and candidate_value >= reference
+        )
+        regression_detail = f"{label}: regression exceeds {allowance:.2f}"
+    failure_detail = (
+        f"{label}: metric missing or non-finite"
+        if candidate_value is None or baseline_value is None
+        else regression_detail
+    )
+    audit.append(
+        _audit_row(
+            gate_id=gate_id,
+            label=label,
+            scope="comparator",
+            profile=profile,
+            slice_name=slice_name,
+            evaluated=evaluated,
+            passed=passed,
+            observed=candidate_value,
+            operator=operator,
+            reference=reference,
+            failure_detail=failure_detail,
+            not_evaluated_reason=not_evaluated_reason,
+        )
+    )
+
+
+def promotion_gate_audit(report: Mapping[str, object]) -> list[dict[str, object]]:
+    """Return every locked automatic gate in deterministic decision order.
+
+    The adaptive challenge is deliberately not inspected.  Preflight-only runs
+    retain the full inventory with evaluation gates marked ``NOT_EVALUATED``.
+    """
+
+    audit: list[dict[str, object]] = []
+    preflight = _as_mapping(report.get("preflight"))
+    preflight_failures = [str(item) for item in (preflight.get("failures") or [])]
+    consumed_failures: set[int] = set()
+    candidate_raw = report.get("candidate")
+    candidate = _as_mapping(candidate_raw)
+    comparator_raw = report.get("comparators")
+    comparators = _as_mapping(comparator_raw)
+    full_evaluation = (
+        candidate_raw is not None or report.get("detector_calibration") is not None
+    )
+
+    preflight_comparators = _as_mapping(preflight.get("comparators"))
+    identity_declared = "comparator_identity_valid" in preflight
+    if identity_declared:
+        identity_observed = bool(preflight.get("comparator_identity_valid"))
+        identity_evaluated = True
+    else:
+        inferred_names = set(comparators)
+        inferred_names.update(
+            str(_as_mapping(record).get("name") or key)
+            for key, record in preflight_comparators.items()
+        )
+        identity_evaluated = bool(inferred_names)
+        identity_observed = (
+            inferred_names == set(_LOCKED_COMPARATOR_PROFILES)
+            if identity_evaluated
+            else None
+        )
+    identity_failure = None
+    if identity_evaluated and identity_observed is not True:
+        identity_failure = _take_preflight_failure(
+            preflight_failures, consumed_failures, "INVALID_COMPARATOR_SET:"
+        )
+    if identity_failure is None:
+        identity_failure = (
+            "INVALID_COMPARATOR_SET:\nexpected exactly prompts_only and "
+            "prompts_specdetect"
+        )
+    audit.append(
+        _audit_row(
+            gate_id="preflight.comparator_identity",
+            label="Locked comparator identity set",
+            scope="preflight",
+            profile=None,
+            slice_name=None,
+            evaluated=identity_evaluated,
+            passed=identity_observed is True,
+            observed=identity_observed,
+            operator="is",
+            reference=True,
+            failure_detail=identity_failure,
+            not_evaluated_reason="comparator identities were not inspected",
+        )
+    )
+
+    candidate_record_value = preflight.get("candidate")
+    candidate_record_present = isinstance(candidate_record_value, Mapping)
+    candidate_record = _as_mapping(candidate_record_value)
+    candidate_name = str(
+        report.get("candidate_name")
+        or candidate_record.get("name")
+        or "candidate"
+    )
+    if candidate_record_present:
+        candidate_valid = bool(candidate_record.get("valid"))
+        candidate_validity_evaluated = True
+    elif candidate_raw is not None:
+        candidate_valid = True
+        candidate_validity_evaluated = True
+    else:
+        candidate_valid = False
+        candidate_validity_evaluated = False
+    candidate_failure = None
+    if candidate_validity_evaluated and not candidate_valid:
+        candidate_failure = _take_preflight_failure(
+            preflight_failures,
+            consumed_failures,
+            f"INVALID_CANDIDATE {candidate_name}:",
+        )
+    if candidate_failure is None:
+        record_failures = [str(item) for item in (candidate_record.get("failures") or [])]
+        candidate_failure = f"INVALID_CANDIDATE {candidate_name}:"
+        if record_failures:
+            candidate_failure += "\n" + "\n".join(record_failures)
+        else:
+            candidate_failure += " artifact validation failed"
+    audit.append(
+        _audit_row(
+            gate_id="preflight.candidate_artifacts",
+            label="Candidate artifact validity",
+            scope="preflight",
+            profile=candidate_name,
+            slice_name=None,
+            evaluated=candidate_validity_evaluated,
+            passed=candidate_valid,
+            observed=candidate_valid if candidate_validity_evaluated else None,
+            operator="is",
+            reference=True,
+            failure_detail=candidate_failure,
+            not_evaluated_reason="candidate artifacts were not inspected",
+        )
+    )
+
+    comparator_names = list(_LOCKED_COMPARATOR_PROFILES)
+    comparator_names.extend(
+        sorted(
+            (set(preflight_comparators) | set(comparators))
+            - set(_LOCKED_COMPARATOR_PROFILES)
+        )
+    )
+    comparator_status: dict[str, str] = {}
+    for comparator_name in comparator_names:
+        record_value = preflight_comparators.get(comparator_name)
+        record_present = isinstance(record_value, Mapping)
+        record = _as_mapping(record_value)
+        evaluated_report_present = comparator_name in comparators
+        if record_present:
+            comparator_valid = bool(record.get("valid"))
+            validity_evaluated = True
+        elif evaluated_report_present:
+            comparator_valid = True
+            validity_evaluated = True
+        else:
+            comparator_valid = False
+            validity_evaluated = False
+        record_name = str(record.get("name") or comparator_name)
+        comparator_failure = None
+        if validity_evaluated and not comparator_valid:
+            comparator_failure = _take_preflight_failure(
+                preflight_failures,
+                consumed_failures,
+                f"INVALID_COMPARATOR {record_name}:",
+            )
+        if comparator_failure is None:
+            record_failures = [str(item) for item in (record.get("failures") or [])]
+            comparator_failure = f"INVALID_COMPARATOR {record_name}:"
+            if record_failures:
+                comparator_failure += "\n" + "\n".join(record_failures)
+            else:
+                comparator_failure += " artifact validation failed"
+        row = _audit_row(
+            gate_id=f"preflight.comparator.{comparator_name}.artifacts",
+            label=f"Comparator {comparator_name} artifact validity",
+            scope="preflight",
+            profile=comparator_name,
+            slice_name=None,
+            evaluated=validity_evaluated,
+            passed=comparator_valid,
+            observed=comparator_valid if validity_evaluated else None,
+            operator="is",
+            reference=True,
+            failure_detail=comparator_failure,
+            not_evaluated_reason="comparator artifacts were not inspected",
+        )
+        comparator_status[comparator_name] = str(row["status"])
+        audit.append(row)
+
+    for index, failure in enumerate(preflight_failures, start=1):
+        if index - 1 in consumed_failures:
+            continue
+        audit.append(
+            _audit_row(
+                gate_id=f"preflight.reported_failure.{index:03d}",
+                label="Preflight reported failure",
+                scope="preflight",
+                profile=None,
+                slice_name=None,
+                evaluated=True,
+                passed=False,
+                observed=failure,
+                operator="must_not_exist",
+                reference=None,
+                failure_detail=failure,
+            )
+        )
+
+    detector = _as_mapping(report.get("detector_calibration"))
+    candidate_detector = _as_mapping(detector.get("candidate"))
+    stale = _as_mapping(detector.get("legacy_unsafe_clip_diagnostic"))
+    constant = _as_mapping(detector.get("constant_prevalence"))
+    detector_reason = "full benchmark was not evaluated"
+    eligible_rows = _integer(detector.get("eligible_rows"))
+    audit.append(
+        _audit_row(
+            gate_id="detector.eligible_rows",
+            label="Detector eligible row count",
+            scope="detector",
+            profile=_TOCSIN_ID,
+            slice_name="prompt_test",
+            evaluated=full_evaluation,
+            passed=eligible_rows == 1822,
+            observed=eligible_rows,
+            operator="==",
+            reference=1822,
+            failure_detail="detector: expected exactly 1,822 eligible rows",
+            not_evaluated_reason=detector_reason,
+        )
+    )
+    support_coverage = _finite_number(detector.get("support_coverage"))
+    audit.append(
+        _audit_row(
+            gate_id="detector.support_coverage",
+            label="Detector support coverage",
+            scope="detector",
+            profile=_TOCSIN_ID,
+            slice_name="prompt_test",
+            evaluated=full_evaluation,
+            passed=support_coverage == 1.0,
+            observed=support_coverage,
+            operator="==",
+            reference=1.0,
+            failure_detail="detector: support coverage must equal 1.0",
+            not_evaluated_reason=detector_reason,
+        )
+    )
+    detector_flag_specs = (
+        (
+            "finite",
+            "detector.candidate.finite",
+            "Detector candidate probabilities are finite",
+            "detector: candidate probabilities are non-finite",
+        ),
+        (
+            "in_unit_interval",
+            "detector.candidate.in_unit_interval",
+            "Detector candidate probabilities are in [0, 1]",
+            "detector: candidate probabilities fall outside [0, 1]",
+        ),
+    )
+    for metric, gate_id, label, failure_detail in detector_flag_specs:
+        raw = candidate_detector.get(metric)
+        audit.append(
+            _audit_row(
+                gate_id=gate_id,
+                label=label,
+                scope="detector",
+                profile=_TOCSIN_ID,
+                slice_name="prompt_test",
+                evaluated=full_evaluation,
+                passed=bool(raw),
+                observed=bool(raw) if raw is not None else None,
+                operator="is",
+                reference=True,
+                failure_detail=failure_detail,
+                not_evaluated_reason=detector_reason,
+            )
+        )
+    n_unique = _integer(candidate_detector.get("n_unique"))
+    audit.append(
+        _audit_row(
+            gate_id="detector.candidate.n_unique",
+            label="Detector candidate probability uniqueness",
+            scope="detector",
+            profile=_TOCSIN_ID,
+            slice_name="prompt_test",
+            evaluated=full_evaluation,
+            passed=n_unique is not None and n_unique > 3,
+            observed=n_unique,
+            operator=">",
+            reference=3,
+            failure_detail=(
+                "detector: candidate must have more than 3 unique probabilities"
+            ),
+            not_evaluated_reason=detector_reason,
+        )
+    )
+    candidate_brier = _finite_number(candidate_detector.get("brier"))
+    stale_brier = _finite_number(stale.get("brier"))
+    candidate_log_loss = _finite_number(candidate_detector.get("log_loss"))
+    stale_log_loss = _finite_number(stale.get("log_loss"))
+    constant_brier = _finite_number(constant.get("brier"))
+    detector_comparisons = (
+        (
+            "detector.candidate.brier_vs_legacy",
+            "Detector candidate Brier versus legacy diagnostic",
+            candidate_brier,
+            stale_brier,
+            "detector: candidate must strictly improve stale Brier",
+        ),
+        (
+            "detector.candidate.log_loss_vs_legacy",
+            "Detector candidate log loss versus legacy diagnostic",
+            candidate_log_loss,
+            stale_log_loss,
+            "detector: candidate must strictly improve stale log loss",
+        ),
+        (
+            "detector.candidate.brier_vs_constant",
+            "Detector candidate Brier versus constant prevalence",
+            candidate_brier,
+            constant_brier,
+            "detector: candidate Brier must beat constant prevalence",
+        ),
+    )
+    for gate_id, label, observed, reference, failure_detail in detector_comparisons:
+        audit.append(
+            _audit_row(
+                gate_id=gate_id,
+                label=label,
+                scope="detector",
+                profile=_TOCSIN_ID,
+                slice_name="prompt_test",
+                evaluated=full_evaluation,
+                passed=(
+                    observed is not None
+                    and reference is not None
+                    and observed < reference
+                ),
+                observed=observed,
+                operator="<",
+                reference=reference,
+                failure_detail=failure_detail,
+                not_evaluated_reason=detector_reason,
+            )
+        )
+    endpoint_fraction = _finite_number(candidate_detector.get("endpoint_fraction"))
+    audit.append(
+        _audit_row(
+            gate_id="detector.candidate.endpoint_fraction",
+            label="Detector candidate endpoint fraction",
+            scope="detector",
+            profile=_TOCSIN_ID,
+            slice_name="prompt_test",
+            evaluated=full_evaluation,
+            passed=endpoint_fraction is not None and endpoint_fraction < 0.95,
+            observed=endpoint_fraction,
+            operator="<",
+            reference=0.95,
+            failure_detail=(
+                "detector: candidate endpoint fraction must be below 0.95"
+            ),
+            not_evaluated_reason=detector_reason,
+        )
+    )
+
+    candidate_evaluated = full_evaluation and candidate_valid
+    candidate_reason = (
+        "candidate artifacts are invalid"
+        if candidate_validity_evaluated and not candidate_valid
+        else "full benchmark was not evaluated"
+    )
+    for slice_name in _LOCKED_EVALUATION_SLICES:
+        _append_integrity_audit(
+            audit,
+            gate_prefix=f"candidate.{slice_name}",
+            label_prefix=f"candidate {slice_name}",
+            scope="candidate",
+            profile=candidate_name,
+            slice_name=slice_name,
+            metrics=_profile_slice(candidate, slice_name),
+            evaluated=candidate_evaluated,
+            not_evaluated_reason=candidate_reason,
+        )
+
+    prompt = _profile_slice(candidate, "prompt_test") or {}
+    coverage_n = _integer(prompt.get("conformal_truth_coverage_n", prompt.get("n")))
+    coverage_count = _integer(prompt.get("conformal_truth_coverage_count"))
+    coverage_reference: list[int] | None = None
+    if coverage_n is None or coverage_n <= 0:
+        coverage_passed = False
+        coverage_failure = (
+            "candidate prompt_test: conformal coverage denominator missing"
+        )
+    else:
+        lower, upper = binomial_target_interval(coverage_n, 0.95)
+        coverage_reference = [lower, upper]
+        if coverage_count is None:
+            coverage_passed = False
+            coverage_failure = "candidate prompt_test: conformal coverage count missing"
+        else:
+            coverage_passed = lower <= coverage_count <= upper
+            coverage_failure = (
+                "candidate prompt_test: conformal coverage count "
+                f"{coverage_count} outside [{lower}, {upper}]"
+            )
+    audit.append(
+        _audit_row(
+            gate_id="candidate.prompt_test.conformal_truth_coverage_count",
+            label="Candidate prompt_test conformal truth coverage count",
+            scope="candidate",
+            profile=candidate_name,
+            slice_name="prompt_test",
+            evaluated=candidate_evaluated,
+            passed=coverage_passed,
+            observed=coverage_count,
+            operator="between_inclusive",
+            reference=coverage_reference,
+            failure_detail=coverage_failure,
+            not_evaluated_reason=candidate_reason,
+        )
+    )
+
+    for comparator_name in comparator_names:
+        comparator = _as_mapping(comparators.get(comparator_name))
+        validity = comparator_status[comparator_name]
+        comparator_evaluated = full_evaluation and validity == "PASS"
+        if validity == "FAIL":
+            comparator_reason = "comparator artifacts are invalid"
+        elif validity == "NOT_EVALUATED":
+            comparator_reason = "comparator artifact validity was not evaluated"
+        else:
+            comparator_reason = "full benchmark was not evaluated"
+        for slice_name in _LOCKED_EVALUATION_SLICES:
+            _append_integrity_audit(
+                audit,
+                gate_prefix=f"comparator.{comparator_name}.{slice_name}",
+                label_prefix=f"comparator {comparator_name} {slice_name}",
+                scope="comparator",
+                profile=comparator_name,
+                slice_name=slice_name,
+                metrics=_profile_slice(comparator, slice_name),
+                evaluated=comparator_evaluated,
+                not_evaluated_reason=comparator_reason,
+            )
+
+        performance_evaluated = comparator_evaluated and candidate_valid
+        performance_reason = (
+            "candidate artifacts are invalid"
+            if comparator_evaluated and not candidate_valid
+            else comparator_reason
+        )
+        baseline_prompt = _profile_slice(comparator, "prompt_test") or {}
+        for metric in ("brier", "log_loss"):
+            _append_comparison_audit(
+                audit,
+                gate_id=f"comparator.{comparator_name}.prompt_test.{metric}",
+                label=f"{comparator_name} prompt_test {metric}",
+                profile=comparator_name,
+                slice_name="prompt_test",
+                candidate=prompt.get(metric),
+                baseline=baseline_prompt.get(metric),
+                operator="<=",
+                allowance=0.0,
+                evaluated=performance_evaluated,
+                not_evaluated_reason=performance_reason,
+            )
+        for metric in ("balanced_accuracy", "auroc"):
+            label_metric = (
+                "balanced accuracy" if metric == "balanced_accuracy" else metric
+            )
+            _append_comparison_audit(
+                audit,
+                gate_id=f"comparator.{comparator_name}.prompt_test.{metric}",
+                label=f"{comparator_name} prompt_test {label_metric}",
+                profile=comparator_name,
+                slice_name="prompt_test",
+                candidate=prompt.get(metric),
+                baseline=baseline_prompt.get(metric),
+                operator=">=",
+                allowance=0.01,
+                evaluated=performance_evaluated,
+                not_evaluated_reason=performance_reason,
+            )
+        _append_comparison_audit(
+            audit,
+            gate_id=f"comparator.{comparator_name}.prompt_test.human_fpr",
+            label=f"{comparator_name} prompt_test Human FPR",
+            profile=comparator_name,
+            slice_name="prompt_test",
+            candidate=prompt.get("human_fpr"),
+            baseline=baseline_prompt.get("human_fpr"),
+            operator="<=",
+            allowance=0.0,
+            evaluated=performance_evaluated,
+            not_evaluated_reason=performance_reason,
+        )
+
+        candidate_humanized = _profile_slice(candidate, "humanized_hard") or {}
+        baseline_humanized = _profile_slice(comparator, "humanized_hard") or {}
+        for metric in ("auroc", "tpr_at_fpr_05", "tpr_at_fpr_10"):
+            _append_comparison_audit(
+                audit,
+                gate_id=f"comparator.{comparator_name}.humanized_hard.{metric}",
+                label=f"{comparator_name} humanized_hard {metric}",
+                profile=comparator_name,
+                slice_name="humanized_hard",
+                candidate=candidate_humanized.get(metric),
+                baseline=baseline_humanized.get(metric),
+                operator=">=",
+                allowance=0.02,
+                evaluated=performance_evaluated,
+                not_evaluated_reason=performance_reason,
+            )
+
+        for corpus in ("ood_m4_test", "ood_raid_test", "ood_mage_test"):
+            candidate_ood = _profile_slice(candidate, corpus) or {}
+            baseline_ood = _profile_slice(comparator, corpus) or {}
+            _append_comparison_audit(
+                audit,
+                gate_id=f"comparator.{comparator_name}.{corpus}.auroc",
+                label=f"{comparator_name} {corpus} auroc",
+                profile=comparator_name,
+                slice_name=corpus,
+                candidate=candidate_ood.get("auroc"),
+                baseline=baseline_ood.get("auroc"),
+                operator=">=",
+                allowance=0.02,
+                evaluated=performance_evaluated,
+                not_evaluated_reason=performance_reason,
+            )
+
+    return audit
 
 
 def decide_promotion(report: Mapping[str, object]) -> dict[str, object]:
     """Apply only locked automatic gates; the adaptive challenge is ignored."""
 
-    preflight = report.get("preflight") or {}
-    failures = list(preflight.get("failures") or [])
-
-    detector = report.get("detector_calibration")
-    if detector is not None:
-        candidate_detector = detector.get("candidate") or {}
-        stale = detector.get("legacy_unsafe_clip_diagnostic") or {}
-        constant = detector.get("constant_prevalence") or {}
-        if _integer(detector.get("eligible_rows")) != 1822:
-            failures.append("detector: expected exactly 1,822 eligible rows")
-        if _finite_number(detector.get("support_coverage")) != 1.0:
-            failures.append("detector: support coverage must equal 1.0")
-        if not bool(candidate_detector.get("finite")):
-            failures.append("detector: candidate probabilities are non-finite")
-        if not bool(candidate_detector.get("in_unit_interval")):
-            failures.append("detector: candidate probabilities fall outside [0, 1]")
-        n_unique = _integer(candidate_detector.get("n_unique"))
-        if n_unique is None or n_unique <= 3:
-            failures.append("detector: candidate must have more than 3 unique probabilities")
-        candidate_brier = _finite_number(candidate_detector.get("brier"))
-        stale_brier = _finite_number(stale.get("brier"))
-        if not (
-            candidate_brier is not None
-            and stale_brier is not None
-            and candidate_brier < stale_brier
-        ):
-            failures.append("detector: candidate must strictly improve stale Brier")
-        candidate_log_loss = _finite_number(candidate_detector.get("log_loss"))
-        stale_log_loss = _finite_number(stale.get("log_loss"))
-        if not (
-            candidate_log_loss is not None
-            and stale_log_loss is not None
-            and candidate_log_loss < stale_log_loss
-        ):
-            failures.append("detector: candidate must strictly improve stale log loss")
-        constant_brier = _finite_number(constant.get("brier"))
-        if not (
-            candidate_brier is not None
-            and constant_brier is not None
-            and candidate_brier < constant_brier
-        ):
-            failures.append("detector: candidate Brier must beat constant prevalence")
-        endpoint_fraction = _finite_number(
-            candidate_detector.get("endpoint_fraction")
-        )
-        if endpoint_fraction is None or endpoint_fraction >= 0.95:
-            failures.append("detector: candidate endpoint fraction must be below 0.95")
-
-    candidate = report.get("candidate")
-    comparators = report.get("comparators") or {}
-    if candidate is not None:
-        candidate_blocks = {
-            "prompt_test": candidate.get("prompt_test"),
-            "humanized_hard": candidate.get("humanized_hard"),
-            **(candidate.get("ood") or {}),
-        }
-        for dataset_name, metrics in candidate_blocks.items():
-            if metrics is None:
-                failures.append(f"candidate {dataset_name}: metrics missing")
-            else:
-                _append_integrity_failures(
-                    failures, f"candidate {dataset_name}", metrics
-                )
-
-        prompt = candidate.get("prompt_test") or {}
-        coverage_n = _integer(
-            prompt.get("conformal_truth_coverage_n", prompt.get("n"))
-        )
-        coverage_count = _integer(prompt.get("conformal_truth_coverage_count"))
-        if coverage_n is None or coverage_n <= 0:
-            failures.append("candidate prompt_test: conformal coverage denominator missing")
-        elif coverage_count is None:
-            failures.append("candidate prompt_test: conformal coverage count missing")
-        else:
-            lower, upper = binomial_target_interval(coverage_n, 0.95)
-            if not lower <= coverage_count <= upper:
-                failures.append(
-                    "candidate prompt_test: conformal coverage count "
-                    f"{coverage_count} outside [{lower}, {upper}]"
-                )
-
-        for comparator_name, comparator in comparators.items():
-            comparator_blocks = {
-                "prompt_test": comparator.get("prompt_test"),
-                "humanized_hard": comparator.get("humanized_hard"),
-                **(comparator.get("ood") or {}),
-            }
-            for dataset_name, metrics in comparator_blocks.items():
-                if metrics is None:
-                    failures.append(
-                        f"comparator {comparator_name} {dataset_name}: metrics missing"
-                    )
-                else:
-                    _append_integrity_failures(
-                        failures,
-                        f"comparator {comparator_name} {dataset_name}",
-                        metrics,
-                    )
-
-            baseline_prompt = comparator.get("prompt_test") or {}
-            for metric in ("brier", "log_loss"):
-                _append_maximum_gate(
-                    failures,
-                    f"{comparator_name} prompt_test {metric}",
-                    prompt.get(metric),
-                    baseline_prompt.get(metric),
-                )
-            for metric in ("balanced_accuracy", "auroc"):
-                label = "balanced accuracy" if metric == "balanced_accuracy" else metric
-                _append_minimum_gate(
-                    failures,
-                    f"{comparator_name} prompt_test {label}",
-                    prompt.get(metric),
-                    baseline_prompt.get(metric),
-                    0.01,
-                )
-            _append_maximum_gate(
-                failures,
-                f"{comparator_name} prompt_test Human FPR",
-                prompt.get("human_fpr"),
-                baseline_prompt.get("human_fpr"),
-            )
-
-            candidate_humanized = candidate.get("humanized_hard") or {}
-            baseline_humanized = comparator.get("humanized_hard") or {}
-            for metric in ("auroc", "tpr_at_fpr_05", "tpr_at_fpr_10"):
-                _append_minimum_gate(
-                    failures,
-                    f"{comparator_name} humanized_hard {metric}",
-                    candidate_humanized.get(metric),
-                    baseline_humanized.get(metric),
-                    0.02,
-                )
-
-            for corpus in ("ood_m4_test", "ood_raid_test", "ood_mage_test"):
-                candidate_ood = (candidate.get("ood") or {}).get(corpus) or {}
-                baseline_ood = (comparator.get("ood") or {}).get(corpus) or {}
-                _append_minimum_gate(
-                    failures,
-                    f"{comparator_name} {corpus} auroc",
-                    candidate_ood.get("auroc"),
-                    baseline_ood.get("auroc"),
-                    0.02,
-                )
-
+    failures: list[str] = []
+    seen: set[str] = set()
+    for row in promotion_gate_audit(report):
+        if row["status"] != "FAIL":
+            continue
+        detail = str(row["failure_detail"])
+        if detail not in seen:
+            failures.append(detail)
+            seen.add(detail)
     return {
         "status": "PASS" if not failures else "DO_NOT_PROMOTE",
         "failures": failures,

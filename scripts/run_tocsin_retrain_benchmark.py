@@ -20,6 +20,7 @@ from cairn.evaluation.tocsin_retrain import (
     load_evaluation_slice,
     preflight_profiles,
     profile_name,
+    promotion_gate_audit,
 )
 
 
@@ -259,6 +260,18 @@ def _format_metric(value: object, precision: int = 6) -> str:
     return f"{number:.{precision}f}"
 
 
+def _markdown_audit_cell(value: object) -> str:
+    if value is None:
+        return "NA"
+    if isinstance(value, str):
+        rendered = value
+    else:
+        rendered = json.dumps(
+            _json_safe(value), sort_keys=True, separators=(",", ":")
+        )
+    return rendered.replace("|", "\\|").replace("\n", "<br>")
+
+
 def _markdown_report(
     decision: Mapping[str, object],
     report: Mapping[str, object],
@@ -275,11 +288,31 @@ def _markdown_report(
             f"- Comparator `{name}`: {'VALID' if record.get('valid') else 'INVALID'}"
         )
     lines.extend(["", "## Automatic promotion gates", ""])
-    failures = decision.get("failures") or []
-    if failures:
-        lines.extend(f"- FAIL: {failure.replace(chr(10), '; ')}" for failure in failures)
-    else:
-        lines.append("- All locked automatic gates passed.")
+    lines.extend(
+        [
+            "| Status | Gate ID | Scope | Profile | Slice | Observed | Operator | Reference | Detail |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for row in promotion_gate_audit(report):
+        detail = row.get("failure_detail") or row.get("not_evaluated_reason")
+        lines.append(
+            "| "
+            + " | ".join(
+                (
+                    str(row["status"]),
+                    f"`{row['gate_id']}`",
+                    _markdown_audit_cell(row.get("scope")),
+                    _markdown_audit_cell(row.get("profile")),
+                    _markdown_audit_cell(row.get("slice")),
+                    _markdown_audit_cell(row.get("observed")),
+                    _markdown_audit_cell(row.get("operator")),
+                    _markdown_audit_cell(row.get("reference")),
+                    _markdown_audit_cell(detail) if detail else "",
+                )
+            )
+            + " |"
+        )
 
     detector = report.get("detector_calibration")
     if detector:
@@ -333,6 +366,11 @@ def _write_decision_reports(
         "PROMOTION_REPORT.md": _markdown_report(decision, report),
     }
     _atomic_write_set(out_dir, rendered)
+
+
+def _decide_and_attach_audit(report: dict[str, object]) -> dict[str, object]:
+    report["gate_audit"] = promotion_gate_audit(report)
+    return decide_promotion(report)
 
 
 def _publish_full_reports(
@@ -526,7 +564,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     report: dict[str, object] = {"preflight": preflight}
 
     if args.preflight_only:
-        decision = decide_promotion(report)
+        decision = _decide_and_attach_audit(report)
         _write_decision_reports(args.out_dir, decision, report)
         return 1 if preflight["failures"] else 0
 
@@ -534,11 +572,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         diagnostic_block = _diagnostic_block_reason(preflight)
         if diagnostic_block is not None:
             preflight["failures"].append(diagnostic_block)
-            decision = decide_promotion(report)
+            decision = _decide_and_attach_audit(report)
             _write_decision_reports(args.out_dir, decision, report)
             return 1
     if preflight["failures"] and not args.diagnostic_on_invalid_comparator:
-        decision = decide_promotion(report)
+        decision = _decide_and_attach_audit(report)
         _write_decision_reports(args.out_dir, decision, report)
         return 1
 
@@ -547,7 +585,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         preflight["failures"].append(
             "missing required benchmark arguments: " + ", ".join(missing_arguments)
         )
-        decision = decide_promotion(report)
+        decision = _decide_and_attach_audit(report)
         _publish_empty_full_reports(args.out_dir, decision, report)
         return 1
 
@@ -558,11 +596,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"evaluation infrastructure failure: {type(exc).__name__}: {exc}"
         )
         report = {"preflight": preflight}
-        decision = decide_promotion(report)
+        decision = _decide_and_attach_audit(report)
         _publish_empty_full_reports(args.out_dir, decision, report)
         return 1
 
-    decision = decide_promotion(report)
+    decision = _decide_and_attach_audit(report)
     _publish_full_reports(
         args.out_dir,
         decision,

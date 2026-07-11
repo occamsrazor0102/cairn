@@ -315,6 +315,180 @@ def _passing_report():
     }
 
 
+def _mixed_gate_audit_report():
+    report = _passing_report()
+    report["candidate_name"] = "prompts_only_tocsin_v2"
+    report["challenge"] = None
+    invalid_comparator_failure = (
+        "INVALID_COMPARATOR prompts_specdetect:\n"
+        "missing models/calib2000/profiles/prompts_specdetect/ebm.skops\n"
+        "missing models/calib2000/profiles/prompts_specdetect/ebm.skops.hmac"
+    )
+    report["preflight"] = {
+        "candidate": {
+            "name": "prompts_only_tocsin_v2",
+            "valid": True,
+            "failures": [],
+        },
+        "comparators": {
+            "prompts_only": {
+                "name": "prompts_only",
+                "valid": True,
+                "failures": [],
+            },
+            "prompts_specdetect": {
+                "name": "prompts_specdetect",
+                "valid": False,
+                "failures": [
+                    "missing models/calib2000/profiles/prompts_specdetect/ebm.skops",
+                    "missing models/calib2000/profiles/prompts_specdetect/ebm.skops.hmac",
+                ],
+            },
+        },
+        "comparator_identity_valid": True,
+        "failures": [invalid_comparator_failure],
+    }
+    del report["comparators"]["prompts_specdetect"]
+    report["candidate"]["prompt_test"]["human_fpr"] = math.nextafter(
+        0.10, math.inf
+    )
+    return report, invalid_comparator_failure
+
+
+def _expected_locked_gate_ids():
+    slices = (
+        "prompt_test",
+        "humanized_hard",
+        "ood_m4_test",
+        "ood_raid_test",
+        "ood_mage_test",
+    )
+    integrity = (
+        "all_ebm",
+        "finite",
+        "in_unit_interval",
+        "max_ebm_reconstruction_error",
+    )
+    ids = [
+        "preflight.comparator_identity",
+        "preflight.candidate_artifacts",
+        "preflight.comparator.prompts_only.artifacts",
+        "preflight.comparator.prompts_specdetect.artifacts",
+        "detector.eligible_rows",
+        "detector.support_coverage",
+        "detector.candidate.finite",
+        "detector.candidate.in_unit_interval",
+        "detector.candidate.n_unique",
+        "detector.candidate.brier_vs_legacy",
+        "detector.candidate.log_loss_vs_legacy",
+        "detector.candidate.brier_vs_constant",
+        "detector.candidate.endpoint_fraction",
+    ]
+    ids.extend(
+        f"candidate.{slice_name}.{metric}"
+        for slice_name in slices
+        for metric in integrity
+    )
+    ids.append("candidate.prompt_test.conformal_truth_coverage_count")
+    for profile in ("prompts_only", "prompts_specdetect"):
+        ids.extend(
+            f"comparator.{profile}.{slice_name}.{metric}"
+            for slice_name in slices
+            for metric in integrity
+        )
+        ids.extend(
+            [
+                f"comparator.{profile}.prompt_test.brier",
+                f"comparator.{profile}.prompt_test.log_loss",
+                f"comparator.{profile}.prompt_test.balanced_accuracy",
+                f"comparator.{profile}.prompt_test.auroc",
+                f"comparator.{profile}.prompt_test.human_fpr",
+                f"comparator.{profile}.humanized_hard.auroc",
+                f"comparator.{profile}.humanized_hard.tpr_at_fpr_05",
+                f"comparator.{profile}.humanized_hard.tpr_at_fpr_10",
+                f"comparator.{profile}.ood_m4_test.auroc",
+                f"comparator.{profile}.ood_raid_test.auroc",
+                f"comparator.{profile}.ood_mage_test.auroc",
+            ]
+        )
+    return ids
+
+
+def test_promotion_gate_audit_is_complete_ordered_and_preserves_decision():
+    report, invalid_comparator_failure = _mixed_gate_audit_report()
+
+    audit = tocsin_retrain_module.promotion_gate_audit(report)
+    gate_ids = [row["gate_id"] for row in audit]
+
+    assert gate_ids == _expected_locked_gate_ids()
+    assert len(gate_ids) == len(set(gate_ids))
+    by_id = {row["gate_id"]: row for row in audit}
+    assert by_id["preflight.comparator.prompts_only.artifacts"]["status"] == "PASS"
+    assert (
+        by_id["preflight.comparator.prompts_specdetect.artifacts"]["status"]
+        == "FAIL"
+    )
+    assert by_id["detector.eligible_rows"] == {
+        "gate_id": "detector.eligible_rows",
+        "label": "Detector eligible row count",
+        "scope": "detector",
+        "profile": "token_cohesiveness",
+        "slice": "prompt_test",
+        "status": "PASS",
+        "observed": 1822,
+        "operator": "==",
+        "reference": 1822,
+        "failure_detail": None,
+        "not_evaluated_reason": None,
+    }
+    assert by_id["candidate.prompt_test.conformal_truth_coverage_count"][
+        "observed"
+    ] == 96
+    assert by_id["candidate.prompt_test.conformal_truth_coverage_count"][
+        "reference"
+    ] == [90, 99]
+    failed_fpr = by_id["comparator.prompts_only.prompt_test.human_fpr"]
+    assert failed_fpr["status"] == "FAIL"
+    assert failed_fpr["observed"] == math.nextafter(0.10, math.inf)
+    assert failed_fpr["operator"] == "<="
+    assert failed_fpr["reference"] == 0.10
+    assert failed_fpr["failure_detail"] == (
+        "prompts_only prompt_test Human FPR: candidate regressed"
+    )
+    specdetect_evaluation = [
+        row
+        for row in audit
+        if row["gate_id"].startswith("comparator.prompts_specdetect.")
+        and not row["gate_id"].endswith(".artifacts")
+    ]
+    assert len(specdetect_evaluation) == 31
+    assert {row["status"] for row in specdetect_evaluation} == {"NOT_EVALUATED"}
+    assert decide_promotion(report) == {
+        "status": "DO_NOT_PROMOTE",
+        "failures": [
+            invalid_comparator_failure,
+            "prompts_only prompt_test Human FPR: candidate regressed",
+        ],
+    }
+
+
+def test_markdown_renders_every_gate_status_from_shared_audit():
+    report, _ = _mixed_gate_audit_report()
+    decision = decide_promotion(report)
+
+    rendered = benchmark._markdown_report(decision, report)
+
+    assert "| Status | Gate ID | Scope | Profile | Slice | Observed | Operator | Reference | Detail |" in rendered
+    assert "| PASS | `detector.eligible_rows` |" in rendered
+    assert "| FAIL | `comparator.prompts_only.prompt_test.human_fpr` |" in rendered
+    assert (
+        "| NOT_EVALUATED | `comparator.prompts_specdetect.prompt_test.brier` |"
+        in rendered
+    )
+    assert rendered.count("`detector.eligible_rows`") == 1
+    assert rendered.count("`comparator.prompts_only.prompt_test.human_fpr`") == 1
+
+
 def test_decide_promotion_accepts_every_gate_at_its_inclusive_boundary():
     assert decide_promotion(_passing_report()) == {"status": "PASS", "failures": []}
 
@@ -1031,6 +1205,43 @@ def test_invalid_gate_metrics_still_publish_complete_json_safe_reports(
     ).read_text(encoding="utf-8").splitlines() == [
         "profile,slice,id,label,p_llm,predicted_label,conformal_set,fusion_mode,reconstruction_error"
     ]
+
+
+def test_full_benchmark_stores_complete_gate_audit_in_benchmarks_json(
+    tmp_path, monkeypatch
+):
+    report = _full_report_with_preflight()
+    monkeypatch.setattr(benchmark, "preflight_profiles", lambda *args: _valid_preflight())
+    monkeypatch.setattr(
+        benchmark,
+        "_run_full",
+        lambda *args: (report, {"challenge_rows": []}),
+    )
+
+    exit_code = benchmark.main(_normal_full_args(tmp_path))
+
+    assert exit_code == 0
+    stored = json.loads((tmp_path / "reports" / "benchmarks.json").read_text())
+    assert [row["gate_id"] for row in stored["gate_audit"]] == (
+        _expected_locked_gate_ids()
+    )
+    assert all(
+        set(row)
+        == {
+            "gate_id",
+            "label",
+            "scope",
+            "profile",
+            "slice",
+            "status",
+            "observed",
+            "operator",
+            "reference",
+            "failure_detail",
+            "not_evaluated_reason",
+        }
+        for row in stored["gate_audit"]
+    )
 
 
 def test_report_render_failure_leaves_no_partial_report_set(tmp_path, monkeypatch):
