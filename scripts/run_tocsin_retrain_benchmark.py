@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import math
 from pathlib import Path
@@ -23,14 +24,6 @@ from cairn.evaluation.tocsin_retrain import (
 
 
 _OOD_DATASETS = ("ood_m4_test", "ood_raid_test", "ood_mage_test")
-_FULL_REPORTS = (
-    "detector_calibration.json",
-    "benchmarks.json",
-    "benchmarks_long.csv",
-    "july10_per_task.csv",
-    "promotion_decision.json",
-    "PROMOTION_REPORT.md",
-)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -55,11 +48,44 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _write_json(path: Path, payload: object) -> None:
-    path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
+def _json_safe(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
+
+
+def _render_json(payload: object) -> str:
+    return (
+        json.dumps(
+            _json_safe(payload),
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        )
+        + "\n"
     )
+
+
+def _atomic_write_set(out_dir: Path, rendered: Mapping[str, str]) -> None:
+    """Render first, then replace each report from a fully written temp file."""
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    temporary: dict[str, Path] = {}
+    try:
+        for name, content in rendered.items():
+            temp_path = out_dir / f".{name}.tmp"
+            temp_path.write_text(content, encoding="utf-8", newline="")
+            temporary[name] = temp_path
+        for name in rendered:
+            temporary[name].replace(out_dir / name)
+    finally:
+        for temp_path in temporary.values():
+            if temp_path.exists():
+                temp_path.unlink()
 
 
 def _profile_report(evaluation: ProfileEvaluation) -> dict[str, object]:
@@ -93,22 +119,22 @@ def _scalar_metric_rows(
                 yield [role, profile, dataset, metric, value]
 
 
-def _write_benchmarks_long(
-    path: Path,
+def _render_benchmarks_long(
     candidate_name: str,
     candidate: Mapping[str, object],
     comparators: Mapping[str, Mapping[str, object]],
-) -> None:
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["role", "profile", "dataset", "metric", "value"])
+) -> str:
+    handle = io.StringIO(newline="")
+    writer = csv.writer(handle, lineterminator="\n")
+    writer.writerow(["role", "profile", "dataset", "metric", "value"])
+    writer.writerows(
+        _scalar_metric_rows("candidate", candidate_name, candidate)
+    )
+    for name in sorted(comparators):
         writer.writerows(
-            _scalar_metric_rows("candidate", candidate_name, candidate)
+            _scalar_metric_rows("comparator", name, comparators[name])
         )
-        for name in sorted(comparators):
-            writer.writerows(
-                _scalar_metric_rows("comparator", name, comparators[name])
-            )
+    return handle.getvalue()
 
 
 def _task_id(row: EvaluatedRow) -> str:
@@ -151,7 +177,13 @@ def _challenge_rows(
     return rows
 
 
-def _write_challenge_csv(path: Path, rows: Sequence[Mapping[str, object]]) -> None:
+def _csv_safe(value: object) -> object:
+    if isinstance(value, float) and not math.isfinite(value):
+        return ""
+    return "" if value is None else value
+
+
+def _render_challenge_csv(rows: Sequence[Mapping[str, object]]) -> str:
     fields = [
         "task_id",
         "label",
@@ -160,10 +192,23 @@ def _write_challenge_csv(path: Path, rows: Sequence[Mapping[str, object]]) -> No
         "candidate_p_llm",
         "delta_candidate_minus_current",
     ]
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
+    handle = io.StringIO(newline="")
+    writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(
+        {key: _csv_safe(value) for key, value in row.items()} for row in rows
+    )
+    return handle.getvalue()
+
+
+def _format_metric(value: object, precision: int = 6) -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return "NA"
+    if not math.isfinite(number):
+        return "NA"
+    return f"{number:.{precision}f}"
 
 
 def _markdown_report(
@@ -190,17 +235,22 @@ def _markdown_report(
 
     detector = report.get("detector_calibration")
     if detector:
+        raw = detector.get("raw") or {}
+        candidate_detector = detector.get("candidate") or {}
+        stale_detector = detector.get("legacy_unsafe_clip_diagnostic") or {}
         lines.extend(
             [
                 "",
                 "## Detector calibration",
                 "",
-                f"- Eligible rows: {detector['eligible_rows']}",
-                f"- Detector SKIP rows: {detector['detector_skip_rows']}",
-                f"- Support coverage: {detector['support_coverage']:.6f}",
-                f"- Raw combined_w range: {detector['raw']['min']:.6g} to {detector['raw']['max']:.6g}",
-                f"- Candidate Brier: {detector['candidate']['brier']:.6f}",
-                f"- Legacy unsafe clipped diagnostic Brier: {detector['legacy_unsafe_clip_diagnostic']['brier']:.6f}",
+                f"- Eligible rows: {detector.get('eligible_rows', 'NA')}",
+                f"- Detector SKIP rows: {detector.get('detector_skip_rows', 'NA')}",
+                f"- Support coverage: {_format_metric(detector.get('support_coverage'))}",
+                "- Raw combined_w range: "
+                f"{_format_metric(raw.get('min'))} to {_format_metric(raw.get('max'))}",
+                f"- Candidate Brier: {_format_metric(candidate_detector.get('brier'))}",
+                "- Legacy unsafe clipped diagnostic Brier: "
+                f"{_format_metric(stale_detector.get('brier'))}",
             ]
         )
 
@@ -212,10 +262,11 @@ def _markdown_report(
             [
                 "These results are serialized for review and never enter automatic promotion logic.",
                 "",
-                f"- Brier: {cm['brier']:.6f}",
-                f"- Balanced accuracy: {cm['balanced_accuracy']:.6f}",
-                f"- Human specificity: {cm['specificity']:.6f}",
-                f"- Conformal truth coverage: {cm['conformal_truth_coverage']:.6f}",
+                f"- Brier: {_format_metric(cm.get('brier'))}",
+                f"- Balanced accuracy: {_format_metric(cm.get('balanced_accuracy'))}",
+                f"- Human specificity: {_format_metric(cm.get('specificity'))}",
+                "- Conformal truth coverage: "
+                f"{_format_metric(cm.get('conformal_truth_coverage'))}",
             ]
         )
     else:
@@ -229,20 +280,53 @@ def _write_decision_reports(
     decision: Mapping[str, object],
     report: Mapping[str, object],
 ) -> None:
-    _write_json(out_dir / "promotion_decision.json", decision)
-    (out_dir / "PROMOTION_REPORT.md").write_text(
-        _markdown_report(decision, report), encoding="utf-8"
+    rendered = {
+        "promotion_decision.json": _render_json(decision),
+        "PROMOTION_REPORT.md": _markdown_report(decision, report),
+    }
+    _atomic_write_set(out_dir, rendered)
+
+
+def _publish_full_reports(
+    out_dir: Path,
+    decision: Mapping[str, object],
+    report: Mapping[str, object],
+    *,
+    candidate_name: str,
+    candidate: Mapping[str, object],
+    comparators: Mapping[str, Mapping[str, object]],
+    challenge_rows: Sequence[Mapping[str, object]],
+    detector: Mapping[str, object],
+) -> None:
+    # Every renderer runs before the first destination path is replaced.
+    rendered = {
+        "detector_calibration.json": _render_json(detector),
+        "benchmarks.json": _render_json(report),
+        "benchmarks_long.csv": _render_benchmarks_long(
+            candidate_name, candidate, comparators
+        ),
+        "july10_per_task.csv": _render_challenge_csv(challenge_rows),
+        "promotion_decision.json": _render_json(decision),
+        "PROMOTION_REPORT.md": _markdown_report(decision, report),
+    }
+    _atomic_write_set(out_dir, rendered)
+
+
+def _publish_empty_full_reports(
+    out_dir: Path,
+    decision: Mapping[str, object],
+    report: Mapping[str, object],
+) -> None:
+    _publish_full_reports(
+        out_dir,
+        decision,
+        report,
+        candidate_name=str(report.get("candidate_name") or "unavailable"),
+        candidate=report.get("candidate") or {},
+        comparators=report.get("comparators") or {},
+        challenge_rows=[],
+        detector=report.get("detector_calibration") or {},
     )
-
-
-def _complete_empty_reports(out_dir: Path, report: Mapping[str, object]) -> None:
-    _write_json(out_dir / "detector_calibration.json", {})
-    _write_json(out_dir / "benchmarks.json", report)
-    with (out_dir / "benchmarks_long.csv").open(
-        "w", encoding="utf-8", newline=""
-    ) as handle:
-        handle.write("role,profile,dataset,metric,value\n")
-    _write_challenge_csv(out_dir / "july10_per_task.csv", [])
 
 
 def _required_full_arguments(args: argparse.Namespace) -> list[str]:
@@ -278,6 +362,23 @@ def _candidate_calibration_path(config_path: Path) -> Path:
     if not value:
         raise ValueError("candidate profile lacks detector_calibration_path")
     return Path(value)
+
+
+def _diagnostic_block_reason(preflight: Mapping[str, object]) -> str | None:
+    candidate = preflight.get("candidate") or {}
+    if not candidate.get("valid"):
+        return "diagnostic-on-invalid-comparator requires a fully valid candidate"
+    if not preflight.get("comparator_identity_valid"):
+        return (
+            "diagnostic-on-invalid-comparator requires exactly the comparators "
+            "prompts_only and prompts_specdetect"
+        )
+    comparators = preflight.get("comparators") or {}
+    if not any(not record.get("valid") for record in comparators.values()):
+        return (
+            "diagnostic-on-invalid-comparator requires at least one invalid comparator"
+        )
+    return None
 
 
 def _run_full(args: argparse.Namespace, preflight: dict[str, object]) -> tuple[dict, dict]:
@@ -374,14 +475,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         _write_decision_reports(args.out_dir, decision, report)
         return 1 if preflight["failures"] else 0
 
-    if args.diagnostic_on_invalid_comparator and not preflight["failures"]:
-        preflight["failures"].append(
-            "diagnostic-on-invalid-comparator requires a failed preflight"
-        )
-        decision = decide_promotion(report)
-        _complete_empty_reports(args.out_dir, report)
-        _write_decision_reports(args.out_dir, decision, report)
-        return 1
+    if args.diagnostic_on_invalid_comparator:
+        diagnostic_block = _diagnostic_block_reason(preflight)
+        if diagnostic_block is not None:
+            preflight["failures"].append(diagnostic_block)
+            decision = decide_promotion(report)
+            _write_decision_reports(args.out_dir, decision, report)
+            return 1
     if preflight["failures"] and not args.diagnostic_on_invalid_comparator:
         decision = decide_promotion(report)
         _write_decision_reports(args.out_dir, decision, report)
@@ -393,8 +493,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "missing required benchmark arguments: " + ", ".join(missing_arguments)
         )
         decision = decide_promotion(report)
-        _complete_empty_reports(args.out_dir, report)
-        _write_decision_reports(args.out_dir, decision, report)
+        _publish_empty_full_reports(args.out_dir, decision, report)
         return 1
 
     try:
@@ -405,23 +504,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         report = {"preflight": preflight}
         decision = decide_promotion(report)
-        _complete_empty_reports(args.out_dir, report)
-        _write_decision_reports(args.out_dir, decision, report)
+        _publish_empty_full_reports(args.out_dir, decision, report)
         return 1
 
     decision = decide_promotion(report)
-    _write_json(args.out_dir / "detector_calibration.json", report["detector_calibration"])
-    _write_json(args.out_dir / "benchmarks.json", report)
-    _write_benchmarks_long(
-        args.out_dir / "benchmarks_long.csv",
-        report["candidate_name"],
-        report["candidate"],
-        report["comparators"],
+    _publish_full_reports(
+        args.out_dir,
+        decision,
+        report,
+        candidate_name=report["candidate_name"],
+        candidate=report["candidate"],
+        comparators=report["comparators"],
+        challenge_rows=outputs["challenge_rows"],
+        detector=report["detector_calibration"],
     )
-    _write_challenge_csv(
-        args.out_dir / "july10_per_task.csv", outputs["challenge_rows"]
-    )
-    _write_decision_reports(args.out_dir, decision, report)
     if preflight["failures"]:
         return 1
     return 0 if decision["status"] == "PASS" else 2

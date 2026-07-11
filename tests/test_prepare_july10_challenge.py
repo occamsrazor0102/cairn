@@ -8,13 +8,14 @@ from cairn.normalizer import normalize_text
 from scripts.prepare_july10_challenge import prepare_challenge
 
 
-def _write_jsonl(path: Path, rows: list[dict]) -> None:
-    path.write_text(
-        "".join(json.dumps(row) + "\n" for row in rows),
-        encoding="utf-8",
-    )
-
-
+NAMED_TRAINING_PATHS = (
+    Path("data/prompts_v2_train.jsonl"),
+    Path("data/prompts_only_calib.jsonl"),
+)
+ACTUAL_ROWS = Path("outputs/cairn_blinded_rerun_2026-07-10/source_rows.json")
+ACTUAL_TRUTH = Path(
+    "outputs/cairn_blinded_rerun_2026-07-10/ground_truth_analysis.json"
+)
 def _challenge_sources(tmp_path: Path) -> tuple[Path, Path]:
     rows = {
         "source": "private.xlsx",
@@ -54,17 +55,13 @@ def _challenge_sources(tmp_path: Path) -> tuple[Path, Path]:
 
 def test_prepare_challenge_emits_exact_locked_slice_and_excludes_training(tmp_path):
     rows_path, truth_path = _challenge_sources(tmp_path)
-    train = tmp_path / "train.jsonl"
-    calib = tmp_path / "calib.jsonl"
-    _write_jsonl(train, [{"text": "unrelated train text", "label": 0}])
-    _write_jsonl(calib, [{"text": "unrelated calibration text", "label": 1}])
     out = tmp_path / "july10_labelled.jsonl"
 
     prepared = prepare_challenge(
         rows_path,
         truth_path,
         out,
-        training_paths=(train, calib),
+        training_paths=NAMED_TRAINING_PATHS,
     )
 
     assert len(prepared) == 14
@@ -77,7 +74,7 @@ def test_prepare_challenge_emits_exact_locked_slice_and_excludes_training(tmp_pa
 
     training_hashes = {
         text_hash(normalize_text(row["text"]))
-        for path in (train, calib)
+        for path in NAMED_TRAINING_PATHS
         for row in (json.loads(line) for line in path.read_text().splitlines())
     }
     assert not {
@@ -87,20 +84,19 @@ def test_prepare_challenge_emits_exact_locked_slice_and_excludes_training(tmp_pa
 
 def test_prepare_challenge_rejects_normalized_training_overlap(tmp_path):
     rows_path, truth_path = _challenge_sources(tmp_path)
-    train = tmp_path / "train.jsonl"
-    calib = tmp_path / "calib.jsonl"
-    _write_jsonl(
-        train,
-        [{"text": "Private   challenge text number 41", "label": 0}],
+    named_training_row = json.loads(
+        NAMED_TRAINING_PATHS[0].read_text(encoding="utf-8").splitlines()[0]
     )
-    _write_jsonl(calib, [{"text": "unrelated", "label": 1}])
+    rows = json.loads(rows_path.read_text(encoding="utf-8"))
+    rows["rows"][0]["text"] = f"  {named_training_row['text']}  "
+    rows_path.write_text(json.dumps(rows), encoding="utf-8")
 
     with pytest.raises(ValueError, match="overlaps training data"):
         prepare_challenge(
             rows_path,
             truth_path,
             tmp_path / "out.jsonl",
-            training_paths=(train, calib),
+            training_paths=NAMED_TRAINING_PATHS,
         )
 
 
@@ -109,15 +105,27 @@ def test_prepare_challenge_rejects_wrong_locked_composition(tmp_path):
     truth = json.loads(truth_path.read_text())
     truth["actual_origins"][9]["binary_label"] = 1
     truth_path.write_text(json.dumps(truth), encoding="utf-8")
-    train = tmp_path / "train.jsonl"
-    calib = tmp_path / "calib.jsonl"
-    _write_jsonl(train, [])
-    _write_jsonl(calib, [])
-
     with pytest.raises(ValueError, match="9 positive and 5 Human"):
         prepare_challenge(
             rows_path,
             truth_path,
             tmp_path / "out.jsonl",
-            training_paths=(train, calib),
+            training_paths=NAMED_TRAINING_PATHS,
         )
+
+
+@pytest.mark.skipif(
+    not (ACTUAL_ROWS.is_file() and ACTUAL_TRUTH.is_file()),
+    reason="private July 10 source/truth artifacts are not present in this checkout",
+)
+def test_actual_private_challenge_has_locked_14_row_composition(tmp_path):
+    prepared = prepare_challenge(
+        ACTUAL_ROWS,
+        ACTUAL_TRUTH,
+        tmp_path / "actual-july10.jsonl",
+        training_paths=NAMED_TRAINING_PATHS,
+    )
+
+    assert [int(sample.source_id) for sample in prepared] == list(range(41, 55))
+    assert sum(sample.label == 1 for sample in prepared) == 9
+    assert sum(sample.label == 0 for sample in prepared) == 5

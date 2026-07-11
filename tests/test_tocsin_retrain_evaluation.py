@@ -1,5 +1,7 @@
+import ast
 import inspect
 import json
+import math
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,6 +29,8 @@ from cairn.feature_cache import CachedPipeline, text_hash
 from cairn.fusion.ebm import EBMFusion
 from cairn.normalizer import normalize_text
 from cairn.pipeline import CairnPipeline
+import cairn.evaluation.tocsin_retrain as tocsin_retrain_module
+import scripts.run_tocsin_retrain_benchmark as benchmark
 from scripts.run_tocsin_retrain_benchmark import build_parser, main as benchmark_main
 
 
@@ -121,6 +125,39 @@ def test_probability_metrics_are_complete():
     assert metrics["positive_mean"] == pytest.approx(0.85)
     assert metrics["endpoint_fraction"] == 0.0
     assert len(metrics["reliability_curve"]) == 10
+
+
+def test_invalid_probabilities_make_probability_metrics_explicitly_missing():
+    metrics = probability_metrics([0, 1], [math.nan, 2.0])
+
+    assert metrics["finite"] is False
+    assert metrics["in_unit_interval"] is False
+    for key in (
+        "brier",
+        "log_loss",
+        "auroc",
+        "ece",
+        "human_mean",
+        "positive_mean",
+        "endpoint_fraction",
+        "reliability_curve",
+    ):
+        assert metrics[key] is None
+
+
+def test_degenerate_class_metrics_use_none_instead_of_nan():
+    metrics = profile_metrics(
+        [0, 0],
+        [0.1, 0.2],
+        [["human"], ["human"]],
+        [0.0, 0.0],
+        fusion_modes=["ebm", "ebm"],
+    )
+
+    assert metrics["auroc"] is None
+    assert metrics["balanced_accuracy"] is None
+    assert metrics["tpr_at_fpr_05"] is None
+    assert metrics["tpr_at_fpr_10"] is None
 
 
 def test_detector_comparison_uses_one_support_mask_for_all_probability_metrics():
@@ -334,72 +371,6 @@ def test_decide_promotion_accepts_every_gate_at_its_inclusive_boundary():
         ),
         (
             lambda r: r["candidate"]["prompt_test"].__setitem__(
-                "brier", 0.20001
-            ),
-            "prompt_test brier",
-        ),
-        (
-            lambda r: r["candidate"]["prompt_test"].__setitem__(
-                "log_loss", 0.40001
-            ),
-            "prompt_test log_loss",
-        ),
-        (
-            lambda r: r["candidate"]["prompt_test"].__setitem__(
-                "balanced_accuracy", 0.78999
-            ),
-            "balanced accuracy",
-        ),
-        (
-            lambda r: r["candidate"]["prompt_test"].__setitem__(
-                "auroc", 0.78999
-            ),
-            "prompt_test auroc",
-        ),
-        (
-            lambda r: r["candidate"]["prompt_test"].__setitem__(
-                "human_fpr", 0.10001
-            ),
-            "Human FPR",
-        ),
-        (
-            lambda r: r["candidate"]["humanized_hard"].__setitem__(
-                "auroc", 0.77999
-            ),
-            "humanized_hard auroc",
-        ),
-        (
-            lambda r: r["candidate"]["humanized_hard"].__setitem__(
-                "tpr_at_fpr_05", 0.77999
-            ),
-            "humanized_hard tpr_at_fpr_05",
-        ),
-        (
-            lambda r: r["candidate"]["humanized_hard"].__setitem__(
-                "tpr_at_fpr_10", 0.77999
-            ),
-            "humanized_hard tpr_at_fpr_10",
-        ),
-        (
-            lambda r: r["candidate"]["ood"]["ood_m4_test"].__setitem__(
-                "auroc", 0.77999
-            ),
-            "ood_m4_test auroc",
-        ),
-        (
-            lambda r: r["candidate"]["ood"]["ood_raid_test"].__setitem__(
-                "auroc", 0.77999
-            ),
-            "ood_raid_test auroc",
-        ),
-        (
-            lambda r: r["candidate"]["ood"]["ood_mage_test"].__setitem__(
-                "auroc", 0.77999
-            ),
-            "ood_mage_test auroc",
-        ),
-        (
-            lambda r: r["candidate"]["prompt_test"].__setitem__(
                 "all_ebm", False
             ),
             "not every row",
@@ -421,12 +392,6 @@ def test_decide_promotion_accepts_every_gate_at_its_inclusive_boundary():
                 "all_ebm", False
             ),
             "comparator prompts_only prompt_test: not every row",
-        ),
-        (
-            lambda r: r["candidate"]["prompt_test"].__setitem__(
-                "max_ebm_reconstruction_error", 1.0001e-9
-            ),
-            "reconstruction",
         ),
         (
             lambda r: r["candidate"]["prompt_test"].__setitem__(
@@ -452,6 +417,75 @@ def test_decide_promotion_rejects_each_gate_immediately_beyond_boundary(
 
     assert decision["status"] == "DO_NOT_PROMOTE"
     assert any(failure_fragment in failure for failure in decision["failures"])
+
+
+def _nested_get(mapping, path):
+    for key in path:
+        mapping = mapping[key]
+    return mapping
+
+
+def _nested_set(mapping, path, value):
+    for key in path[:-1]:
+        mapping = mapping[key]
+    mapping[path[-1]] = value
+
+
+@pytest.mark.parametrize(
+    ("candidate_path", "baseline_path", "allowance", "direction"),
+    [
+        (("candidate", "prompt_test", "brier"), ("comparators", "prompts_only", "prompt_test", "brier"), 0.0, "max"),
+        (("candidate", "prompt_test", "log_loss"), ("comparators", "prompts_only", "prompt_test", "log_loss"), 0.0, "max"),
+        (("candidate", "prompt_test", "balanced_accuracy"), ("comparators", "prompts_only", "prompt_test", "balanced_accuracy"), 0.01, "min"),
+        (("candidate", "prompt_test", "auroc"), ("comparators", "prompts_only", "prompt_test", "auroc"), 0.01, "min"),
+        (("candidate", "prompt_test", "human_fpr"), ("comparators", "prompts_only", "prompt_test", "human_fpr"), 0.0, "max"),
+        (("candidate", "humanized_hard", "auroc"), ("comparators", "prompts_only", "humanized_hard", "auroc"), 0.02, "min"),
+        (("candidate", "humanized_hard", "tpr_at_fpr_05"), ("comparators", "prompts_only", "humanized_hard", "tpr_at_fpr_05"), 0.02, "min"),
+        (("candidate", "humanized_hard", "tpr_at_fpr_10"), ("comparators", "prompts_only", "humanized_hard", "tpr_at_fpr_10"), 0.02, "min"),
+        (("candidate", "ood", "ood_m4_test", "auroc"), ("comparators", "prompts_only", "ood", "ood_m4_test", "auroc"), 0.02, "min"),
+        (("candidate", "ood", "ood_raid_test", "auroc"), ("comparators", "prompts_only", "ood", "ood_raid_test", "auroc"), 0.02, "min"),
+        (("candidate", "ood", "ood_mage_test", "auroc"), ("comparators", "prompts_only", "ood", "ood_mage_test", "auroc"), 0.02, "min"),
+    ],
+)
+def test_comparator_gates_use_literal_nextafter_boundaries(
+    candidate_path, baseline_path, allowance, direction
+):
+    baseline = _nested_get(_passing_report(), baseline_path)
+    boundary = baseline - allowance if direction == "min" else baseline
+    inside_direction = math.inf if direction == "min" else -math.inf
+    outside_direction = -math.inf if direction == "min" else math.inf
+
+    for passing_value in (boundary, math.nextafter(boundary, inside_direction)):
+        report = _passing_report()
+        _nested_set(report, candidate_path, passing_value)
+        assert decide_promotion(report) == {"status": "PASS", "failures": []}
+
+    report = _passing_report()
+    _nested_set(report, candidate_path, math.nextafter(boundary, outside_direction))
+    assert decide_promotion(report)["status"] == "DO_NOT_PROMOTE"
+
+
+@pytest.mark.parametrize(
+    "metric_path",
+    [
+        ("candidate", "prompt_test", "max_ebm_reconstruction_error"),
+        (
+            "comparators",
+            "prompts_only",
+            "prompt_test",
+            "max_ebm_reconstruction_error",
+        ),
+    ],
+)
+def test_reconstruction_gate_uses_literal_nextafter_boundary(metric_path):
+    for passing_value in (1e-9, math.nextafter(1e-9, -math.inf)):
+        report = _passing_report()
+        _nested_set(report, metric_path, passing_value)
+        assert decide_promotion(report) == {"status": "PASS", "failures": []}
+
+    report = _passing_report()
+    _nested_set(report, metric_path, math.nextafter(1e-9, math.inf))
+    assert decide_promotion(report)["status"] == "DO_NOT_PROMOTE"
 
 
 @pytest.mark.parametrize("coverage_count", [90, 99])
@@ -529,6 +563,30 @@ def test_legacy_unsafe_transform_is_an_isolated_diagnostic_only():
         assert "legacy_unsafe_transform_for_diagnostic" not in inspect.getsource(
             production_callable
         )
+
+
+def test_legacy_unsafe_helper_has_one_audited_production_call_site():
+    source = inspect.getsource(tocsin_retrain_module)
+    tree = ast.parse(source)
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "legacy_unsafe_transform_for_diagnostic"
+    ]
+
+    assert len(calls) == 1
+    parent = parents[calls[0]]
+    while not isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        parent = parents[parent]
+    assert parent.name == "evaluate_detector_calibration"
+    assert source.count("AUDITED_UNSAFE_STALE_DIAGNOSTIC") == 1
 
 
 def test_current_specdetect_comparator_hard_fails_for_exact_missing_artifacts():
@@ -665,3 +723,323 @@ def test_preflight_rejects_an_existing_but_unloadable_detector_calibrator(
     assert result["candidate"]["failures"] == [
         "smoke detector calibrator did not load"
     ]
+
+
+def _write_missing_artifact_profile(tmp_path: Path, name: str, suffix: str) -> Path:
+    path = tmp_path / f"{suffix}.yaml"
+    path.write_text(
+        json.dumps(
+            {
+                "_profile": f"profile_{name}",
+                "detectors": {},
+                "cascade": {},
+                "decision": {},
+                "fusion": {
+                    "model_path": (tmp_path / suffix / "ebm.skops").as_posix(),
+                    "conformal_path": (
+                        tmp_path / suffix / "conformal.json"
+                    ).as_posix(),
+                    "detector_calibration_path": (
+                        tmp_path / suffix / "detector_calibration.json"
+                    ).as_posix(),
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+@pytest.mark.parametrize(
+    ("comparator_names", "identity_fragments"),
+    [
+        (["prompts_only"], ["missing prompts_specdetect"]),
+        (
+            ["prompts_only", "prompts_only"],
+            ["duplicate prompts_only", "missing prompts_specdetect"],
+        ),
+        (
+            ["prompts_only", "unexpected"],
+            ["unexpected unexpected", "missing prompts_specdetect"],
+        ),
+    ],
+)
+def test_cli_preflight_locks_missing_duplicate_and_unexpected_comparator_identities(
+    tmp_path, comparator_names, identity_fragments
+):
+    candidate = _write_missing_artifact_profile(tmp_path, "candidate", "candidate")
+    baselines = [
+        _write_missing_artifact_profile(tmp_path, name, f"baseline-{index}")
+        for index, name in enumerate(comparator_names)
+    ]
+    out_dir = tmp_path / "reports"
+    argv = [
+        "--preflight-only",
+        "--candidate-config",
+        str(candidate),
+        "--prompt-test",
+        str(tmp_path / "absent.jsonl"),
+        str(tmp_path / "absent.features.jsonl"),
+        "--out-dir",
+        str(out_dir),
+    ]
+    for baseline in baselines:
+        argv.extend(["--baseline-config", str(baseline)])
+
+    preflight = preflight_profiles(
+        candidate,
+        baselines,
+        tmp_path / "absent.jsonl",
+        tmp_path / "absent.features.jsonl",
+    )
+    exit_code = benchmark_main(argv)
+    decision = json.loads((out_dir / "promotion_decision.json").read_text())
+    combined_failures = "\n".join(decision["failures"])
+
+    assert exit_code == 1
+    assert preflight["comparator_identity_valid"] is False
+    assert len(preflight["comparators"]) == len(comparator_names)
+    assert all(fragment in combined_failures for fragment in identity_fragments)
+
+
+def _diagnostic_args(tmp_path: Path) -> list[str]:
+    pair_flags = (
+        "--prompt-test",
+        "--humanized",
+        "--hard-human",
+        "--ood-m4",
+        "--ood-raid",
+        "--ood-mage",
+    )
+    argv = [
+        "--diagnostic-on-invalid-comparator",
+        "--candidate-config",
+        "candidate.yaml",
+        "--baseline-config",
+        "prompts-only.yaml",
+        "--baseline-config",
+        "prompts-specdetect.yaml",
+        "--stale-calibration",
+        "stale.json",
+        "--out-dir",
+        str(tmp_path / "reports"),
+    ]
+    for flag in pair_flags:
+        argv.extend([flag, "dataset.jsonl", "cache.jsonl"])
+    return argv
+
+
+def _normal_full_args(tmp_path: Path) -> list[str]:
+    argv = _diagnostic_args(tmp_path)
+    argv.remove("--diagnostic-on-invalid-comparator")
+    return argv
+
+
+def _valid_preflight() -> dict:
+    return {
+        "candidate": {
+            "name": "prompts_only_tocsin_v2",
+            "valid": True,
+            "failures": [],
+        },
+        "comparators": {
+            "prompts_only": {
+                "name": "prompts_only",
+                "valid": True,
+                "failures": [],
+            },
+            "prompts_specdetect": {
+                "name": "prompts_specdetect",
+                "valid": True,
+                "failures": [],
+            },
+        },
+        "comparator_identity_valid": True,
+        "failures": [],
+    }
+
+
+@pytest.mark.parametrize(
+    "preflight",
+    [
+        {
+            "candidate": {
+                "name": "prompts_only_tocsin_v2",
+                "valid": False,
+                "failures": ["missing candidate model"],
+            },
+            "comparators": {
+                "prompts_only": {"name": "prompts_only", "valid": True, "failures": []},
+                "prompts_specdetect": {
+                    "name": "prompts_specdetect",
+                    "valid": False,
+                    "failures": ["missing comparator model"],
+                },
+            },
+            "comparator_identity_valid": True,
+            "failures": [
+                "INVALID_CANDIDATE prompts_only_tocsin_v2: missing candidate model",
+                "INVALID_COMPARATOR prompts_specdetect: missing comparator model",
+            ],
+        },
+        {
+            "candidate": {
+                "name": "prompts_only_tocsin_v2",
+                "valid": False,
+                "failures": ["smoke cache error"],
+            },
+            "comparators": {
+                "prompts_only": {"name": "prompts_only", "valid": True, "failures": []},
+                "prompts_specdetect": {
+                    "name": "prompts_specdetect",
+                    "valid": False,
+                    "failures": ["missing comparator model"],
+                },
+            },
+            "comparator_identity_valid": True,
+            "failures": [
+                "INVALID_CANDIDATE prompts_only_tocsin_v2: smoke cache error",
+                "INVALID_COMPARATOR prompts_specdetect: missing comparator model",
+            ],
+        },
+        {
+            "candidate": {
+                "name": "prompts_only_tocsin_v2",
+                "valid": True,
+                "failures": [],
+            },
+            "comparators": {
+                "prompts_only": {"name": "prompts_only", "valid": True, "failures": []},
+                "prompts_specdetect": {
+                    "name": "prompts_specdetect",
+                    "valid": True,
+                    "failures": [],
+                },
+            },
+            "comparator_identity_valid": True,
+            "failures": [],
+        },
+    ],
+)
+def test_diagnostic_lock_never_enters_slices_for_invalid_candidate_or_no_invalid_comparator(
+    tmp_path, monkeypatch, preflight
+):
+    calls = {"run_full": 0, "slice": 0}
+
+    monkeypatch.setattr(benchmark, "preflight_profiles", lambda *args: deepcopy(preflight))
+
+    def forbidden_run_full(*args):
+        calls["run_full"] += 1
+        raise AssertionError("_run_full must not be entered")
+
+    def forbidden_slice(*args):
+        calls["slice"] += 1
+        raise AssertionError("evaluation slices must not be read")
+
+    monkeypatch.setattr(benchmark, "_run_full", forbidden_run_full)
+    monkeypatch.setattr(benchmark, "load_evaluation_slice", forbidden_slice)
+
+    exit_code = benchmark.main(_diagnostic_args(tmp_path))
+
+    assert exit_code == 1
+    assert calls == {"run_full": 0, "slice": 0}
+    assert (tmp_path / "reports" / "promotion_decision.json").exists()
+    assert (tmp_path / "reports" / "PROMOTION_REPORT.md").exists()
+
+
+def _full_report_with_preflight() -> dict:
+    report = _passing_report()
+    report["preflight"] = _valid_preflight()
+    report["candidate_name"] = "prompts_only_tocsin_v2"
+    report["challenge"] = None
+    return report
+
+
+@pytest.mark.parametrize(
+    ("mutate", "failure_fragment"),
+    [
+        (
+            lambda report: report["candidate"]["prompt_test"].__setitem__(
+                "max_ebm_reconstruction_error", math.inf
+            ),
+            "reconstruction",
+        ),
+        (
+            lambda report: report["candidate"]["prompt_test"].__setitem__(
+                "auroc", math.nan
+            ),
+            "auroc",
+        ),
+        (
+            lambda report: report["candidate"]["prompt_test"].update(
+                {
+                    "finite": False,
+                    "in_unit_interval": False,
+                    "brier": None,
+                    "log_loss": None,
+                    "auroc": None,
+                    "balanced_accuracy": None,
+                    "human_fpr": None,
+                }
+            ),
+            "non-finite p_llm",
+        ),
+    ],
+)
+def test_invalid_gate_metrics_still_publish_complete_json_safe_reports(
+    tmp_path, monkeypatch, mutate, failure_fragment
+):
+    report = _full_report_with_preflight()
+    mutate(report)
+    monkeypatch.setattr(benchmark, "preflight_profiles", lambda *args: _valid_preflight())
+    monkeypatch.setattr(
+        benchmark,
+        "_run_full",
+        lambda *args: (report, {"challenge_rows": []}),
+    )
+
+    exit_code = benchmark.main(_normal_full_args(tmp_path))
+
+    assert exit_code == 2
+    required = {
+        "detector_calibration.json",
+        "benchmarks.json",
+        "benchmarks_long.csv",
+        "july10_per_task.csv",
+        "promotion_decision.json",
+        "PROMOTION_REPORT.md",
+    }
+    assert {path.name for path in (tmp_path / "reports").iterdir()} == required
+    for name in (
+        "detector_calibration.json",
+        "benchmarks.json",
+        "promotion_decision.json",
+    ):
+        raw = (tmp_path / "reports" / name).read_text(encoding="utf-8")
+        assert "NaN" not in raw and "Infinity" not in raw
+        json.loads(raw)
+    decision = json.loads(
+        (tmp_path / "reports" / "promotion_decision.json").read_text()
+    )
+    assert decision["status"] == "DO_NOT_PROMOTE"
+    assert any(failure_fragment in failure for failure in decision["failures"])
+
+
+def test_report_render_failure_leaves_no_partial_report_set(tmp_path, monkeypatch):
+    report = _full_report_with_preflight()
+    monkeypatch.setattr(benchmark, "preflight_profiles", lambda *args: _valid_preflight())
+    monkeypatch.setattr(
+        benchmark,
+        "_run_full",
+        lambda *args: (report, {"challenge_rows": []}),
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "_markdown_report",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("render failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="render failed"):
+        benchmark.main(_normal_full_args(tmp_path))
+
+    assert list((tmp_path / "reports").iterdir()) == []

@@ -36,7 +36,6 @@ from cairn.normalizer import normalize_text
 
 _TOCSIN_ID = "token_cohesiveness"
 _RECONSTRUCTION_TOLERANCE = 1e-9
-_COMPARISON_EPSILON = 1e-12
 
 
 @dataclass(frozen=True)
@@ -143,6 +142,21 @@ def reliability_curve(
     return rows
 
 
+def _finite_number(value: object) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _integer(value: object) -> int | None:
+    number = _finite_number(value)
+    if number is None or not number.is_integer():
+        return None
+    return int(number)
+
+
 def probability_metrics(
     labels: Sequence[int],
     probabilities: Sequence[float],
@@ -158,25 +172,49 @@ def probability_metrics(
     safe_for_probability_metrics = finite and in_unit_interval
     human = scores[truth == 0]
     positive = scores[truth == 1]
+    brier_value = (
+        _finite_number(brier(truth, scores)) if safe_for_probability_metrics else None
+    )
+    log_loss_value = (
+        _finite_number(sklearn_log_loss(truth, scores, labels=[0, 1]))
+        if safe_for_probability_metrics
+        else None
+    )
+    auroc_value = (
+        _finite_number(auroc(truth, scores)) if safe_for_probability_metrics else None
+    )
+    ece_value = (
+        _finite_number(ece(truth, scores)) if safe_for_probability_metrics else None
+    )
     return {
         "n": int(len(truth)),
         "n_unique": int(len(np.unique(scores))),
         "finite": finite,
         "in_unit_interval": in_unit_interval,
-        "brier": brier(truth, scores) if finite else None,
-        "log_loss": (
-            float(sklearn_log_loss(truth, scores, labels=[0, 1]))
+        "brier": brier_value,
+        "log_loss": log_loss_value,
+        "auroc": auroc_value,
+        "ece": ece_value,
+        "human_mean": (
+            _finite_number(human.mean())
+            if safe_for_probability_metrics and len(human)
+            else None
+        ),
+        "positive_mean": (
+            _finite_number(positive.mean())
+            if safe_for_probability_metrics and len(positive)
+            else None
+        ),
+        "endpoint_fraction": (
+            float(np.mean((scores == 0.0) | (scores == 1.0)))
             if safe_for_probability_metrics
             else None
         ),
-        "auroc": auroc(truth, scores) if finite else None,
-        "ece": ece(truth, scores) if finite else None,
-        "human_mean": float(human.mean()) if len(human) else None,
-        "positive_mean": float(positive.mean()) if len(positive) else None,
-        "endpoint_fraction": float(
-            np.mean((scores == 0.0) | (scores == 1.0))
+        "reliability_curve": (
+            reliability_curve(truth, scores, n_bins=10)
+            if safe_for_probability_metrics
+            else None
         ),
-        "reliability_curve": reliability_curve(truth, scores, n_bins=10),
     }
 
 
@@ -260,12 +298,28 @@ def profile_metrics(
     if len(conformal) != n or errors.shape != truth.shape or len(modes) != n:
         raise ValueError("profile metadata must match labels")
 
-    predicted = scores >= 0.5
+    probability_values_valid = bool(
+        np.isfinite(scores).all()
+        and ((scores >= 0.0) & (scores <= 1.0)).all()
+    )
+    predicted = scores >= 0.5 if probability_values_valid else None
     negatives = truth == 0
     positives = truth == 1
-    fpr = float(predicted[negatives].mean()) if negatives.any() else None
-    specificity = float((~predicted[negatives]).mean()) if negatives.any() else None
-    sensitivity = float(predicted[positives].mean()) if positives.any() else None
+    fpr = (
+        float(predicted[negatives].mean())
+        if probability_values_valid and negatives.any()
+        else None
+    )
+    specificity = (
+        float((~predicted[negatives]).mean())
+        if probability_values_valid and negatives.any()
+        else None
+    )
+    sensitivity = (
+        float(predicted[positives].mean())
+        if probability_values_valid and positives.any()
+        else None
+    )
     balanced = (
         float((specificity + sensitivity) / 2.0)
         if specificity is not None and sensitivity is not None
@@ -289,8 +343,16 @@ def profile_metrics(
             "balanced_accuracy": balanced,
             "human_fpr": fpr,
             "specificity": specificity,
-            "tpr_at_fpr_05": tpr_at_fpr(truth, scores, target_fpr=0.05),
-            "tpr_at_fpr_10": tpr_at_fpr(truth, scores, target_fpr=0.10),
+            "tpr_at_fpr_05": (
+                _finite_number(tpr_at_fpr(truth, scores, target_fpr=0.05))
+                if probability_values_valid
+                else None
+            ),
+            "tpr_at_fpr_10": (
+                _finite_number(tpr_at_fpr(truth, scores, target_fpr=0.10))
+                if probability_values_valid
+                else None
+            ),
             "conformal_truth_coverage_count": int(sum(covered)),
             "conformal_truth_coverage_n": int(n),
             "conformal_truth_coverage": float(np.mean(covered)),
@@ -437,6 +499,30 @@ def preflight_profiles(
             }
         )
 
+    expected_comparators = {"prompts_only", "prompts_specdetect"}
+    comparator_names = [
+        str(record["name"])
+        for record in records
+        if record["role"] == "comparator"
+    ]
+    comparator_counts = {
+        name: comparator_names.count(name) for name in sorted(set(comparator_names))
+    }
+    identity_issues = [
+        f"missing {name}"
+        for name in sorted(expected_comparators - set(comparator_names))
+    ]
+    identity_issues.extend(
+        f"duplicate {name} ({count})"
+        for name, count in comparator_counts.items()
+        if count > 1
+    )
+    identity_issues.extend(
+        f"unexpected {name}"
+        for name in sorted(set(comparator_names) - expected_comparators)
+    )
+    comparator_identity_valid = not identity_issues
+
     # Dataset/cache reads happen only after every candidate/comparator artifact
     # has been inventoried, preventing fallback fusion from entering history.
     if any(not record["failures"] for record in records):
@@ -478,8 +564,13 @@ def preflight_profiles(
                     record["failures"].append(f"smoke profile error: {exc}")
 
     failures: list[str] = []
+    if identity_issues:
+        failures.append(
+            "INVALID_COMPARATOR_SET:\n" + "\n".join(identity_issues)
+        )
     candidate_record: dict[str, object] | None = None
     comparator_records: dict[str, dict[str, object]] = {}
+    comparator_key_counts: dict[str, int] = {}
     for record in records:
         public = {
             "name": record["name"],
@@ -490,7 +581,11 @@ def preflight_profiles(
             candidate_record = public
             prefix = "INVALID_CANDIDATE"
         else:
-            comparator_records[str(record["name"])] = public
+            name = str(record["name"])
+            occurrence = comparator_key_counts.get(name, 0) + 1
+            comparator_key_counts[name] = occurrence
+            key = name if occurrence == 1 else f"{name}#{occurrence}"
+            comparator_records[key] = public
             prefix = "INVALID_COMPARATOR"
         if record["failures"]:
             failures.append(
@@ -499,12 +594,9 @@ def preflight_profiles(
     return {
         "candidate": candidate_record,
         "comparators": comparator_records,
+        "comparator_identity_valid": comparator_identity_valid,
         "failures": failures,
     }
-
-
-def _comparison_passes(candidate: float, baseline: float, delta: float = 0.0) -> bool:
-    return float(candidate) + _COMPARISON_EPSILON >= float(baseline) - delta
 
 
 def _append_integrity_failures(
@@ -516,9 +608,38 @@ def _append_integrity_failures(
         failures.append(f"{label}: non-finite p_llm")
     if not bool(metrics.get("in_unit_interval")):
         failures.append(f"{label}: p_llm outside [0, 1]")
-    error = metrics.get("max_ebm_reconstruction_error")
-    if error is None or float(error) > _RECONSTRUCTION_TOLERANCE + 1e-15:
+    error = _finite_number(metrics.get("max_ebm_reconstruction_error"))
+    if error is None or error > _RECONSTRUCTION_TOLERANCE:
         failures.append(f"{label}: EBM reconstruction error exceeds 1e-9")
+
+
+def _append_maximum_gate(
+    failures: list[str],
+    label: str,
+    candidate: object,
+    baseline: object,
+) -> None:
+    candidate_value = _finite_number(candidate)
+    baseline_value = _finite_number(baseline)
+    if candidate_value is None or baseline_value is None:
+        failures.append(f"{label}: metric missing or non-finite")
+    elif candidate_value > baseline_value:
+        failures.append(f"{label}: candidate regressed")
+
+
+def _append_minimum_gate(
+    failures: list[str],
+    label: str,
+    candidate: object,
+    baseline: object,
+    allowance: float,
+) -> None:
+    candidate_value = _finite_number(candidate)
+    baseline_value = _finite_number(baseline)
+    if candidate_value is None or baseline_value is None:
+        failures.append(f"{label}: metric missing or non-finite")
+    elif candidate_value < baseline_value - allowance:
+        failures.append(f"{label}: regression exceeds {allowance:.2f}")
 
 
 def decide_promotion(report: Mapping[str, object]) -> dict[str, object]:
@@ -532,35 +653,44 @@ def decide_promotion(report: Mapping[str, object]) -> dict[str, object]:
         candidate_detector = detector.get("candidate") or {}
         stale = detector.get("legacy_unsafe_clip_diagnostic") or {}
         constant = detector.get("constant_prevalence") or {}
-        if int(detector.get("eligible_rows", -1)) != 1822:
+        if _integer(detector.get("eligible_rows")) != 1822:
             failures.append("detector: expected exactly 1,822 eligible rows")
-        if float(detector.get("support_coverage", -1.0)) != 1.0:
+        if _finite_number(detector.get("support_coverage")) != 1.0:
             failures.append("detector: support coverage must equal 1.0")
         if not bool(candidate_detector.get("finite")):
             failures.append("detector: candidate probabilities are non-finite")
         if not bool(candidate_detector.get("in_unit_interval")):
             failures.append("detector: candidate probabilities fall outside [0, 1]")
-        if int(candidate_detector.get("n_unique", 0)) <= 3:
+        n_unique = _integer(candidate_detector.get("n_unique"))
+        if n_unique is None or n_unique <= 3:
             failures.append("detector: candidate must have more than 3 unique probabilities")
+        candidate_brier = _finite_number(candidate_detector.get("brier"))
+        stale_brier = _finite_number(stale.get("brier"))
         if not (
-            candidate_detector.get("brier") is not None
-            and stale.get("brier") is not None
-            and float(candidate_detector["brier"]) < float(stale["brier"])
+            candidate_brier is not None
+            and stale_brier is not None
+            and candidate_brier < stale_brier
         ):
             failures.append("detector: candidate must strictly improve stale Brier")
+        candidate_log_loss = _finite_number(candidate_detector.get("log_loss"))
+        stale_log_loss = _finite_number(stale.get("log_loss"))
         if not (
-            candidate_detector.get("log_loss") is not None
-            and stale.get("log_loss") is not None
-            and float(candidate_detector["log_loss"]) < float(stale["log_loss"])
+            candidate_log_loss is not None
+            and stale_log_loss is not None
+            and candidate_log_loss < stale_log_loss
         ):
             failures.append("detector: candidate must strictly improve stale log loss")
+        constant_brier = _finite_number(constant.get("brier"))
         if not (
-            candidate_detector.get("brier") is not None
-            and constant.get("brier") is not None
-            and float(candidate_detector["brier"]) < float(constant["brier"])
+            candidate_brier is not None
+            and constant_brier is not None
+            and candidate_brier < constant_brier
         ):
             failures.append("detector: candidate Brier must beat constant prevalence")
-        if float(candidate_detector.get("endpoint_fraction", 1.0)) >= 0.95:
+        endpoint_fraction = _finite_number(
+            candidate_detector.get("endpoint_fraction")
+        )
+        if endpoint_fraction is None or endpoint_fraction >= 0.95:
             failures.append("detector: candidate endpoint fraction must be below 0.95")
 
     candidate = report.get("candidate")
@@ -580,10 +710,14 @@ def decide_promotion(report: Mapping[str, object]) -> dict[str, object]:
                 )
 
         prompt = candidate.get("prompt_test") or {}
-        coverage_n = int(prompt.get("conformal_truth_coverage_n", prompt.get("n", 0)))
-        coverage_count = int(prompt.get("conformal_truth_coverage_count", -1))
-        if coverage_n <= 0:
+        coverage_n = _integer(
+            prompt.get("conformal_truth_coverage_n", prompt.get("n"))
+        )
+        coverage_count = _integer(prompt.get("conformal_truth_coverage_count"))
+        if coverage_n is None or coverage_n <= 0:
             failures.append("candidate prompt_test: conformal coverage denominator missing")
+        elif coverage_count is None:
+            failures.append("candidate prompt_test: conformal coverage count missing")
         else:
             lower, upper = binomial_target_interval(coverage_n, 0.95)
             if not lower <= coverage_count <= upper:
@@ -612,52 +746,49 @@ def decide_promotion(report: Mapping[str, object]) -> dict[str, object]:
 
             baseline_prompt = comparator.get("prompt_test") or {}
             for metric in ("brier", "log_loss"):
-                if float(prompt.get(metric, math.inf)) > float(
-                    baseline_prompt.get(metric, -math.inf)
-                ) + _COMPARISON_EPSILON:
-                    failures.append(
-                        f"{comparator_name} prompt_test {metric}: candidate regressed"
-                    )
-            for metric in ("balanced_accuracy", "auroc"):
-                if not _comparison_passes(
-                    prompt.get(metric, -math.inf),
-                    baseline_prompt.get(metric, math.inf),
-                    0.01,
-                ):
-                    label = "balanced accuracy" if metric == "balanced_accuracy" else metric
-                    failures.append(
-                        f"{comparator_name} prompt_test {label}: regression exceeds 0.01"
-                    )
-            if float(prompt.get("human_fpr", math.inf)) > float(
-                baseline_prompt.get("human_fpr", -math.inf)
-            ) + _COMPARISON_EPSILON:
-                failures.append(
-                    f"{comparator_name} prompt_test Human FPR: candidate regressed"
+                _append_maximum_gate(
+                    failures,
+                    f"{comparator_name} prompt_test {metric}",
+                    prompt.get(metric),
+                    baseline_prompt.get(metric),
                 )
+            for metric in ("balanced_accuracy", "auroc"):
+                label = "balanced accuracy" if metric == "balanced_accuracy" else metric
+                _append_minimum_gate(
+                    failures,
+                    f"{comparator_name} prompt_test {label}",
+                    prompt.get(metric),
+                    baseline_prompt.get(metric),
+                    0.01,
+                )
+            _append_maximum_gate(
+                failures,
+                f"{comparator_name} prompt_test Human FPR",
+                prompt.get("human_fpr"),
+                baseline_prompt.get("human_fpr"),
+            )
 
             candidate_humanized = candidate.get("humanized_hard") or {}
             baseline_humanized = comparator.get("humanized_hard") or {}
             for metric in ("auroc", "tpr_at_fpr_05", "tpr_at_fpr_10"):
-                if not _comparison_passes(
-                    candidate_humanized.get(metric, -math.inf),
-                    baseline_humanized.get(metric, math.inf),
+                _append_minimum_gate(
+                    failures,
+                    f"{comparator_name} humanized_hard {metric}",
+                    candidate_humanized.get(metric),
+                    baseline_humanized.get(metric),
                     0.02,
-                ):
-                    failures.append(
-                        f"{comparator_name} humanized_hard {metric}: regression exceeds 0.02"
-                    )
+                )
 
             for corpus in ("ood_m4_test", "ood_raid_test", "ood_mage_test"):
                 candidate_ood = (candidate.get("ood") or {}).get(corpus) or {}
                 baseline_ood = (comparator.get("ood") or {}).get(corpus) or {}
-                if not _comparison_passes(
-                    candidate_ood.get("auroc", -math.inf),
-                    baseline_ood.get("auroc", math.inf),
+                _append_minimum_gate(
+                    failures,
+                    f"{comparator_name} {corpus} auroc",
+                    candidate_ood.get("auroc"),
+                    baseline_ood.get("auroc"),
                     0.02,
-                ):
-                    failures.append(
-                        f"{comparator_name} {corpus} auroc: regression exceeds 0.02"
-                    )
+                )
 
     return {
         "status": "PASS" if not failures else "DO_NOT_PROMOTE",
