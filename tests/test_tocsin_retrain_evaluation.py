@@ -786,19 +786,8 @@ def test_markdown_renders_every_gate_status_from_shared_audit():
 
 def test_legacy_provenance_allows_diagnostics_but_is_an_automatic_promotion_fail():
     report = _passing_report()
-    report["preflight"]["provenance"] = {
-        "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
-        "diagnostic_allowed": True,
-        "promotion_allowed": False,
-        "unbound_fields": ["actual_base_identity"],
-    }
     report["preflight"].update(_valid_preflight())
-    report["preflight"]["provenance"] = {
-        "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
-        "diagnostic_allowed": True,
-        "promotion_allowed": False,
-        "unbound_fields": ["actual_base_identity"],
-    }
+    report["preflight"]["provenance"] = _legacy_provenance()
     report["preflight"]["comparators"]["prompts_specdetect"]["valid"] = False
     report["preflight"]["comparators"]["prompts_specdetect"]["failures"] = [
         "missing comparator"
@@ -815,6 +804,29 @@ def test_legacy_provenance_allows_diagnostics_but_is_an_automatic_promotion_fail
     assert "UNPROMOTABLE_PROVENANCE" in row["failure_detail"]
     assert decide_promotion(report)["status"] == "DO_NOT_PROMOTE"
     assert benchmark._diagnostic_block_reason(report["preflight"]) is None
+
+
+@pytest.mark.parametrize("status", ["VERIFIED", "FORGED"])
+def test_diagnostic_rejects_nonlegacy_status_even_when_diagnostic_flag_is_true(
+    status,
+):
+    preflight = _valid_preflight()
+    preflight["comparators"]["prompts_specdetect"].update(
+        {"valid": False, "failures": ["missing comparator"]}
+    )
+    preflight["failures"] = [
+        "INVALID_COMPARATOR prompts_specdetect: missing comparator"
+    ]
+    preflight["provenance"] = {
+        **_legacy_provenance(),
+        "status": status,
+        "diagnostic_allowed": True,
+    }
+
+    reason = benchmark._diagnostic_block_reason(preflight)
+
+    assert reason is not None
+    assert "exact legacy provenance" in reason
 
 
 def test_relabelled_verified_v1_provenance_stays_an_automatic_fail():
@@ -848,7 +860,7 @@ def test_invalid_provenance_never_allows_diagnostic_full_run():
         "promotion_allowed": False,
     }
 
-    assert "verified retrospective provenance" in benchmark._diagnostic_block_reason(
+    assert "exact legacy provenance" in benchmark._diagnostic_block_reason(
         preflight
     )
 

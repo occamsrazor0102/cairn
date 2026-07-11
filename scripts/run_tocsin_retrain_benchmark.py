@@ -22,6 +22,9 @@ from cairn.evaluation.tocsin_retrain import (
     profile_name,
     promotion_gate_audit,
 )
+from cairn.evaluation.tocsin_legacy_provenance import (
+    require_exact_legacy_provenance_contract,
+)
 
 
 _OOD_DATASETS = ("ood_m4_test", "ood_raid_test", "ood_mage_test")
@@ -545,14 +548,12 @@ def _diagnostic_block_reason(preflight: Mapping[str, object]) -> str | None:
     if not candidate.get("valid"):
         return "diagnostic-on-invalid-comparator requires a fully valid candidate"
     provenance = preflight.get("provenance")
-    if (
-        not isinstance(provenance, Mapping)
-        or provenance.get("status") == "INVALID"
-        or provenance.get("diagnostic_allowed") is not True
-    ):
+    try:
+        require_exact_legacy_provenance_contract(provenance)
+    except ValueError:
         return (
-            "diagnostic-on-invalid-comparator requires verified retrospective "
-            "provenance with diagnostic_allowed=true"
+            "diagnostic-on-invalid-comparator requires exact legacy provenance "
+            "with diagnostic_allowed=true"
         )
     if not preflight.get("comparator_identity_valid"):
         return (

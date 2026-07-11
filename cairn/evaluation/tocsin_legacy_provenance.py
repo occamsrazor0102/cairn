@@ -37,6 +37,31 @@ LEGACY_UNBOUND_FIELDS = (
 BASE_MATCH_TOLERANCE = Decimal("0.00001")
 
 
+def require_exact_legacy_provenance_contract(
+    payload: object,
+) -> Mapping[str, object]:
+    """Return a legacy provenance object only when every admission field matches."""
+
+    if not isinstance(payload, Mapping):
+        raise ValueError("legacy provenance must be an object")
+    expected = {
+        "schema": PROVENANCE_SCHEMA,
+        "status": LEGACY_PROVENANCE_STATUS,
+        "diagnostic_allowed": True,
+        "promotion_allowed": False,
+        "calibration_identity": None,
+        "unbound_fields": list(LEGACY_UNBOUND_FIELDS),
+    }
+    mismatched = [
+        field for field, value in expected.items() if payload.get(field) != value
+    ]
+    if mismatched:
+        raise ValueError(
+            "legacy provenance contract mismatch: " + ", ".join(mismatched)
+        )
+    return payload
+
+
 def _json_value(value: object) -> object:
     if isinstance(value, Mapping):
         return {str(key): _json_value(item) for key, item in value.items()}
@@ -544,10 +569,7 @@ def verify_retrospective_cache_manifest(path: Path) -> dict[str, object]:
 
     path = Path(path)
     payload = _json_object(path, "retrospective cache provenance manifest")
-    if payload.get("schema") != PROVENANCE_SCHEMA:
-        raise ValueError("unsupported retrospective cache provenance schema")
-    if payload.get("status") != LEGACY_PROVENANCE_STATUS:
-        raise ValueError("unsupported retrospective cache provenance status")
+    require_exact_legacy_provenance_contract(payload)
     repo_root = _find_repo_root(path, payload)
     union = payload["union"]
     slices = payload.get("slices")
@@ -555,15 +577,6 @@ def verify_retrospective_cache_manifest(path: Path) -> dict[str, object]:
     config = payload.get("config")
     if not all(isinstance(value, Mapping) for value in (union, slices, config)):
         raise ValueError("retrospective cache provenance structure is malformed")
-    if (
-        payload.get("diagnostic_allowed") is not True
-        or payload.get("promotion_allowed") is not False
-    ):
-        raise ValueError("legacy retrospective provenance flags are malformed")
-    if payload.get("calibration_identity") is not None or payload.get(
-        "unbound_fields"
-    ) != list(LEGACY_UNBOUND_FIELDS):
-        raise ValueError("legacy retrospective identity binding is malformed")
     if not isinstance(source, Mapping):
         raise ValueError("legacy retrospective source manifests are malformed")
     dataset_root = repo_root / str(next(iter(slices.values()))["dataset"]["path"])

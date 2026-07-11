@@ -347,7 +347,7 @@ def test_v1_schema_rejects_relabelled_verified_manifest(tmp_path):
     _write_json(manifest_path, provenance)
 
     with pytest.raises(
-        ValueError, match="unsupported retrospective cache provenance status"
+        ValueError, match="legacy provenance contract mismatch.*status"
     ):
         verify_retrospective_cache_manifest(manifest_path)
 
