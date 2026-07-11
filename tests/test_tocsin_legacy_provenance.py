@@ -352,6 +352,29 @@ def test_v1_schema_rejects_relabelled_verified_manifest(tmp_path):
         verify_retrospective_cache_manifest(manifest_path)
 
 
+@pytest.mark.parametrize(
+    ("diagnostic_allowed", "promotion_allowed"),
+    [
+        (1, False),
+        (True, 0),
+        ("true", False),
+        (True, "false"),
+    ],
+)
+def test_on_disk_verifier_type_checks_legacy_boolean_flags(
+    tmp_path, diagnostic_allowed, promotion_allowed
+):
+    paths = _fixture(tmp_path)
+    provenance, _cost = _generate(paths)
+    provenance["diagnostic_allowed"] = diagnostic_allowed
+    provenance["promotion_allowed"] = promotion_allowed
+    manifest_path = paths["run_root"] / "manifests" / "typed-flags.json"
+    _write_json(manifest_path, provenance)
+
+    with pytest.raises(ValueError, match="legacy provenance contract mismatch"):
+        verify_retrospective_cache_manifest(manifest_path)
+
+
 def test_cli_writes_both_manifests_without_rewriting_sources(tmp_path):
     paths = _fixture(tmp_path)
     pilot_before = paths["pilot"].read_bytes()

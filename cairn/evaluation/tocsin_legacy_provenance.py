@@ -52,9 +52,18 @@ def require_exact_legacy_provenance_contract(
         "calibration_identity": None,
         "unbound_fields": list(LEGACY_UNBOUND_FIELDS),
     }
-    mismatched = [
-        field for field, value in expected.items() if payload.get(field) != value
-    ]
+    mismatched: list[str] = []
+    for field, value in expected.items():
+        if field not in payload:
+            mismatched.append(field)
+        elif field == "diagnostic_allowed":
+            if payload[field] is not True:
+                mismatched.append(field)
+        elif field == "promotion_allowed":
+            if payload[field] is not False:
+                mismatched.append(field)
+        elif payload[field] != value:
+            mismatched.append(field)
     if mismatched:
         raise ValueError(
             "legacy provenance contract mismatch: " + ", ".join(mismatched)

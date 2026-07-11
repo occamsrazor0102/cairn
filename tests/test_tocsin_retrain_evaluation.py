@@ -829,6 +829,37 @@ def test_diagnostic_rejects_nonlegacy_status_even_when_diagnostic_flag_is_true(
     assert "exact legacy provenance" in reason
 
 
+@pytest.mark.parametrize(
+    ("diagnostic_allowed", "promotion_allowed"),
+    [
+        (1, False),
+        (True, 0),
+        ("true", False),
+        (True, "false"),
+    ],
+)
+def test_diagnostic_rejects_nonboolean_legacy_flags(
+    diagnostic_allowed, promotion_allowed
+):
+    preflight = _valid_preflight()
+    preflight["comparators"]["prompts_specdetect"].update(
+        {"valid": False, "failures": ["missing comparator"]}
+    )
+    preflight["failures"] = [
+        "INVALID_COMPARATOR prompts_specdetect: missing comparator"
+    ]
+    preflight["provenance"] = {
+        **_legacy_provenance(),
+        "diagnostic_allowed": diagnostic_allowed,
+        "promotion_allowed": promotion_allowed,
+    }
+
+    reason = benchmark._diagnostic_block_reason(preflight)
+
+    assert reason is not None
+    assert "exact legacy provenance" in reason
+
+
 def test_relabelled_verified_v1_provenance_stays_an_automatic_fail():
     report = _passing_report()
     report["preflight"]["provenance"] = {
