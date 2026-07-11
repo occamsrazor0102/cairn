@@ -2,7 +2,6 @@ import datetime
 import hashlib
 import importlib
 import logging
-import math
 import os
 from pathlib import Path
 from typing import Callable
@@ -451,6 +450,8 @@ class CairnPipeline:
                 if sid not in per_sub:
                     continue
                 det, results, rd = per_sub[sid]
+                if self._detector_calibrator is not None:
+                    self._detector_calibrator.apply(layer_result)
                 results.append(layer_result)
                 fusion_result = self._fusion.fuse(
                     results, word_count=rd.word_count, domain=rd.domain
@@ -489,11 +490,8 @@ class CairnPipeline:
                 continue
             try:
                 result = detector.analyze(text, det_config)
-                if (self._detector_calibrator is not None
-                        and self._detector_calibrator.has(det_id)
-                        and math.isfinite(result.raw_score)):
-                    result.p_llm = self._detector_calibrator.transform(det_id, result.raw_score)
-                    result.calibrator_applied = True
+                if self._detector_calibrator is not None:
+                    self._detector_calibrator.apply(result)
                 results.append(result)
             except Exception as exc:
                 logger.warning(

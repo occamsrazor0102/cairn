@@ -12,7 +12,6 @@ Run:  CAIRN_ALLOW_LEGACY_PICKLE=1 python scripts/_formb_profile_grid.py
 import copy
 import importlib.util
 import json
-import math
 import os
 import sys
 from pathlib import Path
@@ -86,10 +85,7 @@ def main() -> int:
             res = copy.deepcopy(res0)
             if cal is not None:
                 for r in res:
-                    rs = getattr(r, "raw_score", float("nan"))
-                    if cal.has(r.layer_id) and isinstance(rs, (int, float)) and math.isfinite(rs):
-                        r.p_llm = cal.transform(r.layer_id, rs)
-                        r.calibrator_applied = True
+                    cal.apply(r)
             try:
                 fr = pipe._fusion.fuse(res, word_count=rd.word_count, domain=rd.domain)
                 det = pipe._decision.decide(fr, res)

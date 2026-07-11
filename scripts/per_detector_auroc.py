@@ -33,6 +33,7 @@ from pathlib import Path
 from sklearn.metrics import roc_auc_score
 
 from cairn.calibration import DetectorCalibrator
+from cairn.contracts import LayerResult
 from cairn.dotenv import load_dotenv
 from cairn.feature_cache import load_cache, text_hash
 from cairn.pipeline import normalize_text
@@ -71,17 +72,14 @@ def per_detector_auroc(
         rec = cache.get(h)
         if rec is None:
             continue
-        for r in rec["results"]:
-            det_id = r["layer_id"]
-            raw = r.get("raw_score")
-            if raw is None or not math.isfinite(float(raw)):
+        for cached_result in rec["results"]:
+            result = LayerResult(**cached_result)
+            if calibrator is not None:
+                calibrator.apply(result)
+            if result.determination == "SKIP":
                 continue
-            if calibrator is not None and calibrator.has(det_id):
-                p = calibrator.transform(det_id, float(raw))
-            else:
-                p = float(r.get("p_llm", raw))
-            score_per_det[det_id].append(float(p))
-            label_per_det[det_id].append(int(s["label"]))
+            score_per_det[result.layer_id].append(float(result.p_llm))
+            label_per_det[result.layer_id].append(int(s["label"]))
 
     auroc: dict[str, float] = {}
     n_per_det: dict[str, int] = {}

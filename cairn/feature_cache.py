@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 from dataclasses import asdict
 from pathlib import Path
 
@@ -104,9 +103,7 @@ class CachedPipeline:
         cal = self._inner._detector_calibrator
         if cal is not None:
             for r in results:
-                if cal.has(r.layer_id) and math.isfinite(r.raw_score):
-                    r.p_llm = cal.transform(r.layer_id, r.raw_score)
-                    r.calibrator_applied = True
+                cal.apply(r)
 
         fusion_result = self._inner._fusion.fuse(
             results, word_count=rd.word_count, domain=rd.domain,

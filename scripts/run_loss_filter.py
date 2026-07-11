@@ -72,9 +72,7 @@ def score_corpus(rows: list[dict], cache: dict, calibrator: DetectorCalibrator,
         results = []
         for d in rec["results"]:
             lr = LayerResult(**d)
-            if calibrator.has(lr.layer_id) and math.isfinite(lr.raw_score):
-                lr.p_llm = calibrator.transform(lr.layer_id, lr.raw_score)
-                lr.calibrator_applied = True
+            calibrator.apply(lr)
             results.append(lr)
         rd = RouterDecision(**rec["router"])
         vec = assembler.assemble(results, word_count=rd.word_count, domain=rd.domain)

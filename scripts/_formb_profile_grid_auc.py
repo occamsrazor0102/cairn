@@ -8,7 +8,6 @@ across all profiles. Merges with _formb_profile_grid_results.json.
 Run: CAIRN_ALLOW_LEGACY_PICKLE=1 python scripts/_formb_profile_grid_auc.py
 """
 import json
-import math
 import os
 import random
 import sys
@@ -81,9 +80,7 @@ def main() -> int:
             rd = _router_from_dict(c["router"])
             if cal is not None:
                 for r in results:
-                    rs = getattr(r, "raw_score", float("nan"))
-                    if cal.has(r.layer_id) and isinstance(rs, (int, float)) and math.isfinite(rs):
-                        r.p_llm = cal.transform(r.layer_id, rs)
+                    cal.apply(r)
             try:
                 p = pipe._decision.decide(
                     pipe._fusion.fuse(results, word_count=rd.word_count, domain=rd.domain), results).p_llm

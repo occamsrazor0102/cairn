@@ -62,9 +62,7 @@ def main() -> int:
         rd = _router_from_dict(c["router"])
         if cal is not None:
             for r in res:
-                rs = getattr(r, "raw_score", float("nan"))
-                if cal.has(r.layer_id) and isinstance(rs, (int, float)) and math.isfinite(rs):
-                    r.p_llm = cal.transform(r.layer_id, rs)
+                cal.apply(r)
         p = pipe._decision.decide(pipe._fusion.fuse(res, word_count=rd.word_count, domain=rd.domain), res).p_llm
         neg.append((p, rd.word_count))
     print(f"negatives: {len(neg)}")

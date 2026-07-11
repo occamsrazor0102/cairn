@@ -28,7 +28,9 @@ def test_detector_calibration_path_none_when_not_configured():
     assert p._detector_calibrator is None
 
 
-def test_calibrator_transforms_p_llm_in_layer_results(tmp_path, monkeypatch):
+def test_pipeline_routes_layer_results_through_calibration_guard(
+    tmp_path, monkeypatch
+):
     cal = DetectorCalibrator()
     cal.fit("preamble", [0.0, 0.4, 0.6, 1.0], [0, 0, 1, 1])
     cal_file = tmp_path / "cal.json"
@@ -39,7 +41,13 @@ def test_calibrator_transforms_p_llm_in_layer_results(tmp_path, monkeypatch):
     p = CairnPipeline(cfg)
 
     observed = []
+    apply_calls = []
+    original_apply = p._detector_calibrator.apply
     orig_fuse = p._fusion.fuse
+
+    def spy_apply(result):
+        apply_calls.append(result.layer_id)
+        return original_apply(result)
 
     def spy_fuse(results, **kwargs):
         for r in results:
@@ -47,10 +55,12 @@ def test_calibrator_transforms_p_llm_in_layer_results(tmp_path, monkeypatch):
                 observed.append({"p_llm": r.p_llm, "calibrator_applied": r.calibrator_applied})
         return orig_fuse(results, **kwargs)
 
+    monkeypatch.setattr(p._detector_calibrator, "apply", spy_apply)
     monkeypatch.setattr(p._fusion, "fuse", spy_fuse)
     p.analyze("Certainly! Here is your comprehensive answer. " * 5)
 
     assert observed, "preamble did not run"
+    assert apply_calls.count("preamble") == 1
     assert observed[0]["calibrator_applied"] is True, (
-        "calibrator_applied flag must be set when calibrator transforms p_llm"
+        "calibrator_applied flag must be set when the guard calibrates p_llm"
     )
