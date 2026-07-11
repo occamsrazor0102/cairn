@@ -32,7 +32,8 @@ from cairn.detectors.token_cohesiveness import (
 from cairn.evaluation.dataset import EvalSample
 from cairn.evaluation.metrics import auroc, brier, ece, tpr_at_fpr
 from cairn.evaluation.tocsin_legacy_provenance import (
-    FULLY_BOUND_PROVENANCE_STATUS,
+    LEGACY_PROVENANCE_STATUS,
+    PROVENANCE_SCHEMA,
     verify_retrospective_cache_manifest,
 )
 from cairn.feature_cache import CachedPipeline, load_cache, text_hash
@@ -684,6 +685,7 @@ def verify_benchmark_provenance(
                 f"{name} slice is not bound by the retrospective provenance manifest"
             )
     return {
+        "schema": retrospective["schema"],
         "status": retrospective["status"],
         "diagnostic_allowed": retrospective["diagnostic_allowed"],
         "promotion_allowed": retrospective["promotion_allowed"],
@@ -1200,14 +1202,8 @@ def promotion_gate_audit(report: Mapping[str, object]) -> list[dict[str, object]
         provenance.get("status"), str
     )
     provenance_status = provenance.get("status") if provenance_evaluated else None
-    provenance_passed = (
-        provenance_evaluated
-        and provenance_status == FULLY_BOUND_PROVENANCE_STATUS
-        and provenance.get("diagnostic_allowed") is True
-        and provenance.get("promotion_allowed") is True
-        and isinstance(provenance.get("calibration_identity"), Mapping)
-        and provenance.get("unbound_fields") == []
-    )
+    provenance_schema = provenance.get("schema")
+    provenance_passed = False
     unbound = provenance.get("unbound_fields") or []
     audit.append(
         _audit_row(
@@ -1220,10 +1216,14 @@ def promotion_gate_audit(report: Mapping[str, object]) -> list[dict[str, object]
             passed=bool(provenance_passed),
             observed=provenance_status,
             operator="==",
-            reference=FULLY_BOUND_PROVENANCE_STATUS,
+            reference=(
+                "promotion-grade provenance distinct from "
+                f"{PROVENANCE_SCHEMA}/{LEGACY_PROVENANCE_STATUS}"
+            ),
             failure_detail=(
-                "UNPROMOTABLE_PROVENANCE: status="
-                f"{provenance_status}; promotion_allowed="
+                "UNPROMOTABLE_PROVENANCE: schema="
+                f"{provenance_schema}; status={provenance_status}; "
+                "promotion_allowed="
                 f"{provenance.get('promotion_allowed')}; unbound_fields={list(unbound)}"
             ),
             not_evaluated_reason="retrospective provenance was not inspected",

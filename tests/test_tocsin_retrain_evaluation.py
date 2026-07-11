@@ -131,11 +131,17 @@ def _write_provenance_fixture(tmp_path: Path) -> dict[str, Path]:
         json.dumps(
             {
                 "schema": "cairn.tocsin-cache-retrospective.v1",
-                "status": "VERIFIED",
+                "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
                 "diagnostic_allowed": True,
-                "promotion_allowed": True,
-                "calibration_identity": {"raw_channel": "combined_w"},
-                "unbound_fields": [],
+                "promotion_allowed": False,
+                "calibration_identity": None,
+                "unbound_fields": [
+                    "modal_output_lineage",
+                    "modal_output_sha256",
+                    "actual_base_identity",
+                    "huggingface_model_revisions",
+                    "modal_image_digest",
+                ],
                 "config": artifact(config),
                 "union": {
                     "dataset": artifact(dataset),
@@ -164,9 +170,32 @@ def _write_provenance_fixture(tmp_path: Path) -> dict[str, Path]:
 
 
 def test_benchmark_provenance_verifies_candidate_bytes_and_exact_slice_coverage(
-    tmp_path,
+    tmp_path, monkeypatch,
 ):
     paths = _write_provenance_fixture(tmp_path)
+    monkeypatch.setattr(
+        tocsin_retrain_module,
+        "verify_retrospective_cache_manifest",
+        lambda _path: {
+            "schema": "cairn.tocsin-cache-retrospective.v1",
+            "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+            "diagnostic_allowed": True,
+            "promotion_allowed": False,
+            "calibration_identity": None,
+            "unbound_fields": ["actual_base_identity"],
+            "manifest_path": str(paths["retrospective"]),
+            "manifest_sha256": _sha256(paths["retrospective"]),
+            "slices": {
+                "prompts_v5_test": {
+                    "dataset": {"sha256": _sha256(paths["dataset"])},
+                    "cache": {"sha256": _sha256(paths["cache"])},
+                    "validation_manifest": {
+                        "sha256": _sha256(paths["cache_manifest"])
+                    },
+                }
+            },
+        },
+    )
 
     provenance = tocsin_retrain_module.verify_benchmark_provenance(
         paths["config"],
@@ -176,7 +205,8 @@ def test_benchmark_provenance_verifies_candidate_bytes_and_exact_slice_coverage(
         paths["retrospective"],
     )
 
-    assert provenance["status"] == "VERIFIED"
+    assert provenance["status"] == "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND"
+    assert provenance["promotion_allowed"] is False
     assert provenance["candidate_integrity"]["manifest_sha256"] == _sha256(
         paths["candidate_manifest"]
     )
@@ -491,6 +521,30 @@ def _profile_block(
     }
 
 
+def _legacy_provenance() -> dict:
+    return {
+        "schema": "cairn.tocsin-cache-retrospective.v1",
+        "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+        "diagnostic_allowed": True,
+        "promotion_allowed": False,
+        "calibration_identity": None,
+        "unbound_fields": [
+            "modal_output_lineage",
+            "modal_output_sha256",
+            "actual_base_identity",
+            "huggingface_model_revisions",
+            "modal_image_digest",
+        ],
+    }
+
+
+def _assert_only_legacy_provenance_lock(report: dict) -> None:
+    decision = decide_promotion(report)
+    assert decision["status"] == "DO_NOT_PROMOTE"
+    assert len(decision["failures"]) == 1
+    assert decision["failures"][0].startswith("UNPROMOTABLE_PROVENANCE:")
+
+
 def _passing_report():
     candidate_prompt = _profile_block()
     candidate_humanized = _profile_block()
@@ -515,13 +569,7 @@ def _passing_report():
     return {
         "preflight": {
             "failures": [],
-            "provenance": {
-                "status": "VERIFIED",
-                "diagnostic_allowed": True,
-                "promotion_allowed": True,
-                "calibration_identity": {"raw_channel": "combined_w"},
-                "unbound_fields": [],
-            },
+            "provenance": _legacy_provenance(),
         },
         "detector_calibration": {
             "eligible_rows": 1822,
@@ -592,13 +640,7 @@ def _mixed_gate_audit_report():
             },
         },
         "comparator_identity_valid": True,
-        "provenance": {
-            "status": "VERIFIED",
-            "diagnostic_allowed": True,
-            "promotion_allowed": True,
-            "calibration_identity": {"raw_channel": "combined_w"},
-            "unbound_fields": [],
-        },
+        "provenance": _legacy_provenance(),
         "failures": [invalid_comparator_failure],
     }
     del report["comparators"]["prompts_specdetect"]
@@ -717,13 +759,12 @@ def test_promotion_gate_audit_is_complete_ordered_and_preserves_decision():
     ]
     assert len(specdetect_evaluation) == 31
     assert {row["status"] for row in specdetect_evaluation} == {"NOT_EVALUATED"}
-    assert decide_promotion(report) == {
-        "status": "DO_NOT_PROMOTE",
-        "failures": [
-            invalid_comparator_failure,
-            "prompts_only prompt_test Human FPR: candidate regressed",
-        ],
-    }
+    failures = decide_promotion(report)["failures"]
+    assert failures[0].startswith("UNPROMOTABLE_PROVENANCE:")
+    assert failures[1:] == [
+        invalid_comparator_failure,
+        "prompts_only prompt_test Human FPR: candidate regressed",
+    ]
 
 
 def test_markdown_renders_every_gate_status_from_shared_audit():
@@ -776,9 +817,10 @@ def test_legacy_provenance_allows_diagnostics_but_is_an_automatic_promotion_fail
     assert benchmark._diagnostic_block_reason(report["preflight"]) is None
 
 
-def test_fully_identity_bound_verified_provenance_passes_automatic_gate():
+def test_relabelled_verified_v1_provenance_stays_an_automatic_fail():
     report = _passing_report()
     report["preflight"]["provenance"] = {
+        "schema": "cairn.tocsin-cache-retrospective.v1",
         "status": "VERIFIED",
         "diagnostic_allowed": True,
         "promotion_allowed": True,
@@ -786,7 +828,16 @@ def test_fully_identity_bound_verified_provenance_passes_automatic_gate():
         "unbound_fields": [],
     }
 
-    assert decide_promotion(report) == {"status": "PASS", "failures": []}
+    decision = decide_promotion(report)
+    row = next(
+        row
+        for row in tocsin_retrain_module.promotion_gate_audit(report)
+        if row["gate_id"] == "preflight.provenance"
+    )
+
+    assert row["status"] == "FAIL"
+    assert decision["status"] == "DO_NOT_PROMOTE"
+    assert any("UNPROMOTABLE_PROVENANCE" in item for item in decision["failures"])
 
 
 def test_invalid_provenance_never_allows_diagnostic_full_run():
@@ -817,19 +868,16 @@ def test_not_evaluated_gate_observed_values_are_always_null():
     )
 
 
-def test_decide_promotion_accepts_every_gate_at_its_inclusive_boundary():
-    assert decide_promotion(_passing_report()) == {"status": "PASS", "failures": []}
+def test_every_metric_gate_passes_but_legacy_provenance_locks_promotion():
+    _assert_only_legacy_provenance_lock(_passing_report())
 
 
 def test_decide_promotion_rejects_clean_but_incomplete_preflight():
     decision = decide_promotion({"preflight": _valid_preflight()})
 
-    assert decision == {
-        "status": "DO_NOT_PROMOTE",
-        "failures": [
-            "INCOMPLETE_EVALUATION: locked promotion gates remain NOT_EVALUATED"
-        ],
-    }
+    assert decision["status"] == "DO_NOT_PROMOTE"
+    assert len(decision["failures"]) == 1
+    assert decision["failures"][0].startswith("UNPROMOTABLE_PROVENANCE:")
 
 
 @pytest.mark.parametrize(
@@ -974,7 +1022,7 @@ def test_comparator_gates_use_literal_nextafter_boundaries(
     for passing_value in (boundary, math.nextafter(boundary, inside_direction)):
         report = _passing_report()
         _nested_set(report, candidate_path, passing_value)
-        assert decide_promotion(report) == {"status": "PASS", "failures": []}
+        _assert_only_legacy_provenance_lock(report)
 
     report = _passing_report()
     _nested_set(report, candidate_path, math.nextafter(boundary, outside_direction))
@@ -997,7 +1045,7 @@ def test_reconstruction_gate_uses_literal_nextafter_boundary(metric_path):
     for passing_value in (1e-9, math.nextafter(1e-9, -math.inf)):
         report = _passing_report()
         _nested_set(report, metric_path, passing_value)
-        assert decide_promotion(report) == {"status": "PASS", "failures": []}
+        _assert_only_legacy_provenance_lock(report)
 
     report = _passing_report()
     _nested_set(report, metric_path, math.nextafter(1e-9, math.inf))
@@ -1012,7 +1060,7 @@ def test_decide_promotion_accepts_both_conformal_interval_boundaries(
     report["candidate"]["prompt_test"][
         "conformal_truth_coverage_count"
     ] = coverage_count
-    assert decide_promotion(report) == {"status": "PASS", "failures": []}
+    _assert_only_legacy_provenance_lock(report)
 
 
 def test_decide_promotion_never_reads_adaptive_challenge_block():
@@ -1029,7 +1077,7 @@ def test_decide_promotion_preserves_preflight_failures():
     ]
     decision = decide_promotion(report)
     assert decision["status"] == "DO_NOT_PROMOTE"
-    assert decision["failures"][0].startswith("INVALID_COMPARATOR")
+    assert any(item.startswith("INVALID_COMPARATOR") for item in decision["failures"])
 
 
 def _samples(prefix: str, label: int, count: int) -> list[EvalSample]:
@@ -1533,24 +1581,14 @@ def _valid_preflight() -> dict:
             },
         },
         "comparator_identity_valid": True,
-        "provenance": {
-            "status": "VERIFIED",
-            "diagnostic_allowed": True,
-            "promotion_allowed": True,
-            "calibration_identity": {"raw_channel": "combined_w"},
-            "unbound_fields": [],
-        },
+        "provenance": _legacy_provenance(),
         "failures": [],
     }
 
 
 def test_preflight_reports_serialize_verified_provenance_hashes(tmp_path):
     provenance = {
-        "status": "VERIFIED",
-        "diagnostic_allowed": True,
-        "promotion_allowed": True,
-        "calibration_identity": {"raw_channel": "combined_w"},
-        "unbound_fields": [],
+        **_legacy_provenance(),
         "retrospective_manifest": {
             "path": "manifests/retrospective.json",
             "sha256": "f" * 64,
@@ -1585,7 +1623,7 @@ def test_preflight_reports_serialize_verified_provenance_hashes(tmp_path):
     markdown = (tmp_path / "PROMOTION_REPORT.md").read_text()
     assert stored["provenance"] == provenance
     assert "## Provenance status" in markdown
-    assert "Unbound fields: none" in markdown
+    assert "`actual_base_identity`" in markdown
     assert "`" + "f" * 64 + "`" in markdown
     assert "`" + "a" * 64 + "`" in markdown
     assert "`" + "d" * 64 + "`" in markdown
@@ -1620,13 +1658,10 @@ def test_valid_preflight_cli_exits_zero_with_non_promotable_incomplete_decision(
 
     decision = json.loads((tmp_path / "promotion_decision.json").read_text())
     assert exit_code == 0
-    assert decision == {
-        "status": "DO_NOT_PROMOTE",
-        "failures": [
-            "INCOMPLETE_EVALUATION: locked promotion gates remain NOT_EVALUATED"
-        ],
-        "provenance": _valid_preflight()["provenance"],
-    }
+    assert decision["status"] == "DO_NOT_PROMOTE"
+    assert len(decision["failures"]) == 1
+    assert decision["failures"][0].startswith("UNPROMOTABLE_PROVENANCE:")
+    assert decision["provenance"] == _valid_preflight()["provenance"]
 
 
 @pytest.mark.parametrize(
@@ -1813,7 +1848,7 @@ def test_full_benchmark_stores_complete_gate_audit_in_benchmarks_json(
 
     exit_code = benchmark.main(_normal_full_args(tmp_path))
 
-    assert exit_code == 0
+    assert exit_code == 2
     stored = json.loads((tmp_path / "reports" / "benchmarks.json").read_text())
     assert [row["gate_id"] for row in stored["gate_audit"]] == (
         _expected_locked_gate_ids()

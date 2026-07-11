@@ -1,5 +1,8 @@
 import hashlib
 import json
+import os
+import subprocess
+import sys
 from decimal import Decimal
 from pathlib import Path
 
@@ -328,6 +331,27 @@ def test_retrospective_verifier_revalidates_every_source_byte(tmp_path):
         verify_retrospective_cache_manifest(manifest_path)
 
 
+def test_v1_schema_rejects_relabelled_verified_manifest(tmp_path):
+    paths = _fixture(tmp_path)
+    provenance, _cost = _generate(paths)
+    provenance.update(
+        {
+            "status": "VERIFIED",
+            "diagnostic_allowed": True,
+            "promotion_allowed": True,
+            "calibration_identity": {"raw_channel": "combined_w"},
+            "unbound_fields": [],
+        }
+    )
+    manifest_path = paths["run_root"] / "manifests" / "relabelled.json"
+    _write_json(manifest_path, provenance)
+
+    with pytest.raises(
+        ValueError, match="unsupported retrospective cache provenance status"
+    ):
+        verify_retrospective_cache_manifest(manifest_path)
+
+
 def test_cli_writes_both_manifests_without_rewriting_sources(tmp_path):
     paths = _fixture(tmp_path)
     pilot_before = paths["pilot"].read_bytes()
@@ -367,6 +391,116 @@ def test_cli_writes_both_manifests_without_rewriting_sources(tmp_path):
     assert json.loads(cost_out.read_text()) == _generate(paths)[1]
     assert paths["pilot"].read_bytes() == pilot_before
     assert paths["full"].read_bytes() == full_before
+
+
+@pytest.mark.parametrize("historical_key", ["pilot", "full"])
+def test_output_paths_reject_historical_manifest_aliases(
+    tmp_path, historical_key
+):
+    paths = _fixture(tmp_path)
+    safe = paths["run_root"] / "manifests" / "safe.json"
+
+    with pytest.raises(ValueError, match="historical Modal manifest"):
+        legacy_cli.validate_output_paths(
+            paths["run_root"], paths[historical_key], safe
+        )
+
+
+def test_output_paths_reject_same_destination_after_normalization(tmp_path):
+    paths = _fixture(tmp_path)
+    destination = paths["run_root"] / "manifests" / "result.json"
+    alias = destination.parent / "." / destination.name
+
+    with pytest.raises(ValueError, match="must be distinct"):
+        legacy_cli.validate_output_paths(paths["run_root"], destination, alias)
+
+
+def test_output_paths_reject_hardlink_alias_of_historical_manifest(tmp_path):
+    paths = _fixture(tmp_path)
+    hardlink = paths["run_root"] / "manifests" / "pilot-hardlink.json"
+    os.link(paths["pilot"], hardlink)
+
+    with pytest.raises(ValueError, match="historical Modal manifest"):
+        legacy_cli.validate_output_paths(
+            paths["run_root"], hardlink, hardlink.parent / "safe.json"
+        )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows case-folding contract")
+def test_output_paths_reject_case_only_historical_alias(tmp_path):
+    paths = _fixture(tmp_path)
+    case_alias = Path(str(paths["pilot"]).swapcase())
+
+    with pytest.raises(ValueError, match="historical Modal manifest"):
+        legacy_cli.validate_output_paths(
+            paths["run_root"], case_alias, paths["run_root"] / "safe.json"
+        )
+
+
+def test_path_identity_resolves_existing_worktree_data_junction():
+    repo = Path(__file__).resolve().parents[1]
+    junction_path = repo / "data" / "prompts_v2_train.jsonl"
+    if not junction_path.is_file() or junction_path.resolve() == junction_path:
+        pytest.skip("worktree data junction is not available")
+
+    assert legacy_cli._same_resolved_path(junction_path, junction_path.resolve())
+
+
+def test_cli_rejects_colliding_outputs_before_generation_or_write(
+    tmp_path, monkeypatch
+):
+    paths = _fixture(tmp_path)
+    called = {"generate": False, "write": False}
+    monkeypatch.setattr(
+        legacy_cli,
+        "generate_retrospective_manifests",
+        lambda **kwargs: called.__setitem__("generate", True),
+    )
+    monkeypatch.setattr(
+        legacy_cli,
+        "_write_pair",
+        lambda rendered: called.__setitem__("write", True),
+    )
+
+    with pytest.raises(ValueError, match="historical Modal manifest"):
+        legacy_cli.main(
+            [
+                "--repo-root",
+                str(paths["repo"]),
+                "--run-root",
+                str(paths["run_root"]),
+                "--dataset-root",
+                str(paths["dataset_root"]),
+                "--config",
+                str(paths["config"]),
+                "--provenance-out",
+                str(paths["pilot"]),
+                "--cost-out",
+                str(paths["run_root"] / "manifests" / "safe.json"),
+            ]
+        )
+
+    assert called == {"generate": False, "write": False}
+
+
+def test_module_and_direct_script_help_import_from_clean_process():
+    repo = Path(__file__).resolve().parents[1]
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    commands = (
+        [sys.executable, "-m", "scripts.generate_tocsin_legacy_provenance", "--help"],
+        [sys.executable, "scripts/generate_tocsin_legacy_provenance.py", "--help"],
+    )
+
+    for command in commands:
+        completed = subprocess.run(
+            command,
+            cwd=repo,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert completed.returncode == 0, completed.stderr
 
 
 def test_worktree_data_junction_is_recorded_lexically_when_present():

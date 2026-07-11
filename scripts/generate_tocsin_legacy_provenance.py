@@ -4,11 +4,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
+import sys
 import tempfile
 from decimal import Decimal
 from pathlib import Path
 from typing import Mapping, Sequence
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cairn.evaluation.tocsin_legacy_provenance import (
     generate_retrospective_manifests,
@@ -17,6 +22,42 @@ from cairn.evaluation.tocsin_legacy_provenance import (
 
 LOCKED_PILOT_SHA256 = "f752f280e5de0d4c580201cfaf4281203296b7a9be07e92b0d3af7ad948aaf55"
 LOCKED_FULL_SHA256 = "d0159e1dedd6c24371272e9ea38701658e2d29e91499caa81b7c791a9110905f"
+
+
+def _same_resolved_path(left: Path, right: Path) -> bool:
+    left = Path(left)
+    right = Path(right)
+    left_key = os.path.normcase(os.path.normpath(str(left.resolve(strict=False))))
+    right_key = os.path.normcase(os.path.normpath(str(right.resolve(strict=False))))
+    if left_key == right_key:
+        return True
+    if left.exists() and right.exists():
+        try:
+            return os.path.samefile(left, right)
+        except OSError:
+            return False
+    return False
+
+
+def validate_output_paths(
+    run_root: Path, provenance_out: Path, cost_out: Path
+) -> None:
+    """Reject output aliases before generation or any file replacement."""
+
+    provenance_out = Path(provenance_out)
+    cost_out = Path(cost_out)
+    if _same_resolved_path(provenance_out, cost_out):
+        raise ValueError("provenance and cost output paths must be distinct")
+    historical = (
+        Path(run_root) / "manifests" / "modal-pilot.json",
+        Path(run_root) / "manifests" / "modal-full.json",
+    )
+    for output in (provenance_out, cost_out):
+        for source in historical:
+            if _same_resolved_path(output, source):
+                raise ValueError(
+                    f"output path aliases historical Modal manifest: {source}"
+                )
 
 
 def _git_revision(repo_root: Path) -> str:
@@ -78,6 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    validate_output_paths(args.run_root, args.provenance_out, args.cost_out)
     repo_root = args.repo_root.resolve()
     revision = args.git_revision or _git_revision(repo_root)
     provenance, cost = generate_retrospective_manifests(

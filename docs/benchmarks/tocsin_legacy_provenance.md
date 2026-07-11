@@ -11,7 +11,7 @@ local bytes:
 
 ```powershell
 $env:PYTHONDONTWRITEBYTECODE = '1'
-python scripts/generate_tocsin_legacy_provenance.py `
+python -m scripts.generate_tocsin_legacy_provenance `
   --run-root outputs/tocsin_retrain_2026-07-10 `
   --dataset-root data `
   --config configs/.profile_full_coverage_with_specdetect.yaml `

@@ -15,7 +15,6 @@ from cairn.tocsin_cache import validate_tocsin_cache
 
 
 LEGACY_PROVENANCE_STATUS = "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND"
-FULLY_BOUND_PROVENANCE_STATUS = "VERIFIED"
 PROVENANCE_SCHEMA = "cairn.tocsin-cache-retrospective.v1"
 COST_SCHEMA = "cairn.tocsin-cost-retrospective.v1"
 SLICE_STEMS = (
@@ -547,8 +546,7 @@ def verify_retrospective_cache_manifest(path: Path) -> dict[str, object]:
     payload = _json_object(path, "retrospective cache provenance manifest")
     if payload.get("schema") != PROVENANCE_SCHEMA:
         raise ValueError("unsupported retrospective cache provenance schema")
-    status = payload.get("status")
-    if status not in (LEGACY_PROVENANCE_STATUS, FULLY_BOUND_PROVENANCE_STATUS):
+    if payload.get("status") != LEGACY_PROVENANCE_STATUS:
         raise ValueError("unsupported retrospective cache provenance status")
     repo_root = _find_repo_root(path, payload)
     union = payload["union"]
@@ -557,53 +555,6 @@ def verify_retrospective_cache_manifest(path: Path) -> dict[str, object]:
     config = payload.get("config")
     if not all(isinstance(value, Mapping) for value in (union, slices, config)):
         raise ValueError("retrospective cache provenance structure is malformed")
-    if status == FULLY_BOUND_PROVENANCE_STATUS:
-        if (
-            payload.get("diagnostic_allowed") is not True
-            or payload.get("promotion_allowed") is not True
-            or not isinstance(payload.get("calibration_identity"), Mapping)
-            or payload.get("unbound_fields") != []
-        ):
-            raise ValueError("fully bound retrospective provenance flags are malformed")
-
-        artifact_records: list[Mapping[str, object]] = []
-        for section in (payload.get("config"), payload.get("validator")):
-            if isinstance(section, Mapping):
-                source_record = section.get("source")
-                artifact_records.append(
-                    source_record if isinstance(source_record, Mapping) else section
-                )
-        for section in (payload.get("source_manifests"),):
-            if isinstance(section, Mapping):
-                artifact_records.extend(
-                    record for record in section.values() if isinstance(record, Mapping)
-                )
-        for section in (union, *slices.values()):
-            if not isinstance(section, Mapping):
-                raise ValueError("retrospective slice record is malformed")
-            artifact_records.extend(
-                section[key]
-                for key in ("dataset", "cache", "validation_manifest")
-                if isinstance(section.get(key), Mapping)
-            )
-        if not artifact_records:
-            raise ValueError("fully bound retrospective provenance has no artifacts")
-        for record in artifact_records:
-            relative = record.get("path")
-            declared_sha = record.get("sha256")
-            declared_bytes = record.get("bytes")
-            if not isinstance(relative, str) or not isinstance(declared_sha, str):
-                raise ValueError("retrospective artifact record is malformed")
-            artifact_path = repo_root / relative
-            if _sha256(artifact_path) != declared_sha:
-                raise ValueError(f"retrospective artifact SHA-256 mismatch: {relative}")
-            if declared_bytes != artifact_path.stat().st_size:
-                raise ValueError(f"retrospective artifact byte count mismatch: {relative}")
-        result = dict(payload)
-        result["manifest_path"] = _relative_path(repo_root, path)
-        result["manifest_sha256"] = _sha256(path)
-        return result
-
     if (
         payload.get("diagnostic_allowed") is not True
         or payload.get("promotion_allowed") is not False
