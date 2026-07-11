@@ -40,6 +40,16 @@ except ImportError:  # pragma: no cover - tqdm is optional
         return it
 
 
+_CALIBRATOR_REJECTION_SIGNAL_KEYS = frozenset(
+    {
+        "calibrator_missing_raw",
+        "calibrator_nonfinite_raw",
+        "calibrator_out_of_domain",
+        "calibrator_signature_mismatch",
+    }
+)
+
+
 @dataclass(frozen=True)
 class _ObservationSelection:
     accepted: tuple[tuple[LayerResult, EvalSample], ...]
@@ -185,6 +195,24 @@ def _matching_result(
     return matching[0]
 
 
+def _require_native_cached_result(
+    result: LayerResult,
+    detector_id: str,
+    sample: EvalSample,
+) -> None:
+    mutation_signals = sorted(
+        _CALIBRATOR_REJECTION_SIGNAL_KEYS.intersection(result.signals)
+    )
+    if not result.calibrator_applied and not mutation_signals:
+        return
+    raise ValueError(
+        f"cached target result for sample {sample.id!r} detector "
+        f"{detector_id!r} is not native: "
+        f"calibrator_applied={result.calibrator_applied!r}, "
+        f"guard_mutation_signals={mutation_signals}"
+    )
+
+
 def _collect_isolated_observations(
     samples: Sequence[EvalSample],
     *,
@@ -212,9 +240,9 @@ def _collect_isolated_observations(
                     f"sample {sample.id!r}"
                 )
             results = [LayerResult(**row) for row in cached["results"]]
-            observations.append(
-                (_matching_result(results, detector_id, sample), sample)
-            )
+            target_result = _matching_result(results, detector_id, sample)
+            _require_native_cached_result(target_result, detector_id, sample)
+            observations.append((target_result, sample))
         return observations
 
     pipeline = CairnPipeline.from_config_file(config_path)

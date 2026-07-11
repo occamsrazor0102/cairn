@@ -338,6 +338,79 @@ def test_live_isolated_collection_disables_configured_calibration_before_analysi
     assert result.signals["native"] == "untouched"
 
 
+@pytest.mark.parametrize(
+    ("cached_state", "error_fragment"),
+    [
+        ("applied", "calibrator_applied=True"),
+        ("guard_rejected", "calibrator_signature_mismatch"),
+    ],
+)
+def test_cached_isolated_collection_rejects_calibrator_mutated_target_rows(
+    tmp_path,
+    cached_state,
+    error_fragment,
+):
+    sample = _sample(f"cached-{cached_state}", word_count=60, label=0)
+    result = _layer(0.42)
+    if cached_state == "applied":
+        result.calibrator_applied = True
+        result.p_llm = 0.99
+    else:
+        result.determination = "SKIP"
+        result.signals["calibrator_signature_mismatch"] = {
+            "result_signature": SIGNATURE,
+            "artifact_signature": "stale-signature",
+            "result_raw_channel": RAW_CHANNEL,
+            "artifact_raw_channel": RAW_CHANNEL,
+        }
+    cache = tmp_path / "cache.jsonl"
+    with cache.open("w", encoding="utf-8", newline="\n") as handle:
+        write_record(
+            handle,
+            text_hash(normalize_text(sample.text)),
+            [result],
+            _router(60),
+        )
+
+    with pytest.raises(ValueError) as exc:
+        calibrate_cli._collect_isolated_observations(
+            [sample],
+            detector_id=TARGET,
+            config_path=tmp_path / "unused-config.yaml",
+            features_cache=cache,
+        )
+
+    message = str(exc.value)
+    assert f"sample {sample.id!r}" in message
+    assert f"detector {TARGET!r}" in message
+    assert error_fragment in message
+
+
+def test_cached_isolated_collection_accepts_native_target_identity_fields(tmp_path):
+    sample = _sample("cached-native", word_count=60, label=0)
+    native = _layer(0.42)
+    cache = tmp_path / "cache.jsonl"
+    with cache.open("w", encoding="utf-8", newline="\n") as handle:
+        write_record(
+            handle,
+            text_hash(normalize_text(sample.text)),
+            [native],
+            _router(60),
+        )
+
+    observations = calibrate_cli._collect_isolated_observations(
+        [sample],
+        detector_id=TARGET,
+        config_path=tmp_path / "unused-config.yaml",
+        features_cache=cache,
+    )
+
+    assert observations == [(native, sample)]
+    assert native.calibrator_applied is False
+    assert native.signals["calibration_signature"] == SIGNATURE
+    assert native.signals["calibration_raw_channel"] == RAW_CHANNEL
+
+
 def test_isolated_mode_rejects_cached_router_word_count_mismatch_before_fit(tmp_path):
     dataset = tmp_path / "dataset.jsonl"
     cache = tmp_path / "cache.jsonl"
