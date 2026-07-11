@@ -168,6 +168,28 @@ def test_cached_replay_forced_full_runs_all_phases_and_filters_disabled_layers(
     ]
 
 
+@pytest.mark.parametrize(
+    "calibration_status",
+    ["heuristic", "fusion-only", "calibrated", "degraded"],
+)
+def test_cached_replay_propagates_inner_calibration_status_only(
+    tmp_path,
+    calibration_status,
+):
+    cache_path, config_path, text = _write_replay_fixture(
+        tmp_path, force_full=True
+    )
+    pipeline = CachedPipeline(cache_path, config_path)
+    baseline, _results, _router = pipeline.analyze_detailed(text)
+
+    pipeline._inner._calibration_status = calibration_status
+    determination, _results, _router = pipeline.analyze_detailed(text)
+
+    assert determination.calibration_status == calibration_status
+    assert determination.p_llm == pytest.approx(baseline.p_llm)
+    assert determination.cascade_phases == baseline.cascade_phases
+
+
 class _SeedDetector:
     def __init__(self, seed: LayerResult) -> None:
         self._seed = seed

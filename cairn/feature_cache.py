@@ -131,6 +131,7 @@ class CachedPipeline:
             results, word_count=rd.word_count, domain=rd.domain,
         )
         determination = self._inner._decision.decide(fusion_result, results)
+        determination.calibration_status = self._inner._calibration_status
         determination.cascade_phases = phases_run
         determination.detector_errors = []
         return determination, results, rd
