@@ -24,9 +24,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import os
 import random
 import re
 import subprocess
+import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
 from decimal import Decimal, InvalidOperation
@@ -231,36 +234,38 @@ def project_modal_cost(
     """Project the measured pilot plus one complete full run exactly."""
     if full_workers <= 0:
         raise ValueError("full_workers must be positive")
-    n_eligible = int(pilot_manifest["n_eligible"])
-    n_ineligible = int(pilot_manifest["n_ineligible"])
-    eligible_seconds_per_row = (
-        Decimal(str(pilot_manifest["eligible_scoring_seconds"]))
-        / Decimal(n_eligible)
+    compute_rate = _decimal_cli(
+        compute_usd_per_second,
+        name="compute_usd_per_second",
     )
-    ineligible_seconds_per_row = (
-        Decimal(str(pilot_manifest["ineligible_scoring_seconds"]))
-        / Decimal(n_ineligible)
+    cap = _decimal_cli(cap_usd, name="cap_usd")
+    model = cost_model_from_manifest(pilot_manifest)
+    warmup_seconds_per_worker = Decimal(str(model["warmup_seconds"]))
+    eligible_seconds_per_row = Decimal(
+        str(model["eligible_seconds_per_row"])
     )
-    pilot_workers = int(pilot_manifest.get("n_warmups", 1))
-    warmup_seconds_per_worker = (
-        Decimal(str(pilot_manifest["warmup_seconds"]))
-        / Decimal(pilot_workers)
+    ineligible_seconds_per_row = Decimal(
+        str(model["ineligible_seconds_per_row"])
+    )
+    unattributed_seconds_per_row = Decimal(
+        str(model["unattributed_seconds_per_row"])
     )
     projected_full_seconds = (
         Decimal(full_workers) * warmup_seconds_per_worker
         + Decimal(eligible_rows) * eligible_seconds_per_row
         + Decimal(total_rows - eligible_rows) * ineligible_seconds_per_row
+        + Decimal(total_rows) * unattributed_seconds_per_row
     )
     projected_cumulative_usd = (
         Decimal(str(pilot_manifest["worker_elapsed_seconds"]))
         + projected_full_seconds
-    ) * compute_usd_per_second
+    ) * compute_rate
     return {
         "projected_full_seconds": float(projected_full_seconds),
         "projected_cumulative_usd": format(projected_cumulative_usd, "f"),
         "gate": (
             "PASS"
-            if projected_cumulative_usd <= cap_usd
+            if projected_cumulative_usd <= cap
             else "STOP_COST_CAP"
         ),
     }
@@ -270,33 +275,115 @@ def cost_model_from_manifest(
     manifest: Mapping[str, object],
 ) -> dict[str, str]:
     """Convert measured stratum totals into a reusable exact cost model."""
-    n_eligible = int(manifest.get("n_timed_eligible", manifest["n_eligible"]))
+    n_eligible = int(
+        manifest["n_timed_eligible"]
+        if "n_timed_eligible" in manifest
+        else manifest["n_eligible"]
+    )
     n_ineligible = int(
-        manifest.get("n_timed_ineligible", manifest["n_ineligible"])
+        manifest["n_timed_ineligible"]
+        if "n_timed_ineligible" in manifest
+        else manifest["n_ineligible"]
     )
     if n_eligible <= 0 or n_ineligible <= 0:
         raise ValueError(
             "cost model requires nonzero eligible and ineligible timing strata"
         )
-    eligible_seconds_per_row = (
-        Decimal(str(manifest["eligible_scoring_seconds"]))
-        / Decimal(n_eligible)
+    eligible_scoring_seconds = _decimal_cli(
+        manifest["eligible_scoring_seconds"],
+        name="eligible_scoring_seconds",
     )
-    ineligible_seconds_per_row = (
-        Decimal(str(manifest["ineligible_scoring_seconds"]))
-        / Decimal(n_ineligible)
+    ineligible_scoring_seconds = _decimal_cli(
+        manifest["ineligible_scoring_seconds"],
+        name="ineligible_scoring_seconds",
+    )
+    eligible_seconds_per_row = eligible_scoring_seconds / Decimal(n_eligible)
+    ineligible_seconds_per_row = ineligible_scoring_seconds / Decimal(
+        n_ineligible
     )
     n_warmups = int(manifest.get("n_warmups", 1))
     if n_warmups <= 0:
         raise ValueError("cost model requires at least one measured warmup")
-    warmup_seconds_per_worker = (
-        Decimal(str(manifest["warmup_seconds"])) / Decimal(n_warmups)
+    warmup_seconds = _decimal_cli(
+        manifest["warmup_seconds"],
+        name="warmup_seconds",
+    )
+    warmup_seconds_per_worker = warmup_seconds / Decimal(n_warmups)
+    worker_elapsed_seconds = _decimal_cli(
+        manifest["worker_elapsed_seconds"],
+        name="worker_elapsed_seconds",
+    )
+    measured_seconds = (
+        warmup_seconds
+        + eligible_scoring_seconds
+        + ineligible_scoring_seconds
+    )
+    unattributed_seconds = worker_elapsed_seconds - measured_seconds
+    if unattributed_seconds < 0:
+        raise ValueError(
+            "cost model cannot derive unattributed worker time because "
+            "worker_elapsed_seconds is below measured warmup plus scoring time"
+        )
+    n_timed_rows = n_eligible + n_ineligible
+    unattributed_seconds_per_row = (
+        unattributed_seconds / Decimal(n_timed_rows)
     )
     return {
         "warmup_seconds": format(warmup_seconds_per_worker, "f"),
         "eligible_seconds_per_row": format(eligible_seconds_per_row, "f"),
         "ineligible_seconds_per_row": format(ineligible_seconds_per_row, "f"),
+        "unattributed_seconds_per_row": format(
+            unattributed_seconds_per_row, "f"
+        ),
     }
+
+
+def _resolved_cost_model(manifest: Mapping[str, object]) -> dict[str, object]:
+    """Return a current cost model, enriching only provable legacy models."""
+    model = manifest.get("cost_model")
+    if not isinstance(model, Mapping):
+        raise ValueError("prior manifest is missing cost_model")
+    resolved = dict(model)
+    required = (
+        "warmup_seconds",
+        "eligible_seconds_per_row",
+        "ineligible_seconds_per_row",
+    )
+    for key in required:
+        if key not in resolved:
+            raise ValueError(f"prior manifest cost_model is missing {key}")
+        _decimal_cli(resolved[key], name=f"prior manifest cost_model {key}")
+
+    overhead = resolved.get("unattributed_seconds_per_row")
+    if overhead is not None:
+        _decimal_cli(
+            overhead,
+            name=(
+                "prior manifest cost_model "
+                "unattributed_seconds_per_row"
+            ),
+        )
+        return resolved
+
+    try:
+        derived = cost_model_from_manifest(manifest)
+    except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
+        raise ValueError(
+            "legacy cost model is missing unattributed_seconds_per_row and "
+            "the manifest timings cannot derive it safely"
+        ) from exc
+    if any(
+        Decimal(str(resolved[key])) != Decimal(str(derived[key]))
+        for key in required
+    ):
+        raise ValueError(
+            "legacy cost model is missing unattributed_seconds_per_row and "
+            "the manifest timings do not describe the inherited model"
+        )
+    resolved["unattributed_seconds_per_row"] = derived[
+        "unattributed_seconds_per_row"
+    ]
+    return resolved
 
 
 def project_run_cost(
@@ -313,9 +400,12 @@ def project_run_cost(
         raise ValueError("eligible_rows must be between zero and total_rows")
     if worker_count <= 0:
         raise ValueError("worker_count must be positive")
-    model = prior_manifest.get("cost_model")
-    if not isinstance(model, Mapping):
-        raise ValueError("prior manifest is missing cost_model")
+    compute_rate = _decimal_cli(
+        compute_usd_per_second,
+        name="compute_usd_per_second",
+    )
+    cap = _decimal_cli(cap_usd, name="cap_usd")
+    model = _resolved_cost_model(prior_manifest)
     if "cumulative_compute_usd" not in prior_manifest:
         raise ValueError("prior manifest is missing cumulative_compute_usd")
 
@@ -326,16 +416,21 @@ def project_run_cost(
     ineligible_seconds_per_row = Decimal(
         str(model["ineligible_seconds_per_row"])
     )
-    prior_cumulative_usd = Decimal(
-        str(prior_manifest["cumulative_compute_usd"])
+    unattributed_seconds_per_row = Decimal(
+        str(model["unattributed_seconds_per_row"])
+    )
+    prior_cumulative_usd = _decimal_cli(
+        prior_manifest["cumulative_compute_usd"],
+        name="prior cumulative_compute_usd",
     )
     projected_run_seconds = (
         Decimal(worker_count) * warmup_seconds
         + Decimal(eligible_rows) * eligible_seconds_per_row
         + Decimal(total_rows - eligible_rows) * ineligible_seconds_per_row
+        + Decimal(total_rows) * unattributed_seconds_per_row
     )
     projected_run_compute_usd = (
-        projected_run_seconds * compute_usd_per_second
+        projected_run_seconds * compute_rate
     )
     projected_cumulative_usd = (
         prior_cumulative_usd + projected_run_compute_usd
@@ -346,7 +441,7 @@ def project_run_cost(
         "projected_cumulative_usd": format(projected_cumulative_usd, "f"),
         "gate": (
             "PASS"
-            if projected_cumulative_usd <= cap_usd
+            if projected_cumulative_usd <= cap
             else "STOP_COST_CAP"
         ),
     }
@@ -358,6 +453,7 @@ def validate_gate_manifest(
     source_dataset_sha256: str,
     resolved_config_sha256: str,
     git_revision: str,
+    expected_tocsin_signature: str,
 ) -> Mapping[str, object]:
     """Reject a stale or stopped pilot gate before any remote invocation."""
     if gate_manifest.get("gate") != "PASS":
@@ -366,6 +462,7 @@ def validate_gate_manifest(
         "source_dataset_sha256": source_dataset_sha256,
         "resolved_config_sha256": resolved_config_sha256,
         "git_revision": git_revision,
+        "expected_tocsin_signature": expected_tocsin_signature,
     }
     for key, value in expected.items():
         if gate_manifest.get(key) != value:
@@ -380,20 +477,28 @@ def validate_prior_financial_state(
     prior_manifest: Mapping[str, object],
 ) -> None:
     """Ensure an explicit prior cannot discard or replace pilot spend state."""
-    gate_model = gate_manifest.get("cost_model")
-    prior_model = prior_manifest.get("cost_model")
-    if not isinstance(gate_model, Mapping):
-        raise ValueError("gate manifest is missing cost_model")
-    if not isinstance(prior_model, Mapping):
-        raise ValueError("prior manifest is missing cost_model")
-    if dict(prior_model) != dict(gate_model):
+    gate_signature = gate_manifest.get("expected_tocsin_signature")
+    prior_signature = prior_manifest.get("expected_tocsin_signature")
+    if not isinstance(gate_signature, str) or prior_signature != gate_signature:
+        raise ValueError(
+            "prior manifest expected_tocsin_signature is incompatible with gate"
+        )
+    gate_model = _resolved_cost_model(gate_manifest)
+    prior_model = _resolved_cost_model(prior_manifest)
+    if prior_model != gate_model:
         raise ValueError("prior manifest cost_model is incompatible with gate")
     if "cumulative_compute_usd" not in gate_manifest:
         raise ValueError("gate manifest is missing cumulative_compute_usd")
     if "cumulative_compute_usd" not in prior_manifest:
         raise ValueError("prior manifest is missing cumulative_compute_usd")
-    gate_cumulative = Decimal(str(gate_manifest["cumulative_compute_usd"]))
-    prior_cumulative = Decimal(str(prior_manifest["cumulative_compute_usd"]))
+    gate_cumulative = _decimal_cli(
+        gate_manifest["cumulative_compute_usd"],
+        name="gate manifest cumulative_compute_usd",
+    )
+    prior_cumulative = _decimal_cli(
+        prior_manifest["cumulative_compute_usd"],
+        name="prior manifest cumulative_compute_usd",
+    )
     if prior_cumulative < gate_cumulative:
         raise ValueError(
             "prior manifest cumulative_compute_usd omits gate spend"
@@ -512,7 +617,7 @@ def _pyproject_sha256() -> str:
     return _sha256_bytes(path.read_bytes())
 
 
-def _decimal_cli(value: str | Decimal, *, name: str) -> Decimal:
+def _decimal_cli(value: object, *, name: str) -> Decimal:
     try:
         parsed = Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
@@ -542,6 +647,274 @@ def _write_manifest(path: str | Path, manifest: Mapping[str, object]) -> None:
         encoding="utf-8",
     )
     temporary.replace(manifest_path)
+
+
+def _expected_cache_layer_ids(config_path: str | Path) -> tuple[str, ...]:
+    """Return enabled cascade layers in their configured execution order."""
+    from cairn.cascade import (
+        PHASE1_DETECTORS,
+        PHASE2_DETECTORS,
+        PHASE3_DETECTORS,
+    )
+    from cairn.config import load_config
+
+    config = load_config(Path(config_path))
+    configured = config.get("detectors", {})
+    if not isinstance(configured, Mapping):
+        return ()
+    return tuple(
+        layer_id
+        for layer_id in PHASE1_DETECTORS + PHASE2_DETECTORS + PHASE3_DETECTORS
+        if isinstance(configured.get(layer_id), Mapping)
+        and configured[layer_id].get("enabled") is True  # type: ignore[index]
+    )
+
+
+def _resolve_expected_tocsin_signature(
+    config_path: str | Path,
+    explicit: str | None = None,
+) -> str:
+    """Resolve the exact signature the requested worker configuration must emit."""
+    if explicit is not None:
+        if not isinstance(explicit, str) or not explicit.strip():
+            raise ValueError(
+                "expected TOCSIN signature must be a nonempty string"
+            )
+        return explicit
+
+    from cairn.benchmarks.fast_detectgpt import FAST_DETECTGPT_DEFAULT_MODEL
+    from cairn.config import load_config
+    from cairn.detectors.token_cohesiveness import (
+        build_tocsin_calibration_signature,
+    )
+    from cairn.dotenv import load_dotenv
+
+    load_dotenv()
+    config = load_config(Path(config_path))
+    configured = config.get("detectors", {})
+    if not isinstance(configured, Mapping):
+        raise ValueError("config is missing detector settings")
+    settings = configured.get("token_cohesiveness")
+    if not isinstance(settings, Mapping) or settings.get("enabled") is not True:
+        raise ValueError("config must enable token_cohesiveness")
+    bart_model = str(settings.get("model", "facebook/bart-base"))
+    base_model = (
+        os.environ.get("CAIRN_FAST_DETECTGPT_MODEL")
+        or FAST_DETECTGPT_DEFAULT_MODEL
+    )
+    signature, _identity = build_tocsin_calibration_signature(
+        "combined_w",
+        bart_model=bart_model,
+        base_model=base_model,
+    )
+    return signature
+
+
+def _is_finite_number(value: object) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+    )
+
+
+def _validate_serialized_cache_contract(cache_path: Path) -> None:
+    """Reject records that cannot faithfully replay current cache contracts."""
+    from cairn.contracts import LayerResult, RouterDecision
+
+    result_fields = frozenset(LayerResult.__dataclass_fields__)
+    router_fields = frozenset(RouterDecision.__dataclass_fields__)
+    valid_result_domains = frozenset({"prompt", "prose", "universal"})
+    valid_router_domains = frozenset(
+        {"prompt", "prose", "mixed", "insufficient"}
+    )
+    valid_determinations = frozenset(
+        {"RED", "AMBER", "YELLOW", "GREEN", "UNCERTAIN", "MIXED", "SKIP"}
+    )
+    valid_compute_costs = frozenset(
+        {"trivial", "cheap", "moderate", "expensive"}
+    )
+
+    with cache_path.open(encoding="utf-8") as handle:
+        for line_number, raw_line in enumerate(handle, start=1):
+            if not raw_line.strip():
+                continue
+            try:
+                record = json.loads(raw_line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"{cache_path}: line {line_number}: invalid JSON: {exc}"
+                ) from exc
+            if not isinstance(record, dict):
+                raise ValueError(
+                    f"{cache_path}: line {line_number}: record must be an object"
+                )
+            results = record.get("results")
+            if not isinstance(results, list):
+                raise ValueError(
+                    f"{cache_path}: line {line_number}: results must be a list"
+                )
+            seen_layer_ids: set[str] = set()
+            for result_index, result in enumerate(results):
+                prefix = (
+                    f"{cache_path}: line {line_number}: "
+                    f"result {result_index}"
+                )
+                if not isinstance(result, dict):
+                    raise ValueError(f"{prefix}: result must be an object")
+                missing = sorted(result_fields - result.keys())
+                unexpected = sorted(result.keys() - result_fields)
+                if missing or unexpected:
+                    raise ValueError(
+                        f"{prefix}: invalid LayerResult contract; "
+                        f"missing={missing}; unexpected={unexpected}"
+                    )
+                layer_id = result.get("layer_id")
+                if not isinstance(layer_id, str) or not layer_id:
+                    raise ValueError(
+                        f"{prefix}: layer_id must be a nonempty string"
+                    )
+                if layer_id in seen_layer_ids:
+                    raise ValueError(
+                        f"{prefix}: duplicate layer_id {layer_id!r}"
+                    )
+                seen_layer_ids.add(layer_id)
+                if result.get("domain") not in valid_result_domains:
+                    raise ValueError(f"{prefix}: invalid domain")
+                for field in ("raw_score", "p_llm", "confidence"):
+                    value = result.get(field)
+                    if not _is_finite_number(value):
+                        raise ValueError(f"{prefix}: {field} must be finite")
+                for field in ("p_llm", "confidence"):
+                    value = float(result[field])
+                    if not 0.0 <= value <= 1.0:
+                        raise ValueError(f"{prefix}: {field} must be in [0, 1]")
+                if not isinstance(result.get("signals"), dict):
+                    raise ValueError(f"{prefix}: signals must be an object")
+                if result.get("determination") not in valid_determinations:
+                    raise ValueError(f"{prefix}: invalid determination")
+                attacker_tiers = result.get("attacker_tiers")
+                if not isinstance(attacker_tiers, list) or not all(
+                    isinstance(value, str) for value in attacker_tiers
+                ):
+                    raise ValueError(
+                        f"{prefix}: attacker_tiers must be a list of strings"
+                    )
+                if result.get("compute_cost") not in valid_compute_costs:
+                    raise ValueError(f"{prefix}: invalid compute_cost")
+                min_text_length = result.get("min_text_length")
+                if (
+                    not isinstance(min_text_length, int)
+                    or isinstance(min_text_length, bool)
+                    or min_text_length < 0
+                ):
+                    raise ValueError(
+                        f"{prefix}: min_text_length must be nonnegative integer"
+                    )
+                spans = result.get("spans")
+                if not isinstance(spans, list) or not all(
+                    isinstance(value, dict) for value in spans
+                ):
+                    raise ValueError(f"{prefix}: spans must be a list of objects")
+                if not isinstance(result.get("calibrator_applied"), bool):
+                    raise ValueError(
+                        f"{prefix}: calibrator_applied must be boolean"
+                    )
+
+            router = record.get("router")
+            prefix = f"{cache_path}: line {line_number}: router"
+            if not isinstance(router, dict):
+                raise ValueError(f"{prefix}: router must be an object")
+            missing = sorted(router_fields - router.keys())
+            unexpected = sorted(router.keys() - router_fields)
+            if missing or unexpected:
+                raise ValueError(
+                    f"{prefix}: invalid RouterDecision contract; "
+                    f"missing={missing}; unexpected={unexpected}"
+                )
+            if router.get("domain") not in valid_router_domains:
+                raise ValueError(f"{prefix}: invalid domain")
+            for field in ("confidence", "prompt_score", "prose_score"):
+                value = router.get(field)
+                if not _is_finite_number(value) or not 0.0 <= float(value) <= 1.0:
+                    raise ValueError(f"{prefix}: {field} must be finite in [0, 1]")
+            word_count = router.get("word_count")
+            if (
+                not isinstance(word_count, int)
+                or isinstance(word_count, bool)
+                or word_count < 0
+            ):
+                raise ValueError(
+                    f"{prefix}: word_count must be a nonnegative integer"
+                )
+            for field in ("recommended_detectors", "skip_detectors"):
+                values = router.get(field)
+                if not isinstance(values, list) or not all(
+                    isinstance(value, str) for value in values
+                ):
+                    raise ValueError(f"{prefix}: {field} must be a list of strings")
+
+
+def _download_worker_outputs(
+    worker_manifests: Sequence[Mapping[str, object]],
+    destination_path: Path,
+) -> None:
+    """Copy every worker byte unchanged into one local temporary artifact."""
+    with destination_path.open("wb") as destination:
+        for worker_manifest in worker_manifests:
+            remote_path = str(worker_manifest["remote_path"])
+            for chunk in hf_cache.read_file(remote_path):
+                if not isinstance(chunk, (bytes, bytearray, memoryview)):
+                    raise TypeError(
+                        f"Modal volume returned non-bytes chunk for {remote_path}"
+                    )
+                destination.write(chunk)
+        destination.flush()
+        os.fsync(destination.fileno())
+
+
+def _validate_downloaded_cache(
+    *,
+    scored_payload: bytes,
+    cache_path: Path,
+    config_path: str | Path,
+    expected_tocsin_signature: str,
+) -> dict[str, object]:
+    """Validate exact scored rows and current cache schema before publication."""
+    from cairn.tocsin_cache import validate_tocsin_cache
+
+    _validate_serialized_cache_contract(cache_path)
+    descriptor, dataset_name = tempfile.mkstemp(
+        prefix=".scored-payload.",
+        suffix=".jsonl.tmp",
+        dir=cache_path.parent,
+    )
+    dataset_path = Path(dataset_name)
+    try:
+        with os.fdopen(descriptor, "wb") as dataset:
+            dataset.write(scored_payload)
+            dataset.flush()
+            os.fsync(dataset.fileno())
+        summary = validate_tocsin_cache(
+            dataset_path,
+            cache_path,
+            expected_signature=expected_tocsin_signature,
+            expected_layer_ids=_expected_cache_layer_ids(config_path),
+            require_all_layers_seen=True,
+        )
+        if summary.identical_duplicate_hashes:
+            raise ValueError(
+                f"{cache_path}: duplicate cache hashes are forbidden; "
+                f"observed {summary.identical_duplicate_hashes}"
+            )
+        if summary.unexpected_layer_ids:
+            raise ValueError(
+                f"{cache_path}: unexpected cache layers are forbidden: "
+                f"{list(summary.unexpected_layer_ids)}"
+            )
+        return summary.to_dict()
+    finally:
+        dataset_path.unlink(missing_ok=True)
 
 
 def _validate_worker_manifest(
@@ -579,6 +952,38 @@ def _validate_worker_manifest(
                 f"Modal worker manifest {key}={manifest.get(key)!r}; "
                 f"expected {value!r}"
             )
+    for key in (
+        "warmup_seconds",
+        "eligible_scoring_seconds",
+        "ineligible_scoring_seconds",
+        "worker_elapsed_seconds",
+        "eligible_rows_per_second",
+        "total_rows_per_second",
+    ):
+        _decimal_cli(manifest[key], name=f"Modal worker manifest {key}")
+    accounted_seconds = sum(
+        (
+            _decimal_cli(
+                manifest[key],
+                name=f"Modal worker manifest {key}",
+            )
+            for key in (
+                "warmup_seconds",
+                "eligible_scoring_seconds",
+                "ineligible_scoring_seconds",
+            )
+        ),
+        start=Decimal("0"),
+    )
+    worker_elapsed_seconds = _decimal_cli(
+        manifest["worker_elapsed_seconds"],
+        name="Modal worker manifest worker_elapsed_seconds",
+    )
+    if worker_elapsed_seconds < accounted_seconds:
+        raise ValueError(
+            "Modal worker manifest worker_elapsed_seconds is below measured "
+            "warmup plus scoring time"
+        )
 
 
 def aggregate_worker_manifests(
@@ -616,7 +1021,10 @@ def aggregate_worker_manifests(
 
     def summed_decimal(key: str) -> Decimal:
         return sum(
-            (Decimal(str(worker[key])) for worker in workers),
+            (
+                _decimal_cli(worker[key], name=f"worker manifest {key}")
+                for worker in workers
+            ),
             start=Decimal("0"),
         )
 
@@ -698,28 +1106,33 @@ def _completed_cost_fields(
     compute_usd_per_second: Decimal,
     prior_manifest: Mapping[str, object] | None,
 ) -> dict[str, object]:
+    compute_rate = _decimal_cli(
+        compute_usd_per_second,
+        name="compute_usd_per_second",
+    )
+    worker_elapsed_seconds = _decimal_cli(
+        manifest["worker_elapsed_seconds"],
+        name="worker_elapsed_seconds",
+    )
     run_compute_usd = (
-        Decimal(str(manifest["worker_elapsed_seconds"]))
-        * compute_usd_per_second
+        worker_elapsed_seconds * compute_rate
     )
     prior_cumulative_usd = Decimal("0")
     if prior_manifest is not None:
         if "cumulative_compute_usd" not in prior_manifest:
             raise ValueError("prior manifest is missing cumulative_compute_usd")
-        prior_cumulative_usd = Decimal(
-            str(prior_manifest["cumulative_compute_usd"])
+        prior_cumulative_usd = _decimal_cli(
+            prior_manifest["cumulative_compute_usd"],
+            name="prior cumulative_compute_usd",
         )
     if prior_manifest is not None:
-        inherited = prior_manifest.get("cost_model")
-        if not isinstance(inherited, Mapping):
-            raise ValueError("prior manifest is missing cost_model")
-        cost_model = dict(inherited)
+        cost_model = _resolved_cost_model(prior_manifest)
         cost_model_source = "prior_manifest"
     else:
         cost_model = cost_model_from_manifest(manifest)
         cost_model_source = "current_run"
     return {
-        "compute_usd_per_second": format(compute_usd_per_second, "f"),
+        "compute_usd_per_second": format(compute_rate, "f"),
         "run_compute_usd": format(run_compute_usd, "f"),
         "cumulative_compute_usd": format(
             prior_cumulative_usd + run_compute_usd, "f"
@@ -956,6 +1369,7 @@ def main(
     prior_manifest_path: str | None = None,
     cost_cap_usd: str = "15",
     shards: int = 1,
+    expected_tocsin_signature: str | None = None,
 ) -> None:
     """Preflight cost/provenance, invoke the workers, and persist results."""
     validate_run_id(run_id)
@@ -999,6 +1413,10 @@ def main(
     worker_count = len(shard_payloads)
     warmup_text = _first_eligible_text(scored_payload)
     resolved_config_sha256 = _resolved_config_sha256(config_path)
+    resolved_tocsin_signature = _resolve_expected_tocsin_signature(
+        config_path,
+        expected_tocsin_signature,
+    )
     git_revision = _git_revision()
     pyproject_sha256 = _pyproject_sha256()
     detector_seed = _detector_seed(config_path)
@@ -1011,12 +1429,21 @@ def main(
             source_dataset_sha256=source_dataset_sha256,
             resolved_config_sha256=resolved_config_sha256,
             git_revision=git_revision,
+            expected_tocsin_signature=resolved_tocsin_signature,
         )
 
     prior_manifest: dict[str, object] | None = None
     prior_projection: dict[str, object] | None = None
     if prior_manifest_path is not None:
         prior_manifest = _read_manifest(prior_manifest_path)
+        if (
+            prior_manifest.get("expected_tocsin_signature")
+            != resolved_tocsin_signature
+        ):
+            raise ValueError(
+                "prior manifest expected_tocsin_signature does not match "
+                "the requested run"
+            )
         if gate_manifest is not None:
             validate_prior_financial_state(gate_manifest, prior_manifest)
     elif gate_manifest is not None:
@@ -1108,6 +1535,7 @@ def main(
         run_id=run_id,
         scored_payload_sha256=scored_payload_sha256,
     )
+    manifest["expected_tocsin_signature"] = resolved_tocsin_signature
     manifest.update(
         _completed_cost_fields(
             manifest,
@@ -1138,10 +1566,10 @@ def main(
     if Decimal(str(manifest["cumulative_compute_usd"])) > cap:
         manifest["gate"] = "STOP_COST_CAP"
 
-    # Persist before any deliberate nonzero exit and before volume download.
-    _write_manifest(manifest_path, manifest)
-    print(f"wrote Modal manifest to {manifest_path}", flush=True)
     if manifest["gate"] != "PASS":
+        # Persist every cost stop before the deliberate nonzero exit.
+        _write_manifest(manifest_path, manifest)
+        print(f"wrote Modal manifest to {manifest_path}", flush=True)
         projected = manifest.get(
             "projected_cumulative_usd", manifest["cumulative_compute_usd"]
         )
@@ -1151,33 +1579,45 @@ def main(
 
     output = Path(out_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    seen_hashes: set[str] = set()
-    n_lines = 0
-    n_merged_duplicates = 0
-    with output.open("w", encoding="utf-8", newline="\n") as destination:
-        for worker_manifest in worker_manifests:
-            remote_path = str(worker_manifest["remote_path"])
-            cache_bytes = bytearray()
-            for chunk in hf_cache.read_file(remote_path):
-                cache_bytes.extend(chunk)
-            for raw in bytes(cache_bytes).decode("utf-8").splitlines():
-                if not raw.strip():
-                    continue
-                try:
-                    record = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-                key = record.get("hash")
-                if not isinstance(key, str):
-                    continue
-                if key in seen_hashes:
-                    n_merged_duplicates += 1
-                    continue
-                seen_hashes.add(key)
-                destination.write(raw + "\n")
-                n_lines += 1
+    manifest["gate"] = "PENDING_CACHE_VALIDATION"
+    manifest["cache_output_status"] = "PENDING"
+    _write_manifest(manifest_path, manifest)
+    print(f"wrote pending Modal manifest to {manifest_path}", flush=True)
+
+    temporary_output: Path | None = None
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{output.name}.",
+            suffix=".download.tmp",
+            dir=output.parent,
+        )
+        os.close(descriptor)
+        temporary_output = Path(temporary_name)
+        _download_worker_outputs(worker_manifests, temporary_output)
+        validation = _validate_downloaded_cache(
+            scored_payload=scored_payload,
+            cache_path=temporary_output,
+            config_path=config_path,
+            expected_tocsin_signature=resolved_tocsin_signature,
+        )
+        os.replace(temporary_output, output)
+        temporary_output = None
+    except Exception as exc:
+        manifest["gate"] = "INVALID_CACHE_OUTPUT"
+        manifest["cache_output_status"] = "INVALID_CACHE_OUTPUT"
+        manifest["cache_output_error"] = f"{type(exc).__name__}: {exc}"
+        _write_manifest(manifest_path, manifest)
+        raise RuntimeError(f"INVALID_CACHE_OUTPUT: {exc}") from exc
+    finally:
+        if temporary_output is not None:
+            temporary_output.unlink(missing_ok=True)
+
+    manifest["gate"] = "PASS"
+    manifest["cache_output_status"] = "PASS"
+    manifest["cache_output_validation"] = validation
+    _write_manifest(manifest_path, manifest)
     print(
-        f"wrote {n_lines:,} cached features to {output} "
-        f"({n_merged_duplicates} cross-shard duplicates merged)",
+        f"validated and wrote {validation['cached_unique_hashes']:,} "
+        f"cached features to {output}",
         flush=True,
     )

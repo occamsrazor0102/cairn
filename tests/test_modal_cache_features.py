@@ -19,9 +19,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cairn.feature_cache import text_hash
+from cairn.normalizer import normalize_text
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_PATH = REPO_ROOT / "scripts" / "modal_cache_features.py"
 PILOT_SEED = 20260710
+COMBINED_SIGNATURE = "tocsin-bart-fastdetectgpt-combined-w-v1"
+COHESIVENESS_SIGNATURE = "tocsin-bart-cohesiveness-u-v1"
 
 REQUIRED_WORKER_MANIFEST_KEYS = {
     "run_id",
@@ -79,6 +84,14 @@ class _MappedVolume:
 
     def read_file(self, path: str):
         yield self.payloads[path]
+
+
+class _ChunkedVolume:
+    def __init__(self, chunks: list[bytes]) -> None:
+        self.chunks = chunks
+
+    def read_file(self, _path: str):
+        yield from self.chunks
 
 
 class _StubApp:
@@ -148,6 +161,126 @@ def _rows_payload(n_each: int) -> bytes:
     return "".join(json.dumps(row) + "\n" for row in rows).encode("utf-8")
 
 
+def _cache_record(
+    text: str,
+    *,
+    signature: str = COMBINED_SIGNATURE,
+    calibration_identity: dict[str, str] | None = None,
+) -> dict[str, object]:
+    normalized = normalize_text(text)
+    n_words = len(normalized.split())
+    if n_words >= 60:
+        if signature == COHESIVENESS_SIGNATURE or signature.startswith(
+            COHESIVENESS_SIGNATURE + "-"
+        ):
+            raw_channel = "cohesiveness_u"
+            raw_score = -1.25
+            base_v: float | None = None
+        else:
+            raw_channel = "combined_w"
+            raw_score = -0.25
+            base_v = 0.32
+        signals: dict[str, object] = {
+            "cohesiveness_u": -1.25,
+            "base_v": base_v,
+            "combined_w": -0.25,
+            "calibration_signature": signature,
+            "calibration_raw_channel": raw_channel,
+            "deletion_ratio": 0.015,
+            "n_copies": 10,
+        }
+        if calibration_identity is not None:
+            signals["calibration_identity"] = dict(calibration_identity)
+        result = {
+            "layer_id": "token_cohesiveness",
+            "domain": "prose",
+            "raw_score": raw_score,
+            "p_llm": 0.6,
+            "confidence": 0.7,
+            "signals": signals,
+            "determination": "AMBER",
+            "attacker_tiers": ["A0", "A1", "A2", "A3"],
+            "compute_cost": "moderate",
+            "min_text_length": 60,
+            "spans": [],
+            "calibrator_applied": False,
+        }
+    else:
+        result = {
+            "layer_id": "token_cohesiveness",
+            "domain": "prose",
+            "raw_score": 0.0,
+            "p_llm": 0.5,
+            "confidence": 0.0,
+            "signals": {"skipped": "too_short", "n_words": n_words},
+            "determination": "SKIP",
+            "attacker_tiers": ["A0", "A1", "A2", "A3"],
+            "compute_cost": "moderate",
+            "min_text_length": 60,
+            "spans": [],
+            "calibrator_applied": False,
+        }
+    return {
+        "hash": text_hash(normalized),
+        "results": [result],
+        "router": {
+            "domain": "prose",
+            "confidence": 0.95,
+            "prompt_score": 0.05,
+            "prose_score": 0.95,
+            "word_count": n_words,
+            "recommended_detectors": [],
+            "skip_detectors": [],
+        },
+    }
+
+
+def _cache_records_for_source(source: bytes) -> list[dict[str, object]]:
+    rows = [json.loads(line) for line in source.decode("utf-8").splitlines()]
+    return [_cache_record(str(row["text"])) for row in rows]
+
+
+def _cache_records_for_source_with_signature(
+    source: bytes,
+    signature: str,
+    calibration_identity: dict[str, str] | None = None,
+) -> list[dict[str, object]]:
+    rows = [json.loads(line) for line in source.decode("utf-8").splitlines()]
+    return [
+        _cache_record(
+            str(row["text"]),
+            signature=signature,
+            calibration_identity=calibration_identity,
+        )
+        for row in rows
+    ]
+
+
+def _cache_payload_for_source(
+    source: bytes,
+    *,
+    final_newline: bool = True,
+) -> bytes:
+    return _cache_payload(
+        _cache_records_for_source(source),
+        final_newline=final_newline,
+    )
+
+
+def _cache_payload(
+    records: list[dict[str, object]],
+    *,
+    final_newline: bool = True,
+) -> bytes:
+    text = "\n".join(
+        json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+        for record in records
+    )
+    if final_newline:
+        text += "\n"
+    return text.encode("utf-8")
+
+
 def _worker_manifest(
     call: dict[str, object],
     *,
@@ -195,6 +328,16 @@ def _install_local_provenance(monkeypatch, module) -> None:
     monkeypatch.setattr(module, "_resolved_config_sha256", lambda _path: "c" * 64)
     monkeypatch.setattr(module, "_git_revision", lambda: "deadbeef1234567890")
     monkeypatch.setattr(module, "_pyproject_sha256", lambda: "p" * 64)
+    monkeypatch.setattr(
+        module,
+        "_expected_cache_layer_ids",
+        lambda _path: ("token_cohesiveness",),
+    )
+    monkeypatch.setattr(
+        module,
+        "_resolve_expected_tocsin_signature",
+        lambda _path, explicit=None: explicit or COMBINED_SIGNATURE,
+    )
 
 
 @pytest.mark.parametrize(
@@ -251,6 +394,38 @@ def test_pricing_provenance_uses_plan_accounting_date(modal_cache_module):
     assert "$0.00141996/s" in modal_cache_module.__doc__
 
 
+def test_auto_signature_resolution_uses_public_identity_builder(
+    modal_cache_module,
+    monkeypatch,
+    tmp_path,
+):
+    from cairn.detectors.token_cohesiveness import (
+        build_tocsin_calibration_signature,
+    )
+
+    monkeypatch.setattr("cairn.dotenv.load_dotenv", lambda: None)
+    monkeypatch.setenv("CAIRN_FAST_DETECTGPT_MODEL", "org/custom-fast")
+    profile = tmp_path / "profile.yaml"
+    profile.write_text(
+        "_extends: default\n"
+        "detectors:\n"
+        "  token_cohesiveness:\n"
+        "    enabled: true\n"
+        "    model: org/custom-bart\n",
+        encoding="utf-8",
+    )
+    expected_signature, _identity = build_tocsin_calibration_signature(
+        "combined_w",
+        bart_model="org/custom-bart",
+        base_model="org/custom-fast",
+    )
+
+    assert (
+        modal_cache_module._resolve_expected_tocsin_signature(profile)
+        == expected_signature
+    )
+
+
 def test_pilot_is_deterministic_and_stratified(modal_cache_module):
     payload = _rows_payload(300)
 
@@ -291,23 +466,27 @@ def test_projection_includes_pilot_and_full_and_passes_at_exact_cap(
     pilot_manifest = {
         "n_eligible": 1,
         "n_ineligible": 1,
-        "eligible_scoring_seconds": 5,
-        "ineligible_scoring_seconds": 5,
-        "warmup_seconds": 0,
+        "n_timed_eligible": 1,
+        "n_timed_ineligible": 1,
+        "n_warmups": 1,
+        "eligible_scoring_seconds": 2,
+        "ineligible_scoring_seconds": 1,
+        "warmup_seconds": 1,
         "worker_elapsed_seconds": 5,
     }
 
     result = modal_cache_module.project_modal_cost(
         pilot_manifest,
-        total_rows=2,
-        eligible_rows=1,
+        total_rows=4,
+        eligible_rows=2,
         compute_usd_per_second=Decimal("1"),
         cap_usd=Decimal("15.00"),
+        full_workers=2,
     )
 
     assert result == {
         "projected_full_seconds": 10.0,
-        "projected_cumulative_usd": "15",
+        "projected_cumulative_usd": "15.0",
         "gate": "PASS",
     }
 
@@ -316,17 +495,21 @@ def test_projection_stops_above_cap(modal_cache_module):
     pilot_manifest = {
         "n_eligible": 1,
         "n_ineligible": 1,
-        "eligible_scoring_seconds": 5,
-        "ineligible_scoring_seconds": 5,
-        "warmup_seconds": 0,
+        "n_timed_eligible": 1,
+        "n_timed_ineligible": 1,
+        "n_warmups": 1,
+        "eligible_scoring_seconds": 2,
+        "ineligible_scoring_seconds": 1,
+        "warmup_seconds": 1,
         "worker_elapsed_seconds": 5,
     }
     result = modal_cache_module.project_modal_cost(
         pilot_manifest,
-        total_rows=2,
-        eligible_rows=1,
+        total_rows=4,
+        eligible_rows=2,
         compute_usd_per_second=Decimal("1.0000000001"),
         cap_usd=Decimal("15.00"),
+        full_workers=2,
     )
     assert result["gate"] == "STOP_COST_CAP"
     assert Decimal(result["projected_cumulative_usd"]) > Decimal("15.00")
@@ -338,15 +521,20 @@ def test_cost_model_and_prior_projection_use_decimal_arithmetic(
     measured = {
         "n_eligible": 2,
         "n_ineligible": 4,
+        "n_timed_eligible": 2,
+        "n_timed_ineligible": 4,
+        "n_warmups": 1,
         "eligible_scoring_seconds": "0.4",
         "ineligible_scoring_seconds": "0.4",
         "warmup_seconds": "0.3",
+        "worker_elapsed_seconds": "1.7",
     }
     model = modal_cache_module.cost_model_from_manifest(measured)
     assert model == {
         "warmup_seconds": "0.3",
         "eligible_seconds_per_row": "0.2",
         "ineligible_seconds_per_row": "0.1",
+        "unattributed_seconds_per_row": "0.1",
     }
 
     prior = {"cost_model": model, "cumulative_compute_usd": "2.00"}
@@ -357,9 +545,9 @@ def test_cost_model_and_prior_projection_use_decimal_arithmetic(
         compute_usd_per_second=Decimal("0.5"),
         cap_usd=Decimal("2.84"),
     )
-    assert projected["projected_run_seconds"] == 1.7
-    assert projected["projected_run_compute_usd"] == "0.85"
-    assert projected["projected_cumulative_usd"] == "2.85"
+    assert projected["projected_run_seconds"] == 2.7
+    assert projected["projected_run_compute_usd"] == "1.35"
+    assert projected["projected_cumulative_usd"] == "3.35"
     assert projected["gate"] == "STOP_COST_CAP"
 
 
@@ -370,6 +558,7 @@ def test_completed_cost_fields_preserve_inherited_model_exactly(
         "warmup_seconds": 0.5,
         "eligible_seconds_per_row": "0.2",
         "ineligible_seconds_per_row": "0.1",
+        "unattributed_seconds_per_row": "0.05",
         "model_version": 2,
     }
     fields = modal_cache_module._completed_cost_fields(
@@ -397,6 +586,7 @@ def test_partial_retry_cost_model_uses_timed_counts_and_stops_understatement(
         "eligible_scoring_seconds": "2",
         "ineligible_scoring_seconds": "1",
         "warmup_seconds": "0.5",
+        "worker_elapsed_seconds": "4.5",
     }
 
     model = modal_cache_module.cost_model_from_manifest(partial_retry)
@@ -404,6 +594,7 @@ def test_partial_retry_cost_model_uses_timed_counts_and_stops_understatement(
         "warmup_seconds": "0.5",
         "eligible_seconds_per_row": "1",
         "ineligible_seconds_per_row": "0.5",
+        "unattributed_seconds_per_row": "0.25",
     }
     projected = modal_cache_module.project_run_cost(
         {"cost_model": model, "cumulative_compute_usd": "0"},
@@ -412,8 +603,250 @@ def test_partial_retry_cost_model_uses_timed_counts_and_stops_understatement(
         compute_usd_per_second=Decimal("1"),
         cap_usd=Decimal("1"),
     )
-    assert projected["projected_cumulative_usd"] == "8.0"
+    assert projected["projected_cumulative_usd"] == "10.50"
     assert projected["gate"] == "STOP_COST_CAP"
+
+
+def test_legacy_cost_model_derives_unattributed_time_when_timings_match(
+    modal_cache_module,
+):
+    legacy = {
+        "cost_model": {
+            "warmup_seconds": "1",
+            "eligible_seconds_per_row": "2",
+            "ineligible_seconds_per_row": "1",
+        },
+        "n_timed_eligible": 1,
+        "n_timed_ineligible": 1,
+        "n_warmups": 1,
+        "warmup_seconds": "1",
+        "eligible_scoring_seconds": "2",
+        "ineligible_scoring_seconds": "1",
+        "worker_elapsed_seconds": "5",
+        "cumulative_compute_usd": "5",
+    }
+
+    projected = modal_cache_module.project_run_cost(
+        legacy,
+        total_rows=4,
+        eligible_rows=2,
+        worker_count=2,
+        compute_usd_per_second=Decimal("1"),
+        cap_usd=Decimal("15"),
+    )
+
+    assert projected == {
+        "projected_run_seconds": 10.0,
+        "projected_run_compute_usd": "10.0",
+        "projected_cumulative_usd": "15.0",
+        "gate": "PASS",
+    }
+
+
+@pytest.mark.parametrize(
+    "legacy",
+    [
+        {
+            "cost_model": {
+                "warmup_seconds": "1",
+                "eligible_seconds_per_row": "2",
+                "ineligible_seconds_per_row": "1",
+            },
+            "cumulative_compute_usd": "0",
+        },
+        {
+            "cost_model": {
+                "warmup_seconds": "9",
+                "eligible_seconds_per_row": "2",
+                "ineligible_seconds_per_row": "1",
+            },
+            "n_timed_eligible": 1,
+            "n_timed_ineligible": 1,
+            "n_warmups": 1,
+            "warmup_seconds": "1",
+            "eligible_scoring_seconds": "2",
+            "ineligible_scoring_seconds": "1",
+            "worker_elapsed_seconds": "5",
+            "cumulative_compute_usd": "0",
+        },
+    ],
+    ids=["missing-timings", "timings-do-not-describe-model"],
+)
+def test_legacy_cost_model_fails_closed_when_overhead_is_not_derivable(
+    modal_cache_module,
+    legacy,
+):
+    with pytest.raises(ValueError, match="unattributed"):
+        modal_cache_module.project_run_cost(
+            legacy,
+            total_rows=1,
+            eligible_rows=1,
+            compute_usd_per_second=Decimal("1"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("worker_elapsed_seconds", "NaN"),
+        ("warmup_seconds", "-1"),
+        ("eligible_scoring_seconds", "Infinity"),
+    ],
+)
+def test_measured_cost_model_rejects_nonfinite_or_negative_timings(
+    modal_cache_module,
+    field,
+    value,
+):
+    measured = {
+        "n_timed_eligible": 1,
+        "n_timed_ineligible": 1,
+        "n_warmups": 1,
+        "warmup_seconds": "1",
+        "eligible_scoring_seconds": "2",
+        "ineligible_scoring_seconds": "1",
+        "worker_elapsed_seconds": "5",
+    }
+    measured[field] = value
+
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        modal_cache_module.cost_model_from_manifest(measured)
+
+
+@pytest.mark.parametrize("value", ["-1", "NaN", "Infinity"])
+def test_prior_cumulative_spend_must_be_finite_nonnegative(
+    modal_cache_module,
+    value,
+):
+    prior = {
+        "cost_model": {
+            "warmup_seconds": "1",
+            "eligible_seconds_per_row": "1",
+            "ineligible_seconds_per_row": "1",
+            "unattributed_seconds_per_row": "1",
+        },
+        "cumulative_compute_usd": value,
+    }
+
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        modal_cache_module.project_run_cost(
+            prior,
+            total_rows=1,
+            eligible_rows=1,
+            compute_usd_per_second=Decimal("1"),
+        )
+
+
+@pytest.mark.parametrize("value", ["-1", "NaN", "Infinity"])
+def test_completed_cost_rejects_invalid_worker_elapsed_with_inherited_model(
+    modal_cache_module,
+    value,
+):
+    prior = {
+        "cost_model": {
+            "warmup_seconds": "1",
+            "eligible_seconds_per_row": "1",
+            "ineligible_seconds_per_row": "1",
+            "unattributed_seconds_per_row": "1",
+        },
+        "cumulative_compute_usd": "1",
+    }
+
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        modal_cache_module._completed_cost_fields(
+            {"worker_elapsed_seconds": value},
+            compute_usd_per_second=Decimal("1"),
+            prior_manifest=prior,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("warmup_seconds", -1.0),
+        ("eligible_scoring_seconds", float("nan")),
+        ("ineligible_scoring_seconds", float("inf")),
+        ("worker_elapsed_seconds", -1.0),
+        ("eligible_rows_per_second", float("nan")),
+        ("total_rows_per_second", -1.0),
+    ],
+)
+def test_worker_manifest_rejects_invalid_timing_fields(
+    modal_cache_module,
+    field,
+    value,
+):
+    payload = _rows_payload(1)
+    call = {
+        "dataset_jsonl": payload,
+        "config_path": "configs/default.yaml",
+        "run_id": "tocsin-v2-worker-timing",
+        "source_dataset_sha256": "s" * 64,
+        "resolved_config_sha256": "c" * 64,
+        "git_revision": "deadbeef1234567890",
+        "pilot_seed": None,
+        "detector_seed": 42,
+        "pyproject_sha256": "p" * 64,
+    }
+    manifest = _worker_manifest(call)
+    manifest[field] = value
+
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        modal_cache_module._validate_worker_manifest(
+            manifest,
+            run_id=str(call["run_id"]),
+            source_dataset_sha256=str(call["source_dataset_sha256"]),
+            scored_payload_sha256=hashlib.sha256(payload).hexdigest(),
+            resolved_config_sha256=str(call["resolved_config_sha256"]),
+            git_revision=str(call["git_revision"]),
+            n_total=2,
+            n_eligible=1,
+        )
+
+
+def test_worker_manifest_rejects_elapsed_below_accounted_timing(
+    modal_cache_module,
+):
+    payload = _rows_payload(1)
+    call = {
+        "dataset_jsonl": payload,
+        "config_path": "configs/default.yaml",
+        "run_id": "tocsin-v2-worker-timing-total",
+        "source_dataset_sha256": "s" * 64,
+        "resolved_config_sha256": "c" * 64,
+        "git_revision": "deadbeef1234567890",
+        "pilot_seed": None,
+        "detector_seed": 42,
+        "pyproject_sha256": "p" * 64,
+    }
+    manifest = _worker_manifest(call)
+    manifest["worker_elapsed_seconds"] = 0.1
+
+    with pytest.raises(ValueError, match="below measured warmup plus scoring"):
+        modal_cache_module._validate_worker_manifest(
+            manifest,
+            run_id=str(call["run_id"]),
+            source_dataset_sha256=str(call["source_dataset_sha256"]),
+            scored_payload_sha256=hashlib.sha256(payload).hexdigest(),
+            resolved_config_sha256=str(call["resolved_config_sha256"]),
+            git_revision=str(call["git_revision"]),
+            n_total=2,
+            n_eligible=1,
+        )
+
+
+def test_router_contract_allows_repeated_recommendations_used_by_current_cache(
+    modal_cache_module,
+    tmp_path,
+):
+    record = _cache_record(" ".join(["long"] * 80))
+    router = record["router"]
+    assert isinstance(router, dict)
+    router["recommended_detectors"] = ["preamble", "preamble"]
+    cache = tmp_path / "features.jsonl"
+    cache.write_bytes(_cache_payload([record]))
+
+    modal_cache_module._validate_serialized_cache_contract(cache)
 
 
 def test_gate_manifest_requires_pass_and_matching_provenance(
@@ -423,6 +856,7 @@ def test_gate_manifest_requires_pass_and_matching_provenance(
         "source_dataset_sha256": "s" * 64,
         "resolved_config_sha256": "c" * 64,
         "git_revision": "deadbeef1234",
+        "expected_tocsin_signature": COMBINED_SIGNATURE,
     }
     gate = {"gate": "PASS", **expected}
     assert (
@@ -431,11 +865,17 @@ def test_gate_manifest_requires_pass_and_matching_provenance(
             source_dataset_sha256=expected["source_dataset_sha256"],
             resolved_config_sha256=expected["resolved_config_sha256"],
             git_revision=expected["git_revision"],
+            expected_tocsin_signature=expected["expected_tocsin_signature"],
         )
         is gate
     )
 
-    for key in ("source_dataset_sha256", "resolved_config_sha256", "git_revision"):
+    for key in (
+        "source_dataset_sha256",
+        "resolved_config_sha256",
+        "git_revision",
+        "expected_tocsin_signature",
+    ):
         incompatible = dict(gate)
         incompatible[key] = "different"
         with pytest.raises(ValueError, match=key):
@@ -444,6 +884,9 @@ def test_gate_manifest_requires_pass_and_matching_provenance(
                 source_dataset_sha256=expected["source_dataset_sha256"],
                 resolved_config_sha256=expected["resolved_config_sha256"],
                 git_revision=expected["git_revision"],
+                expected_tocsin_signature=expected[
+                    "expected_tocsin_signature"
+                ],
             )
 
     stopped = dict(gate, gate="STOP_COST_CAP")
@@ -498,7 +941,7 @@ def test_pilot_manifest_is_written_before_cost_stop(
     manifest_path = tmp_path / "pilot.json"
     remote = MagicMock(
         side_effect=lambda **call: _worker_manifest(
-            call, worker_elapsed_seconds=3.0
+            call, worker_elapsed_seconds=40.0
         )
     )
     monkeypatch.setattr(module.cache_features, "remote", remote)
@@ -581,10 +1024,12 @@ def test_prior_cost_projection_blocks_before_remote_invocation(
     prior_path.write_text(
         json.dumps(
             {
+                "expected_tocsin_signature": COMBINED_SIGNATURE,
                 "cost_model": {
                     "warmup_seconds": "1",
                     "eligible_seconds_per_row": "1",
                     "ineligible_seconds_per_row": "1",
+                    "unattributed_seconds_per_row": "0",
                 },
                 "cumulative_compute_usd": "14",
             }
@@ -599,6 +1044,49 @@ def test_prior_cost_projection_blocks_before_remote_invocation(
             dataset_path=str(dataset),
             out_path=str(tmp_path / "challenge.features.jsonl"),
             run_id="tocsin-v2-20260711-challenge",
+            manifest_path=str(tmp_path / "challenge.json"),
+            compute_usd_per_second="1",
+            config_path="configs/default.yaml",
+            prior_manifest_path=str(prior_path),
+            cost_cap_usd="15",
+        )
+
+    remote.assert_not_called()
+
+
+def test_prior_manifest_signature_mismatch_blocks_before_remote_invocation(
+    modal_cache_module,
+    monkeypatch,
+    tmp_path,
+):
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    dataset = tmp_path / "challenge.jsonl"
+    dataset.write_bytes(_rows_payload(1))
+    prior_path = tmp_path / "prior.json"
+    prior_path.write_text(
+        json.dumps(
+            {
+                "expected_tocsin_signature": COHESIVENESS_SIGNATURE,
+                "cost_model": {
+                    "warmup_seconds": "0.1",
+                    "eligible_seconds_per_row": "0.1",
+                    "ineligible_seconds_per_row": "0.1",
+                    "unattributed_seconds_per_row": "0.1",
+                },
+                "cumulative_compute_usd": "1",
+            }
+        ),
+        encoding="utf-8",
+    )
+    remote = MagicMock()
+    monkeypatch.setattr(module.cache_features, "remote", remote)
+
+    with pytest.raises(ValueError, match="expected_tocsin_signature"):
+        module.main(
+            dataset_path=str(dataset),
+            out_path=str(tmp_path / "challenge.features.jsonl"),
+            run_id="tocsin-v2-20260711-prior-signature",
             manifest_path=str(tmp_path / "challenge.json"),
             compute_usd_per_second="1",
             config_path="configs/default.yaml",
@@ -668,10 +1156,12 @@ def test_gate_only_full_run_reprices_at_current_rate_before_remote(
                 "source_dataset_sha256": source_sha,
                 "resolved_config_sha256": "c" * 64,
                 "git_revision": "deadbeef1234567890",
+                "expected_tocsin_signature": COMBINED_SIGNATURE,
                 "cost_model": {
                     "warmup_seconds": "1",
                     "eligible_seconds_per_row": "1",
                     "ineligible_seconds_per_row": "1",
+                    "unattributed_seconds_per_row": "0",
                 },
                 "cumulative_compute_usd": "1",
                 "compute_usd_per_second": "0.01",
@@ -715,10 +1205,12 @@ def test_gate_only_full_run_rejects_omitted_pilot_spend_before_remote(
                 "source_dataset_sha256": source_sha,
                 "resolved_config_sha256": "c" * 64,
                 "git_revision": "deadbeef1234567890",
+                "expected_tocsin_signature": COMBINED_SIGNATURE,
                 "cost_model": {
                     "warmup_seconds": "0.1",
                     "eligible_seconds_per_row": "0.1",
                     "ineligible_seconds_per_row": "0.1",
+                    "unattributed_seconds_per_row": "0",
                 },
             }
         ),
@@ -759,10 +1251,12 @@ def test_completed_run_records_actual_and_cumulative_cost(
                 "source_dataset_sha256": source_sha,
                 "resolved_config_sha256": "c" * 64,
                 "git_revision": "deadbeef1234567890",
+                "expected_tocsin_signature": COMBINED_SIGNATURE,
                 "cost_model": {
                     "warmup_seconds": "0.1",
                     "eligible_seconds_per_row": "0.1",
                     "ineligible_seconds_per_row": "0.1",
+                    "unattributed_seconds_per_row": "0",
                 },
                 "cumulative_compute_usd": "2.00",
             }
@@ -775,7 +1269,8 @@ def test_completed_run_records_actual_and_cumulative_cost(
         )
     )
     monkeypatch.setattr(module.cache_features, "remote", remote)
-    monkeypatch.setattr(module, "hf_cache", _MemoryVolume(b'{"hash":"x"}\n'))
+    cache_payload = _cache_payload_for_source(source)
+    monkeypatch.setattr(module, "hf_cache", _MemoryVolume(cache_payload))
     manifest_path = tmp_path / "full.json"
     out_path = tmp_path / "full.features.jsonl"
 
@@ -795,7 +1290,7 @@ def test_completed_run_records_actual_and_cumulative_cost(
     call = remote.call_args.kwargs
     assert call["source_dataset_sha256"] == source_sha
     assert hashlib.sha256(call["dataset_jsonl"]).hexdigest() == source_sha
-    assert out_path.read_bytes() == b'{"hash":"x"}\n'
+    assert out_path.read_bytes() == cache_payload
 
     written = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert REQUIRED_WORKER_MANIFEST_KEYS <= written.keys()
@@ -806,11 +1301,14 @@ def test_completed_run_records_actual_and_cumulative_cost(
         "warmup_seconds": "0.1",
         "eligible_seconds_per_row": "0.1",
         "ineligible_seconds_per_row": "0.1",
+        "unattributed_seconds_per_row": "0",
     }
     assert written["cost_model_source"] == "prior_manifest"
+    assert written["cache_output_status"] == "PASS"
+    assert written["cache_output_validation"]["expected_unique_hashes"] == 2
 
 
-def test_sharded_run_aggregates_workers_cost_and_merged_output(
+def test_sharded_run_aggregates_worker_cost_and_validates_lossless_output(
     modal_cache_module, monkeypatch, tmp_path
 ):
     module = modal_cache_module
@@ -824,6 +1322,7 @@ def test_sharded_run_aggregates_workers_cost_and_merged_output(
         "warmup_seconds": "0.5",
         "eligible_seconds_per_row": "0.1",
         "ineligible_seconds_per_row": "0.1",
+        "unattributed_seconds_per_row": "0.05",
     }
     gate_path.write_text(
         json.dumps(
@@ -832,6 +1331,7 @@ def test_sharded_run_aggregates_workers_cost_and_merged_output(
                 "source_dataset_sha256": source_sha,
                 "resolved_config_sha256": "c" * 64,
                 "git_revision": "deadbeef1234567890",
+                "expected_tocsin_signature": COMBINED_SIGNATURE,
                 "cost_model": inherited_model,
                 "cumulative_compute_usd": "1.0",
             }
@@ -862,13 +1362,16 @@ def test_sharded_run_aggregates_workers_cost_and_merged_output(
     run_id = "tocsin-v2-20260711-sharded"
     path0 = f"cairn_cache_output/{run_id}_shard0_features.jsonl"
     path1 = f"cairn_cache_output/{run_id}_shard1_features.jsonl"
+    shard_payloads = module.split_payload_shards(source, 2)
+    cache0 = _cache_payload_for_source(shard_payloads[0])
+    cache1 = _cache_payload_for_source(shard_payloads[1], final_newline=False)
     monkeypatch.setattr(
         module,
         "hf_cache",
         _MappedVolume(
             {
-                path0: b'{"hash":"a"}\n{"hash":"shared"}\n',
-                path1: b'{"hash":"shared"}\n{"hash":"b"}\n',
+                path0: cache0,
+                path1: cache1,
             }
         ),
     )
@@ -894,11 +1397,7 @@ def test_sharded_run_aggregates_workers_cost_and_merged_output(
         f"{run_id}_shard0",
         f"{run_id}_shard1",
     ]
-    assert out_path.read_text(encoding="utf-8").splitlines() == [
-        '{"hash":"a"}',
-        '{"hash":"shared"}',
-        '{"hash":"b"}',
-    ]
+    assert out_path.read_bytes() == cache0 + cache1
 
     written = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert written["source_dataset_sha256"] == source_sha
@@ -917,8 +1416,266 @@ def test_sharded_run_aggregates_workers_cost_and_merged_output(
     assert Decimal(written["run_compute_usd"]) == Decimal("5")
     assert Decimal(written["cumulative_compute_usd"]) == Decimal("6.0")
     assert written["cost_model"] == inherited_model
-    assert written["prelaunch_cost_projection"]["projected_run_seconds"] == 1.4
+    assert written["prelaunch_cost_projection"]["projected_run_seconds"] == 1.6
     assert len(written["worker_manifests"]) == 2
+    assert written["cache_output_status"] == "PASS"
+
+
+def test_worker_output_is_downloaded_losslessly_then_validated_before_pass(
+    modal_cache_module, monkeypatch, tmp_path
+):
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    source = (
+        json.dumps(
+            {"text": " ".join(["café"] * 80)},
+            ensure_ascii=False,
+        )
+        + "\n"
+        + json.dumps({"text": "short π"}, ensure_ascii=False)
+        + "\n"
+    ).encode("utf-8")
+    dataset = tmp_path / "union.jsonl"
+    dataset.write_bytes(source)
+    records = _cache_records_for_source(source)
+    records[0]["download_marker"] = "café"
+    payload = _cache_payload(records, final_newline=False)
+    split_at = payload.index("é".encode("utf-8")) + 1
+    monkeypatch.setattr(
+        module,
+        "hf_cache",
+        _ChunkedVolume([payload[:split_at], payload[split_at:]]),
+    )
+    monkeypatch.setattr(
+        module.cache_features,
+        "remote",
+        MagicMock(side_effect=lambda **call: _worker_manifest(call)),
+    )
+    writes: list[tuple[object, object]] = []
+    real_write_manifest = module._write_manifest
+
+    def track_manifest(path, manifest):
+        writes.append(
+            (manifest.get("gate"), manifest.get("cache_output_status"))
+        )
+        real_write_manifest(path, manifest)
+
+    monkeypatch.setattr(module, "_write_manifest", track_manifest)
+    out_path = tmp_path / "features.jsonl"
+    manifest_path = tmp_path / "manifest.json"
+
+    module.main(
+        dataset_path=str(dataset),
+        out_path=str(out_path),
+        run_id="tocsin-v2-20260711-lossless",
+        manifest_path=str(manifest_path),
+        compute_usd_per_second="0.1",
+        config_path="configs/default.yaml",
+    )
+
+    assert out_path.read_bytes() == payload
+    assert ("PENDING_CACHE_VALIDATION", "PENDING") in writes
+    assert writes[-1] == ("PASS", "PASS")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["cache_output_validation"]["cached_unique_hashes"] == 2
+    assert manifest["cache_output_validation"]["identical_duplicate_hashes"] == 0
+
+
+@pytest.mark.parametrize(
+    "identity_case",
+    ["default-cohesiveness", "custom-combined"],
+    ids=["explicit-cohesiveness", "explicit-custom-identity"],
+)
+def test_explicit_expected_signature_is_provenanced_and_validated_exactly(
+    modal_cache_module,
+    monkeypatch,
+    tmp_path,
+    identity_case,
+):
+    from cairn.detectors.token_cohesiveness import (
+        build_tocsin_calibration_signature,
+    )
+
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    if identity_case == "default-cohesiveness":
+        expected_signature, identity = build_tocsin_calibration_signature(
+            "cohesiveness_u",
+            bart_model="facebook/bart-base",
+        )
+    else:
+        expected_signature, identity = build_tocsin_calibration_signature(
+            "combined_w",
+            bart_model="org/custom-bart",
+            base_model="org/custom-fast",
+        )
+    source = _rows_payload(1)
+    dataset = tmp_path / "union.jsonl"
+    dataset.write_bytes(source)
+    records = _cache_records_for_source_with_signature(
+        source,
+        expected_signature,
+        identity,
+    )
+    cache_payload = _cache_payload(records)
+    monkeypatch.setattr(module, "hf_cache", _MemoryVolume(cache_payload))
+    monkeypatch.setattr(
+        module.cache_features,
+        "remote",
+        MagicMock(side_effect=lambda **call: _worker_manifest(call)),
+    )
+    manifest_path = tmp_path / "manifest.json"
+
+    module.main(
+        dataset_path=str(dataset),
+        out_path=str(tmp_path / "features.jsonl"),
+        run_id="tocsin-v2-20260711-explicit-signature",
+        manifest_path=str(manifest_path),
+        compute_usd_per_second="0.1",
+        config_path="configs/default.yaml",
+        expected_tocsin_signature=expected_signature,
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["expected_tocsin_signature"] == expected_signature
+    assert (
+        manifest["cache_output_validation"]["calibration_signature"]
+        == expected_signature
+    )
+
+
+@pytest.mark.parametrize(
+    "violation",
+    [
+        "missing-coverage",
+        "invalid-schema",
+        "wrong-supported-signature",
+        "invalid-signature",
+        "custom-missing-identity",
+        "custom-mismatched-identity",
+        "missing-layer-id",
+        "non-string-layer-id",
+        "duplicate-layer-id",
+        "malformed-router-entry",
+        "duplicate",
+    ],
+)
+def test_invalid_worker_output_preserves_prior_cache_and_records_failure(
+    modal_cache_module,
+    monkeypatch,
+    tmp_path,
+    violation,
+):
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    expected_signature_for_run: str | None = None
+    source = _rows_payload(1)
+    dataset = tmp_path / "union.jsonl"
+    dataset.write_bytes(source)
+    records = _cache_records_for_source(source)
+    if violation == "missing-coverage":
+        records.pop()
+    elif violation == "invalid-schema":
+        records[0].pop("router")
+    elif violation == "wrong-supported-signature":
+        records = _cache_records_for_source_with_signature(
+            source,
+            COHESIVENESS_SIGNATURE,
+        )
+    elif violation == "invalid-signature":
+        results = records[0]["results"]
+        assert isinstance(results, list)
+        signals = results[0]["signals"]
+        assert isinstance(signals, dict)
+        signals["calibration_signature"] = "unsupported-tocsin-signature"
+    elif violation in {"custom-missing-identity", "custom-mismatched-identity"}:
+        from cairn.detectors.token_cohesiveness import (
+            build_tocsin_calibration_signature,
+        )
+
+        custom_signature, identity = build_tocsin_calibration_signature(
+            "combined_w",
+            bart_model="org/custom-bart",
+            base_model="org/custom-fast",
+        )
+        expected_signature_for_run = custom_signature
+        records = _cache_records_for_source_with_signature(
+            source,
+            custom_signature,
+            None if violation == "custom-missing-identity" else identity,
+        )
+        if violation == "custom-mismatched-identity":
+            results = records[0]["results"]
+            assert isinstance(results, list)
+            signals = results[0]["signals"]
+            assert isinstance(signals, dict)
+            attached_identity = signals["calibration_identity"]
+            assert isinstance(attached_identity, dict)
+            attached_identity["base_model"] = "org/spoofed-fast"
+    elif violation == "missing-layer-id":
+        results = records[0]["results"]
+        assert isinstance(results, list)
+        results.append({})
+    elif violation == "non-string-layer-id":
+        results = records[0]["results"]
+        assert isinstance(results, list)
+        results[0]["layer_id"] = 123
+    elif violation == "duplicate-layer-id":
+        results = records[0]["results"]
+        assert isinstance(results, list)
+        first = json.loads(json.dumps(results[0]))
+        second = json.loads(json.dumps(results[0]))
+        first["layer_id"] = "preamble"
+        second["layer_id"] = "preamble"
+        results.extend([first, second])
+    elif violation == "malformed-router-entry":
+        router = records[0]["router"]
+        assert isinstance(router, dict)
+        router["word_count"] = "not-an-integer"
+    elif violation == "duplicate":
+        records.append(json.loads(json.dumps(records[0])))
+    invalid_payload = _cache_payload(records)
+    monkeypatch.setattr(module, "hf_cache", _MemoryVolume(invalid_payload))
+    monkeypatch.setattr(
+        module.cache_features,
+        "remote",
+        MagicMock(side_effect=lambda **call: _worker_manifest(call)),
+    )
+    out_path = tmp_path / "features.jsonl"
+    prior_bytes = b"prior-cache-must-survive\n"
+    out_path.write_bytes(prior_bytes)
+    manifest_path = tmp_path / "manifest.json"
+
+    with pytest.raises(RuntimeError, match="INVALID_CACHE_OUTPUT"):
+        module.main(
+            dataset_path=str(dataset),
+            out_path=str(out_path),
+            run_id=f"tocsin-v2-20260711-{violation}",
+            manifest_path=str(manifest_path),
+                compute_usd_per_second="0.1",
+                config_path="configs/default.yaml",
+                expected_tocsin_signature=expected_signature_for_run,
+        )
+
+    assert out_path.read_bytes() == prior_bytes
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["gate"] == "INVALID_CACHE_OUTPUT"
+    assert manifest["cache_output_status"] == "INVALID_CACHE_OUTPUT"
+    expected_error_token = {
+        "missing-coverage": "coverage",
+        "invalid-schema": "router",
+        "wrong-supported-signature": "expected tocsin signature",
+        "invalid-signature": "signature",
+        "custom-missing-identity": "calibration_identity",
+        "custom-mismatched-identity": "calibration_identity",
+        "missing-layer-id": "layer_id",
+        "non-string-layer-id": "layer_id must be a nonempty string",
+        "duplicate-layer-id": "duplicate layer_id",
+        "malformed-router-entry": "word_count",
+        "duplicate": "duplicate",
+    }[violation]
+    assert expected_error_token in manifest["cache_output_error"].lower()
+    assert not list(tmp_path.glob("*.download.tmp"))
 
 
 def test_sharded_run_rejects_missing_worker_results(modal_cache_module):
