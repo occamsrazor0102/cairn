@@ -16,7 +16,7 @@ Example pilot::
         --pilot-rows 256
 
 The required rate is supplied by the caller and recorded in every manifest so
-future runs can substitute then-current Modal prices.  On 2026-07-11 the
+future runs can substitute then-current Modal prices.  On 2026-07-10 the
 accounted H200 worker rate was $0.00141996/s: H200 $0.001261/s, four physical
 CPU cores $0.0000524/s, and 48 GiB host memory $0.00010656/s.
 """
@@ -50,6 +50,10 @@ REQUIRED_WORKER_MANIFEST_KEYS = frozenset(
         "n_total",
         "n_eligible",
         "n_ineligible",
+        "n_timed_eligible",
+        "n_timed_ineligible",
+        "n_workers",
+        "n_warmups",
         "warmup_seconds",
         "eligible_scoring_seconds",
         "ineligible_scoring_seconds",
@@ -118,6 +122,33 @@ def _payload_counts(payload: bytes) -> tuple[int, int]:
     return len(rows), eligible
 
 
+def ensure_unique_normalized_texts(
+    payload: bytes,
+    *,
+    normalize_text: Callable[[str], str],
+) -> None:
+    """Reject duplicate normalized texts before timing or remote spend."""
+    seen: dict[str, int] = {}
+    for line_number, (_line, row) in enumerate(_jsonl_rows(payload), start=1):
+        normalized = normalize_text(str(row["text"]))
+        first_line = seen.get(normalized)
+        if first_line is not None:
+            raise ValueError(
+                "duplicate normalized text at dataset lines "
+                f"{first_line} and {line_number}"
+            )
+        seen[normalized] = line_number
+
+
+def ensure_new_checkpoint(path: str | Path) -> None:
+    """Refuse reused run IDs because earlier billed time is unaccounted."""
+    checkpoint = Path(path)
+    if checkpoint.exists():
+        raise ValueError(
+            f"checkpoint {checkpoint} already exists; choose a new unique run_id"
+        )
+
+
 def select_pilot_rows(
     payload: bytes,
     *,
@@ -162,6 +193,32 @@ def select_pilot_rows(
     ).encode("utf-8")
 
 
+def split_payload_shards(payload: bytes, shards: int) -> list[bytes]:
+    """Split JSONL contiguously into at most one nonempty shard per row."""
+    if shards <= 0:
+        raise ValueError("shards must be a positive integer")
+    rows = _jsonl_rows(payload)
+    worker_count = min(shards, len(rows))
+    shard_size = (len(rows) + worker_count - 1) // worker_count
+    result: list[bytes] = []
+    for index in range(worker_count):
+        selected = rows[index * shard_size : (index + 1) * shard_size]
+        if not selected:
+            continue
+        result.append(
+            "".join(line + "\n" for line, _row in selected).encode("utf-8")
+        )
+    return result
+
+
+def _first_eligible_text(payload: bytes) -> str:
+    for _line, row in _jsonl_rows(payload):
+        text = str(row["text"])
+        if _is_eligible_text(text):
+            return text
+    raise ValueError("scored payload has no eligible row for warmup")
+
+
 def project_modal_cost(
     pilot_manifest: Mapping[str, object],
     *,
@@ -169,8 +226,11 @@ def project_modal_cost(
     eligible_rows: int,
     compute_usd_per_second: Decimal,
     cap_usd: Decimal = Decimal("15.00"),
+    full_workers: int = 1,
 ) -> dict[str, object]:
     """Project the measured pilot plus one complete full run exactly."""
+    if full_workers <= 0:
+        raise ValueError("full_workers must be positive")
     n_eligible = int(pilot_manifest["n_eligible"])
     n_ineligible = int(pilot_manifest["n_ineligible"])
     eligible_seconds_per_row = (
@@ -181,8 +241,13 @@ def project_modal_cost(
         Decimal(str(pilot_manifest["ineligible_scoring_seconds"]))
         / Decimal(n_ineligible)
     )
-    projected_full_seconds = (
+    pilot_workers = int(pilot_manifest.get("n_warmups", 1))
+    warmup_seconds_per_worker = (
         Decimal(str(pilot_manifest["warmup_seconds"]))
+        / Decimal(pilot_workers)
+    )
+    projected_full_seconds = (
+        Decimal(full_workers) * warmup_seconds_per_worker
         + Decimal(eligible_rows) * eligible_seconds_per_row
         + Decimal(total_rows - eligible_rows) * ineligible_seconds_per_row
     )
@@ -205,8 +270,10 @@ def cost_model_from_manifest(
     manifest: Mapping[str, object],
 ) -> dict[str, str]:
     """Convert measured stratum totals into a reusable exact cost model."""
-    n_eligible = int(manifest["n_eligible"])
-    n_ineligible = int(manifest["n_ineligible"])
+    n_eligible = int(manifest.get("n_timed_eligible", manifest["n_eligible"]))
+    n_ineligible = int(
+        manifest.get("n_timed_ineligible", manifest["n_ineligible"])
+    )
     if n_eligible <= 0 or n_ineligible <= 0:
         raise ValueError(
             "cost model requires nonzero eligible and ineligible timing strata"
@@ -219,10 +286,14 @@ def cost_model_from_manifest(
         Decimal(str(manifest["ineligible_scoring_seconds"]))
         / Decimal(n_ineligible)
     )
+    n_warmups = int(manifest.get("n_warmups", 1))
+    if n_warmups <= 0:
+        raise ValueError("cost model requires at least one measured warmup")
+    warmup_seconds_per_worker = (
+        Decimal(str(manifest["warmup_seconds"])) / Decimal(n_warmups)
+    )
     return {
-        "warmup_seconds": format(
-            Decimal(str(manifest["warmup_seconds"])), "f"
-        ),
+        "warmup_seconds": format(warmup_seconds_per_worker, "f"),
         "eligible_seconds_per_row": format(eligible_seconds_per_row, "f"),
         "ineligible_seconds_per_row": format(ineligible_seconds_per_row, "f"),
     }
@@ -235,10 +306,13 @@ def project_run_cost(
     eligible_rows: int,
     compute_usd_per_second: Decimal,
     cap_usd: Decimal = Decimal("15.00"),
+    worker_count: int = 1,
 ) -> dict[str, object]:
     """Project one later run from an inherited model and prior spend."""
     if total_rows < 0 or eligible_rows < 0 or eligible_rows > total_rows:
         raise ValueError("eligible_rows must be between zero and total_rows")
+    if worker_count <= 0:
+        raise ValueError("worker_count must be positive")
     model = prior_manifest.get("cost_model")
     if not isinstance(model, Mapping):
         raise ValueError("prior manifest is missing cost_model")
@@ -256,7 +330,7 @@ def project_run_cost(
         str(prior_manifest["cumulative_compute_usd"])
     )
     projected_run_seconds = (
-        warmup_seconds
+        Decimal(worker_count) * warmup_seconds
         + Decimal(eligible_rows) * eligible_seconds_per_row
         + Decimal(total_rows - eligible_rows) * ineligible_seconds_per_row
     )
@@ -299,6 +373,31 @@ def validate_gate_manifest(
                 f"gate manifest {key} does not match the requested full run"
             )
     return gate_manifest
+
+
+def validate_prior_financial_state(
+    gate_manifest: Mapping[str, object],
+    prior_manifest: Mapping[str, object],
+) -> None:
+    """Ensure an explicit prior cannot discard or replace pilot spend state."""
+    gate_model = gate_manifest.get("cost_model")
+    prior_model = prior_manifest.get("cost_model")
+    if not isinstance(gate_model, Mapping):
+        raise ValueError("gate manifest is missing cost_model")
+    if not isinstance(prior_model, Mapping):
+        raise ValueError("prior manifest is missing cost_model")
+    if dict(prior_model) != dict(gate_model):
+        raise ValueError("prior manifest cost_model is incompatible with gate")
+    if "cumulative_compute_usd" not in gate_manifest:
+        raise ValueError("gate manifest is missing cumulative_compute_usd")
+    if "cumulative_compute_usd" not in prior_manifest:
+        raise ValueError("prior manifest is missing cumulative_compute_usd")
+    gate_cumulative = Decimal(str(gate_manifest["cumulative_compute_usd"]))
+    prior_cumulative = Decimal(str(prior_manifest["cumulative_compute_usd"]))
+    if prior_cumulative < gate_cumulative:
+        raise ValueError(
+            "prior manifest cumulative_compute_usd omits gate spend"
+        )
 
 
 def measure_scoring_times(
@@ -468,6 +567,10 @@ def _validate_worker_manifest(
         "n_total": n_total,
         "n_eligible": n_eligible,
         "n_ineligible": n_total - n_eligible,
+        "n_timed_eligible": n_eligible,
+        "n_timed_ineligible": n_total - n_eligible,
+        "n_workers": 1,
+        "n_warmups": 1,
         "gpu_type": GPU_TYPE,
     }
     for key, value in expected.items():
@@ -476,6 +579,117 @@ def _validate_worker_manifest(
                 f"Modal worker manifest {key}={manifest.get(key)!r}; "
                 f"expected {value!r}"
             )
+
+
+def aggregate_worker_manifests(
+    worker_manifests: Sequence[Mapping[str, object]],
+    *,
+    run_id: str,
+    scored_payload_sha256: str,
+) -> dict[str, object]:
+    """Combine all billed worker timing while retaining worker provenance."""
+    if not worker_manifests:
+        raise ValueError("at least one worker manifest is required")
+    workers = [dict(manifest) for manifest in worker_manifests]
+    first = workers[0]
+    common_keys = (
+        "source_dataset_sha256",
+        "config_path",
+        "resolved_config_sha256",
+        "git_revision",
+        "gpu_type",
+        "python_version",
+        "torch_version",
+        "transformers_version",
+        "cuda_version",
+        "pilot_seed",
+        "detector_seed",
+        "pyproject_sha256",
+        "package_versions",
+    )
+    for index, worker in enumerate(workers[1:], start=1):
+        for key in common_keys:
+            if worker.get(key) != first.get(key):
+                raise RuntimeError(
+                    f"worker {index} manifest {key} disagrees with worker 0"
+                )
+
+    def summed_decimal(key: str) -> Decimal:
+        return sum(
+            (Decimal(str(worker[key])) for worker in workers),
+            start=Decimal("0"),
+        )
+
+    n_total = sum(int(worker["n_total"]) for worker in workers)
+    n_eligible = sum(int(worker["n_eligible"]) for worker in workers)
+    n_ineligible = sum(int(worker["n_ineligible"]) for worker in workers)
+    n_timed_eligible = sum(
+        int(worker.get("n_timed_eligible", worker["n_eligible"]))
+        for worker in workers
+    )
+    n_timed_ineligible = sum(
+        int(worker.get("n_timed_ineligible", worker["n_ineligible"]))
+        for worker in workers
+    )
+    n_warmups = sum(int(worker.get("n_warmups", 1)) for worker in workers)
+    warmup_seconds = summed_decimal("warmup_seconds")
+    eligible_scoring_seconds = summed_decimal("eligible_scoring_seconds")
+    ineligible_scoring_seconds = summed_decimal("ineligible_scoring_seconds")
+    worker_elapsed_seconds = summed_decimal("worker_elapsed_seconds")
+    timed_total = n_timed_eligible + n_timed_ineligible
+
+    aggregate = dict(first)
+    remote_paths = [str(worker["remote_path"]) for worker in workers]
+    aggregate.update(
+        {
+            "run_id": run_id,
+            "scored_payload_sha256": scored_payload_sha256,
+            "n_total": n_total,
+            "n_eligible": n_eligible,
+            "n_ineligible": n_ineligible,
+            "n_timed_eligible": n_timed_eligible,
+            "n_timed_ineligible": n_timed_ineligible,
+            "n_workers": len(workers),
+            "n_warmups": n_warmups,
+            "warmup_seconds": float(warmup_seconds),
+            "eligible_scoring_seconds": float(eligible_scoring_seconds),
+            "ineligible_scoring_seconds": float(ineligible_scoring_seconds),
+            "worker_elapsed_seconds": float(worker_elapsed_seconds),
+            "eligible_rows_per_second": (
+                n_timed_eligible / float(eligible_scoring_seconds)
+                if eligible_scoring_seconds > 0
+                else 0.0
+            ),
+            "total_rows_per_second": (
+                timed_total / float(worker_elapsed_seconds)
+                if worker_elapsed_seconds > 0
+                else 0.0
+            ),
+            "remote_path": remote_paths[0] if len(workers) == 1 else remote_paths,
+            "worker_remote_paths": remote_paths,
+            "worker_run_ids": [str(worker["run_id"]) for worker in workers],
+            "worker_manifests": workers,
+            "n_new_this_run": sum(
+                int(worker.get("n_new_this_run", worker["n_total"]))
+                for worker in workers
+            ),
+            "n_duplicates": sum(
+                int(worker.get("n_duplicates", 0)) for worker in workers
+            ),
+        }
+    )
+    return aggregate
+
+
+def require_worker_result_count(
+    worker_results: Sequence[object], expected: int
+) -> None:
+    """Reject incomplete fan-out before aggregating cost or row counts."""
+    actual = len(worker_results)
+    if actual != expected:
+        raise RuntimeError(
+            f"Modal returned {actual} manifests; expected {expected}"
+        )
 
 
 def _completed_cost_fields(
@@ -495,15 +709,15 @@ def _completed_cost_fields(
         prior_cumulative_usd = Decimal(
             str(prior_manifest["cumulative_compute_usd"])
         )
-    try:
+    if prior_manifest is not None:
+        inherited = prior_manifest.get("cost_model")
+        if not isinstance(inherited, Mapping):
+            raise ValueError("prior manifest is missing cost_model")
+        cost_model = dict(inherited)
+        cost_model_source = "prior_manifest"
+    else:
         cost_model = cost_model_from_manifest(manifest)
         cost_model_source = "current_run"
-    except ValueError:
-        inherited = None if prior_manifest is None else prior_manifest.get("cost_model")
-        if not isinstance(inherited, Mapping):
-            raise
-        cost_model = {str(key): str(value) for key, value in inherited.items()}
-        cost_model_source = "prior_manifest"
     return {
         "compute_usd_per_second": format(compute_usd_per_second, "f"),
         "run_compute_usd": format(run_compute_usd, "f"),
@@ -557,6 +771,7 @@ def cache_features(
     pilot_seed: int | None,
     detector_seed: int,
     pyproject_sha256: str,
+    warmup_text: str,
 ) -> dict[str, object]:
     """Score one payload and return measured runtime/provenance metadata."""
     import importlib.metadata
@@ -592,57 +807,33 @@ def cache_features(
 
     parsed_rows = _jsonl_rows(dataset_jsonl)
     rows = [row for _line, row in parsed_rows]
+    ensure_unique_normalized_texts(
+        dataset_jsonl,
+        normalize_text=normalize_text,
+    )
     payload_n_eligible = sum(
         _is_eligible_text(normalize_text(str(row["text"]))) for row in rows
     )
-    warmup_row = next(
-        (
-            row
-            for row in rows
-            if _is_eligible_text(normalize_text(str(row["text"])))
-        ),
-        None,
-    )
-    if warmup_row is None:
-        raise ValueError("scored payload has no eligible row for warmup")
+    normalized_warmup = normalize_text(warmup_text)
+    if not _is_eligible_text(normalized_warmup):
+        raise ValueError("warmup text must be TOCSIN-eligible")
+    warmup_row = {"text": warmup_text}
 
     checkpoint_path = (
         f"/root/.cache/huggingface/cairn_cache_output/{run_id}_features.jsonl"
     )
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
-
-    seen: set[str] = set()
-    if os.path.exists(checkpoint_path):
-        with open(checkpoint_path, "r", encoding="utf-8") as checkpoint:
-            for line in checkpoint:
-                if not line.strip():
-                    continue
-                try:
-                    record = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                key = record.get("hash")
-                if isinstance(key, str):
-                    seen.add(key)
-        print(
-            f"resuming {run_id}: {len(seen)} checkpoint entries found",
-            flush=True,
-        )
-
-    pending_rows: list[dict[str, object]] = []
-    n_duplicates = 0
-    for row in rows:
-        normalized = normalize_text(str(row["text"]))
-        key = text_hash(normalized)
-        if key in seen:
-            n_duplicates += 1
-            continue
-        seen.add(key)
-        pending_rows.append(row)
-    if not pending_rows:
+    ensure_new_checkpoint(checkpoint_path)
+    try:
+        with open(checkpoint_path, "x", encoding="utf-8"):
+            pass
+    except FileExistsError as exc:
         raise ValueError(
-            "run_id has no uncached rows; choose a new unique run_id"
-        )
+            "checkpoint was created concurrently; choose a new unique run_id"
+        ) from exc
+    # Persist the reservation before costly model loading so a failed or
+    # concurrent attempt cannot reuse the run ID without accounting for it.
+    hf_cache.commit()
 
     pipeline = CairnPipeline.from_config_file(config_path)
     n_done = 0
@@ -666,7 +857,7 @@ def cache_features(
 
         timing = measure_scoring_times(
             pipeline,
-            pending_rows,
+            rows,
             normalize_text=normalize_text,
             record_result=record_result,
             warmup_row=warmup_row,
@@ -697,17 +888,21 @@ def cache_features(
     total_scoring_seconds = eligible_scoring_seconds + float(
         timing["ineligible_scoring_seconds"]
     )
+    n_timed_eligible = int(timing["n_eligible"])
+    n_timed_ineligible = int(timing["n_ineligible"])
     eligible_rows_per_second = (
-        payload_n_eligible / eligible_scoring_seconds
+        n_timed_eligible / eligible_scoring_seconds
         if eligible_scoring_seconds > 0
         else 0.0
     )
+    n_timed_total = n_timed_eligible + n_timed_ineligible
     total_rows_per_second = (
-        len(rows) / worker_elapsed_seconds if worker_elapsed_seconds > 0 else 0.0
+        n_timed_total / worker_elapsed_seconds
+        if worker_elapsed_seconds > 0
+        else 0.0
     )
     print(
-        f"done: {n_done} scored, {n_duplicates} checkpoint duplicates, "
-        f"{total_scoring_seconds:.3f}s timed scoring",
+        f"done: {n_done} scored, {total_scoring_seconds:.3f}s timed scoring",
         flush=True,
     )
 
@@ -721,6 +916,10 @@ def cache_features(
         "n_total": len(rows),
         "n_eligible": payload_n_eligible,
         "n_ineligible": len(rows) - payload_n_eligible,
+        "n_timed_eligible": n_timed_eligible,
+        "n_timed_ineligible": n_timed_ineligible,
+        "n_workers": 1,
+        "n_warmups": 1,
         "warmup_seconds": float(timing["warmup_seconds"]),
         "eligible_scoring_seconds": eligible_scoring_seconds,
         "ineligible_scoring_seconds": float(
@@ -740,7 +939,7 @@ def cache_features(
         "pyproject_sha256": pyproject_sha256,
         "package_versions": package_versions,
         "n_new_this_run": n_done,
-        "n_duplicates": n_duplicates,
+        "n_duplicates": 0,
     }
 
 
@@ -758,12 +957,10 @@ def main(
     cost_cap_usd: str = "15",
     shards: int = 1,
 ) -> None:
-    """Preflight cost/provenance, invoke one worker, and persist results."""
+    """Preflight cost/provenance, invoke the workers, and persist results."""
     validate_run_id(run_id)
-    if shards != 1:
-        raise ValueError(
-            "measured timing requires shards=1 so the pipeline warms exactly once"
-        )
+    if shards <= 0:
+        raise ValueError("shards must be a positive integer")
     if pilot_rows not in (0, 256):
         raise ValueError("--pilot-rows must be omitted/0 or exactly 256")
     if pilot_rows and gate_manifest_path is not None:
@@ -779,6 +976,12 @@ def main(
     cap = _decimal_cli(cost_cap_usd, name="cost_cap_usd")
 
     source_payload = Path(dataset_path).read_bytes()
+    from cairn.normalizer import normalize_text as normalize_local_text
+
+    ensure_unique_normalized_texts(
+        source_payload,
+        normalize_text=normalize_local_text,
+    )
     source_dataset_sha256 = _sha256_bytes(source_payload)
     source_n_total, source_n_eligible = _payload_counts(source_payload)
     scored_payload = (
@@ -792,6 +995,9 @@ def main(
     )
     scored_n_total, scored_n_eligible = _payload_counts(scored_payload)
     scored_payload_sha256 = _sha256_bytes(scored_payload)
+    shard_payloads = split_payload_shards(scored_payload, shards)
+    worker_count = len(shard_payloads)
+    warmup_text = _first_eligible_text(scored_payload)
     resolved_config_sha256 = _resolved_config_sha256(config_path)
     git_revision = _git_revision()
     pyproject_sha256 = _pyproject_sha256()
@@ -806,22 +1012,24 @@ def main(
             resolved_config_sha256=resolved_config_sha256,
             git_revision=git_revision,
         )
-        gate_projection = gate_manifest.get("projected_cumulative_usd")
-        if gate_projection is not None and Decimal(str(gate_projection)) > cap:
-            raise ValueError(
-                "gate manifest projected_cumulative_usd exceeds current cap"
-            )
 
     prior_manifest: dict[str, object] | None = None
     prior_projection: dict[str, object] | None = None
     if prior_manifest_path is not None:
         prior_manifest = _read_manifest(prior_manifest_path)
+        if gate_manifest is not None:
+            validate_prior_financial_state(gate_manifest, prior_manifest)
+    elif gate_manifest is not None:
+        prior_manifest = gate_manifest
+
+    if prior_manifest is not None:
         prior_projection = project_run_cost(
             prior_manifest,
             total_rows=source_n_total,
             eligible_rows=source_n_eligible,
             compute_usd_per_second=compute_rate,
             cap_usd=cap,
+            worker_count=worker_count,
         )
         if prior_projection["gate"] != "PASS":
             raise SystemExit(
@@ -831,34 +1039,75 @@ def main(
 
     print(
         f"sending {len(scored_payload):,} bytes / {scored_n_total:,} rows "
-        f"to Modal {GPU_TYPE} ({run_id})...",
+        f"to {worker_count} Modal {GPU_TYPE} worker(s) ({run_id})...",
         flush=True,
     )
-    worker_manifest = cache_features.remote(
-        dataset_jsonl=scored_payload,
-        config_path=config_path,
-        run_id=run_id,
-        source_dataset_sha256=source_dataset_sha256,
-        resolved_config_sha256=resolved_config_sha256,
-        git_revision=git_revision,
-        pilot_seed=PILOT_SEED if pilot_rows else None,
-        detector_seed=detector_seed,
-        pyproject_sha256=pyproject_sha256,
+    common_worker_args = (
+        config_path,
+        source_dataset_sha256,
+        resolved_config_sha256,
+        git_revision,
+        PILOT_SEED if pilot_rows else None,
+        detector_seed,
+        pyproject_sha256,
+        warmup_text,
     )
-    if not isinstance(worker_manifest, Mapping):
-        raise RuntimeError("Modal worker returned a non-mapping manifest")
-    _validate_worker_manifest(
-        worker_manifest,
-        run_id=run_id,
-        source_dataset_sha256=source_dataset_sha256,
-        scored_payload_sha256=scored_payload_sha256,
-        resolved_config_sha256=resolved_config_sha256,
-        git_revision=git_revision,
-        n_total=scored_n_total,
-        n_eligible=scored_n_eligible,
-    )
+    worker_run_ids = [
+        run_id if worker_count == 1 else f"{run_id}_shard{index}"
+        for index in range(worker_count)
+    ]
+    if worker_count == 1:
+        worker_results = [
+            cache_features.remote(
+                dataset_jsonl=shard_payloads[0],
+                config_path=config_path,
+                run_id=worker_run_ids[0],
+                source_dataset_sha256=source_dataset_sha256,
+                resolved_config_sha256=resolved_config_sha256,
+                git_revision=git_revision,
+                pilot_seed=PILOT_SEED if pilot_rows else None,
+                detector_seed=detector_seed,
+                pyproject_sha256=pyproject_sha256,
+                warmup_text=warmup_text,
+            )
+        ]
+    else:
+        starmap_args = [
+            (
+                shard_payload,
+                common_worker_args[0],
+                worker_run_ids[index],
+                *common_worker_args[1:],
+            )
+            for index, shard_payload in enumerate(shard_payloads)
+        ]
+        worker_results = list(cache_features.starmap(starmap_args))
+    require_worker_result_count(worker_results, worker_count)
 
-    manifest: dict[str, object] = dict(worker_manifest)
+    worker_manifests: list[Mapping[str, object]] = []
+    for index, worker_manifest in enumerate(worker_results):
+        if not isinstance(worker_manifest, Mapping):
+            raise RuntimeError(
+                f"Modal worker {index} returned a non-mapping manifest"
+            )
+        shard_n_total, shard_n_eligible = _payload_counts(shard_payloads[index])
+        _validate_worker_manifest(
+            worker_manifest,
+            run_id=worker_run_ids[index],
+            source_dataset_sha256=source_dataset_sha256,
+            scored_payload_sha256=_sha256_bytes(shard_payloads[index]),
+            resolved_config_sha256=resolved_config_sha256,
+            git_revision=git_revision,
+            n_total=shard_n_total,
+            n_eligible=shard_n_eligible,
+        )
+        worker_manifests.append(worker_manifest)
+
+    manifest = aggregate_worker_manifests(
+        worker_manifests,
+        run_id=run_id,
+        scored_payload_sha256=scored_payload_sha256,
+    )
     manifest.update(
         _completed_cost_fields(
             manifest,
@@ -875,6 +1124,7 @@ def main(
                 eligible_rows=source_n_eligible,
                 compute_usd_per_second=compute_rate,
                 cap_usd=cap,
+                full_workers=worker_count,
             )
         )
     elif prior_projection is not None:
@@ -899,15 +1149,35 @@ def main(
             f"STOP_COST_CAP: projected cumulative spend is ${projected}"
         )
 
-    remote_path = str(manifest["remote_path"])
-    cache_bytes = bytearray()
-    for chunk in hf_cache.read_file(remote_path):
-        cache_bytes.extend(chunk)
     output = Path(out_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(bytes(cache_bytes))
-    n_lines = bytes(cache_bytes).count(b"\n")
+    seen_hashes: set[str] = set()
+    n_lines = 0
+    n_merged_duplicates = 0
+    with output.open("w", encoding="utf-8", newline="\n") as destination:
+        for worker_manifest in worker_manifests:
+            remote_path = str(worker_manifest["remote_path"])
+            cache_bytes = bytearray()
+            for chunk in hf_cache.read_file(remote_path):
+                cache_bytes.extend(chunk)
+            for raw in bytes(cache_bytes).decode("utf-8").splitlines():
+                if not raw.strip():
+                    continue
+                try:
+                    record = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                key = record.get("hash")
+                if not isinstance(key, str):
+                    continue
+                if key in seen_hashes:
+                    n_merged_duplicates += 1
+                    continue
+                seen_hashes.add(key)
+                destination.write(raw + "\n")
+                n_lines += 1
     print(
-        f"wrote {n_lines:,} cached features to {output}",
+        f"wrote {n_lines:,} cached features to {output} "
+        f"({n_merged_duplicates} cross-shard duplicates merged)",
         flush=True,
     )

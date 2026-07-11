@@ -33,6 +33,10 @@ REQUIRED_WORKER_MANIFEST_KEYS = {
     "n_total",
     "n_eligible",
     "n_ineligible",
+    "n_timed_eligible",
+    "n_timed_ineligible",
+    "n_workers",
+    "n_warmups",
     "warmup_seconds",
     "eligible_scoring_seconds",
     "ineligible_scoring_seconds",
@@ -67,6 +71,14 @@ class _MemoryVolume:
 
     def commit(self) -> None:
         return None
+
+
+class _MappedVolume:
+    def __init__(self, payloads: dict[str, bytes]) -> None:
+        self.payloads = payloads
+
+    def read_file(self, path: str):
+        yield self.payloads[path]
 
 
 class _StubApp:
@@ -156,6 +168,10 @@ def _worker_manifest(
         "n_total": n_total,
         "n_eligible": eligible,
         "n_ineligible": n_total - eligible,
+        "n_timed_eligible": eligible,
+        "n_timed_ineligible": n_total - eligible,
+        "n_workers": 1,
+        "n_warmups": 1,
         "warmup_seconds": 0.3,
         "eligible_scoring_seconds": eligible * 0.2,
         "ineligible_scoring_seconds": (n_total - eligible) * 0.1,
@@ -227,6 +243,12 @@ def test_script_parses_with_the_modal_container_python_311_grammar():
         filename=str(SCRIPT_PATH),
         feature_version=(3, 11),
     )
+
+
+def test_pricing_provenance_uses_plan_accounting_date(modal_cache_module):
+    assert "On 2026-07-10" in modal_cache_module.__doc__
+    assert "On 2026-07-11" not in modal_cache_module.__doc__
+    assert "$0.00141996/s" in modal_cache_module.__doc__
 
 
 def test_pilot_is_deterministic_and_stratified(modal_cache_module):
@@ -338,6 +360,59 @@ def test_cost_model_and_prior_projection_use_decimal_arithmetic(
     assert projected["projected_run_seconds"] == 1.7
     assert projected["projected_run_compute_usd"] == "0.85"
     assert projected["projected_cumulative_usd"] == "2.85"
+    assert projected["gate"] == "STOP_COST_CAP"
+
+
+def test_completed_cost_fields_preserve_inherited_model_exactly(
+    modal_cache_module,
+):
+    inherited_model = {
+        "warmup_seconds": 0.5,
+        "eligible_seconds_per_row": "0.2",
+        "ineligible_seconds_per_row": "0.1",
+        "model_version": 2,
+    }
+    fields = modal_cache_module._completed_cost_fields(
+        {"worker_elapsed_seconds": "2"},
+        compute_usd_per_second=Decimal("0.5"),
+        prior_manifest={
+            "cost_model": inherited_model,
+            "cumulative_compute_usd": "3",
+        },
+    )
+
+    assert fields["cost_model"] == inherited_model
+    assert fields["cost_model_source"] == "prior_manifest"
+
+
+def test_partial_retry_cost_model_uses_timed_counts_and_stops_understatement(
+    modal_cache_module,
+):
+    partial_retry = {
+        "n_eligible": 128,
+        "n_ineligible": 128,
+        "n_timed_eligible": 2,
+        "n_timed_ineligible": 2,
+        "n_warmups": 1,
+        "eligible_scoring_seconds": "2",
+        "ineligible_scoring_seconds": "1",
+        "warmup_seconds": "0.5",
+    }
+
+    model = modal_cache_module.cost_model_from_manifest(partial_retry)
+    assert model == {
+        "warmup_seconds": "0.5",
+        "eligible_seconds_per_row": "1",
+        "ineligible_seconds_per_row": "0.5",
+    }
+    projected = modal_cache_module.project_run_cost(
+        {"cost_model": model, "cumulative_compute_usd": "0"},
+        total_rows=10,
+        eligible_rows=5,
+        compute_usd_per_second=Decimal("1"),
+        cap_usd=Decimal("1"),
+    )
+    assert projected["projected_cumulative_usd"] == "8.0"
     assert projected["gate"] == "STOP_COST_CAP"
 
 
@@ -534,6 +609,139 @@ def test_prior_cost_projection_blocks_before_remote_invocation(
     remote.assert_not_called()
 
 
+def test_duplicate_input_is_rejected_before_remote_invocation(
+    modal_cache_module, monkeypatch, tmp_path
+):
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    eligible = " ".join(["duplicate"] * 60)
+    rows = [
+        {"text": eligible},
+        {"text": "short unique row"},
+        {"text": eligible},
+    ]
+    dataset = tmp_path / "duplicates.jsonl"
+    dataset.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    remote = MagicMock()
+    monkeypatch.setattr(module.cache_features, "remote", remote)
+
+    with pytest.raises(ValueError, match="duplicate normalized text"):
+        module.main(
+            dataset_path=str(dataset),
+            out_path=str(tmp_path / "features.jsonl"),
+            run_id="tocsin-v2-20260711-duplicate-input",
+            manifest_path=str(tmp_path / "manifest.json"),
+            compute_usd_per_second="0.00141996",
+            config_path="configs/default.yaml",
+        )
+
+    remote.assert_not_called()
+
+
+def test_existing_checkpoint_requires_a_new_unique_run_id(
+    modal_cache_module, tmp_path
+):
+    checkpoint = tmp_path / "existing.features.jsonl"
+    checkpoint.write_text('{"hash":"already-billed"}\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unique run_id"):
+        modal_cache_module.ensure_new_checkpoint(checkpoint)
+
+
+def test_gate_only_full_run_reprices_at_current_rate_before_remote(
+    modal_cache_module, monkeypatch, tmp_path
+):
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    source = _rows_payload(1)
+    source_sha = hashlib.sha256(source).hexdigest()
+    dataset = tmp_path / "union.jsonl"
+    dataset.write_bytes(source)
+    gate_path = tmp_path / "pilot.json"
+    gate_path.write_text(
+        json.dumps(
+            {
+                "gate": "PASS",
+                "source_dataset_sha256": source_sha,
+                "resolved_config_sha256": "c" * 64,
+                "git_revision": "deadbeef1234567890",
+                "cost_model": {
+                    "warmup_seconds": "1",
+                    "eligible_seconds_per_row": "1",
+                    "ineligible_seconds_per_row": "1",
+                },
+                "cumulative_compute_usd": "1",
+                "compute_usd_per_second": "0.01",
+                "projected_cumulative_usd": "1.03",
+            }
+        ),
+        encoding="utf-8",
+    )
+    remote = MagicMock()
+    monkeypatch.setattr(module.cache_features, "remote", remote)
+
+    with pytest.raises(SystemExit, match="STOP_COST_CAP"):
+        module.main(
+            dataset_path=str(dataset),
+            out_path=str(tmp_path / "full.features.jsonl"),
+            run_id="tocsin-v2-20260711-stale-rate",
+            manifest_path=str(tmp_path / "full.json"),
+            compute_usd_per_second="10",
+            config_path="configs/default.yaml",
+            gate_manifest_path=str(gate_path),
+            cost_cap_usd="15",
+        )
+
+    remote.assert_not_called()
+
+
+def test_gate_only_full_run_rejects_omitted_pilot_spend_before_remote(
+    modal_cache_module, monkeypatch, tmp_path
+):
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    source = _rows_payload(1)
+    source_sha = hashlib.sha256(source).hexdigest()
+    dataset = tmp_path / "union.jsonl"
+    dataset.write_bytes(source)
+    gate_path = tmp_path / "pilot.json"
+    gate_path.write_text(
+        json.dumps(
+            {
+                "gate": "PASS",
+                "source_dataset_sha256": source_sha,
+                "resolved_config_sha256": "c" * 64,
+                "git_revision": "deadbeef1234567890",
+                "cost_model": {
+                    "warmup_seconds": "0.1",
+                    "eligible_seconds_per_row": "0.1",
+                    "ineligible_seconds_per_row": "0.1",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    remote = MagicMock()
+    monkeypatch.setattr(module.cache_features, "remote", remote)
+
+    with pytest.raises(ValueError, match="cumulative_compute_usd"):
+        module.main(
+            dataset_path=str(dataset),
+            out_path=str(tmp_path / "full.features.jsonl"),
+            run_id="tocsin-v2-20260711-missing-spend",
+            manifest_path=str(tmp_path / "full.json"),
+            compute_usd_per_second="0.5",
+            config_path="configs/default.yaml",
+            gate_manifest_path=str(gate_path),
+            cost_cap_usd="15",
+        )
+
+    remote.assert_not_called()
+
+
 def test_completed_run_records_actual_and_cumulative_cost(
     modal_cache_module, monkeypatch, tmp_path
 ):
@@ -595,7 +803,124 @@ def test_completed_run_records_actual_and_cumulative_cost(
     assert Decimal(written["cumulative_compute_usd"]) == Decimal("4.00")
     assert written["compute_usd_per_second"] == "0.5"
     assert written["cost_model"] == {
-        "warmup_seconds": "0.3",
-        "eligible_seconds_per_row": "0.2",
+        "warmup_seconds": "0.1",
+        "eligible_seconds_per_row": "0.1",
         "ineligible_seconds_per_row": "0.1",
     }
+    assert written["cost_model_source"] == "prior_manifest"
+
+
+def test_sharded_run_aggregates_workers_cost_and_merged_output(
+    modal_cache_module, monkeypatch, tmp_path
+):
+    module = modal_cache_module
+    _install_local_provenance(monkeypatch, module)
+    source = _rows_payload(2)
+    source_sha = hashlib.sha256(source).hexdigest()
+    dataset = tmp_path / "union.jsonl"
+    dataset.write_bytes(source)
+    gate_path = tmp_path / "pilot.json"
+    inherited_model = {
+        "warmup_seconds": "0.5",
+        "eligible_seconds_per_row": "0.1",
+        "ineligible_seconds_per_row": "0.1",
+    }
+    gate_path.write_text(
+        json.dumps(
+            {
+                "gate": "PASS",
+                "source_dataset_sha256": source_sha,
+                "resolved_config_sha256": "c" * 64,
+                "git_revision": "deadbeef1234567890",
+                "cost_model": inherited_model,
+                "cumulative_compute_usd": "1.0",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    worker_calls: list[dict[str, object]] = []
+
+    def fake_starmap(args):
+        manifests = []
+        signature = inspect.signature(module.cache_features)
+        for index, positional in enumerate(args):
+            call = dict(signature.bind(*positional).arguments)
+            worker_calls.append(call)
+            manifests.append(
+                _worker_manifest(
+                    call,
+                    worker_elapsed_seconds=float(index + 2),
+                )
+            )
+        return iter(manifests)
+
+    starmap = MagicMock(side_effect=fake_starmap)
+    remote = MagicMock()
+    monkeypatch.setattr(module.cache_features, "starmap", starmap)
+    monkeypatch.setattr(module.cache_features, "remote", remote)
+    run_id = "tocsin-v2-20260711-sharded"
+    path0 = f"cairn_cache_output/{run_id}_shard0_features.jsonl"
+    path1 = f"cairn_cache_output/{run_id}_shard1_features.jsonl"
+    monkeypatch.setattr(
+        module,
+        "hf_cache",
+        _MappedVolume(
+            {
+                path0: b'{"hash":"a"}\n{"hash":"shared"}\n',
+                path1: b'{"hash":"shared"}\n{"hash":"b"}\n',
+            }
+        ),
+    )
+    manifest_path = tmp_path / "full.json"
+    out_path = tmp_path / "full.features.jsonl"
+
+    module.main(
+        dataset_path=str(dataset),
+        out_path=str(out_path),
+        run_id=run_id,
+        manifest_path=str(manifest_path),
+        compute_usd_per_second="1",
+        config_path="configs/default.yaml",
+        gate_manifest_path=str(gate_path),
+        cost_cap_usd="15",
+        shards=2,
+    )
+
+    remote.assert_not_called()
+    starmap.assert_called_once()
+    assert len(worker_calls) == 2
+    assert [call["run_id"] for call in worker_calls] == [
+        f"{run_id}_shard0",
+        f"{run_id}_shard1",
+    ]
+    assert out_path.read_text(encoding="utf-8").splitlines() == [
+        '{"hash":"a"}',
+        '{"hash":"shared"}',
+        '{"hash":"b"}',
+    ]
+
+    written = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert written["source_dataset_sha256"] == source_sha
+    assert written["scored_payload_sha256"] == source_sha
+    assert written["n_workers"] == 2
+    assert written["n_warmups"] == 2
+    assert written["n_total"] == 4
+    assert written["n_eligible"] == 2
+    assert written["n_ineligible"] == 2
+    assert written["n_timed_eligible"] == 2
+    assert written["n_timed_ineligible"] == 2
+    assert written["warmup_seconds"] == pytest.approx(0.6)
+    assert written["eligible_scoring_seconds"] == pytest.approx(0.4)
+    assert written["ineligible_scoring_seconds"] == pytest.approx(0.2)
+    assert written["worker_elapsed_seconds"] == pytest.approx(5.0)
+    assert Decimal(written["run_compute_usd"]) == Decimal("5")
+    assert Decimal(written["cumulative_compute_usd"]) == Decimal("6.0")
+    assert written["cost_model"] == inherited_model
+    assert written["prelaunch_cost_projection"]["projected_run_seconds"] == 1.4
+    assert len(written["worker_manifests"]) == 2
+
+
+def test_sharded_run_rejects_missing_worker_results(modal_cache_module):
+    with pytest.raises(RuntimeError, match="returned 1 manifests; expected 2"):
+        modal_cache_module.require_worker_result_count([{"run_id": "one"}], 2)
