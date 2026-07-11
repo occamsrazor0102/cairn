@@ -13196,14 +13196,14 @@ prompts_only,prompt_test,prompts_v5_test:f093c9cace7a4b0c7cbfd57c0eb61eb9ffbccd6
 prompts_only,humanized_hard,_humanized_eval:187812eb46c3aebfaa2bd828a6c43206828bcf35c20e293aad392d9ffeb2ae2d,1,0.07333873960645208,0,"[""human"",""LLM""]",ebm,1.3877787807814457e-17
 prompts_only,humanized_hard,_humanized_eval:64eafe67750770db5b87a30367d738332f9c24ccbcedac84e2012ab27651a3fa,1,0.07377260463946124,0,"[""human"",""LLM""]",ebm,0.0
 prompts_only,humanized_hard,_humanized_eval:7868033e11559ca941b93575230347b2277916c79d7052a28fe79c408f1178fe,1,0.06462059840760688,0,"[""human""]",ebm,4.163336342344337e-17
-prompts_only,humanized_hard,_humanized_eval:87b2b4caba9afcccf78b7e98ce9b2fcd954545fdc35d5d5cd28d2667650b62ad,1,0.9778305793677983,1,"[""LLM""]",ebm,0.0
+prompts_only,humanized_hard,_humanized_eval:87b2b4caba9afcccf78b7e98ce9b2fcd954545fdc35d5d5cd28d2667650b62ad,1,0.9944228166869147,1,"[""LLM""]",ebm,1.1102230246251565e-16
 prompts_only,humanized_hard,_humanized_eval:8975afeffd4825c579e32e8e5cfd1ab50b361939af6b7b2a295f8314d6ab470f,1,0.06408076295113467,0,"[""human""]",ebm,0.0
 prompts_only,humanized_hard,_humanized_eval:f71edd7409f948347873cb3245a9b1f8cb6befe89ce9cc3013e44c8e2c358ca6,1,0.9576750407718012,1,"[""LLM""]",ebm,1.1102230246251565e-16
 prompts_only,humanized_hard,_humanized_eval:7fd8ea25ee7ddb35087f47caed8859b705984eab9682fafec37ef1cd2759627e,1,0.9637499652327549,1,"[""LLM""]",ebm,2.220446049250313e-16
 prompts_only,humanized_hard,_humanized_eval:f268c11694a88f0dac7e31c1289f8b03d6b9b48bf95e1b15a09eac76e4abfb7f,1,0.07641241777399921,0,"[""human"",""LLM""]",ebm,0.0
 prompts_only,humanized_hard,_humanized_eval:a44e951943f03749950b5a5b97b772757efcb5b83a4ba3b2a271cf4e62f4f70f,1,0.08647328569105403,0,"[""human"",""LLM""]",ebm,0.0
 prompts_only,humanized_hard,_humanized_eval:77176b7a3576461542ca728ae960aff232bc2ad6306488113f8254d7457ef2dd,1,0.058179293432624235,0,"[""human""]",ebm,6.938893903907228e-18
-prompts_only,humanized_hard,_humanized_eval:f65b2082e38f6fda08c86292b357eb59384cb2fcfa5321660a8bc2221a810214,1,0.9960970173872571,1,"[""LLM""]",ebm,2.220446049250313e-16
+prompts_only,humanized_hard,_humanized_eval:f65b2082e38f6fda08c86292b357eb59384cb2fcfa5321660a8bc2221a810214,1,0.9977168253808711,1,"[""LLM""]",ebm,1.1102230246251565e-16
 prompts_only,humanized_hard,_humanized_eval:653ced13e97a57ea20c9469a8ecb0e77e5e86b83e08682f97747ba2bd84b07f9,1,0.07309366417486628,0,"[""human""]",ebm,0.0
 prompts_only,humanized_hard,_humanized_eval:20496695ecda0651b1567eafc0a7826bd1201fb6c66a98695609c018ecae0184,1,0.10792920763998058,0,"[""human"",""LLM""]",ebm,6.938893903907228e-17
 prompts_only,humanized_hard,_humanized_eval:61126e2ffb863e1a42501600313aa2cfe571afea27dc286e633a113d6298852a,1,0.9640228138177902,1,"[""LLM""]",ebm,0.0
