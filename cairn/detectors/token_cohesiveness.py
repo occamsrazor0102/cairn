@@ -49,6 +49,13 @@ from cairn.contracts import LayerResult
 
 logger = logging.getLogger("cairn.detectors.token_cohesiveness")
 
+TOCSIN_COMBINED_SIGNATURE = "tocsin-bart-fastdetectgpt-combined-w-v1"
+TOCSIN_COHESIVENESS_SIGNATURE = "tocsin-bart-cohesiveness-u-v1"
+TOCSIN_SIGNATURE_TO_RAW_CHANNEL = {
+    TOCSIN_COMBINED_SIGNATURE: "combined_w",
+    TOCSIN_COHESIVENESS_SIGNATURE: "cohesiveness_u",
+}
+
 # Paper hyperparameters.
 _DELETION_RATIO = 0.015          # ρ — fraction of tokens deleted per copy
 _N_COPIES = 10                   # number of deleted copies per text
@@ -170,6 +177,7 @@ class TokenCohesivenessDetector:
             # cohesiveness alone: more cohesive (u→0) → more LLM-like.
             p_llm = _heuristic_cohesiveness_to_p_llm(cohesiveness_u)
             raw_score = cohesiveness_u
+            calibration_signature = TOCSIN_COHESIVENESS_SIGNATURE
         else:
             # Paper's exponential combination, sign-aware on the base score.
             if base_v >= 0:
@@ -178,6 +186,11 @@ class TokenCohesivenessDetector:
                 combined_w = math.exp(-cohesiveness_u) * base_v
             p_llm = _heuristic_curvature_to_p_llm(combined_w)
             raw_score = combined_w
+            calibration_signature = TOCSIN_COMBINED_SIGNATURE
+
+        calibration_raw_channel = TOCSIN_SIGNATURE_TO_RAW_CHANNEL[
+            calibration_signature
+        ]
 
         if p_llm >= 0.75:
             determination = "RED"
@@ -196,6 +209,8 @@ class TokenCohesivenessDetector:
                 "cohesiveness_u": round(float(cohesiveness_u), 5),
                 "base_v": round(float(base_v), 5) if base_v is not None else None,
                 "combined_w": round(float(combined_w), 5),
+                "calibration_signature": calibration_signature,
+                "calibration_raw_channel": calibration_raw_channel,
                 "deletion_ratio": _DELETION_RATIO,
                 "n_copies": _N_COPIES,
             },

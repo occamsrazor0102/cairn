@@ -4,10 +4,15 @@ No-torch paths and the pure-Python cohesiveness mapping run everywhere; the
 BARTScore path is exercised via monkeypatched scoring so CI need not
 download facebook/bart-base to assert wiring.
 """
+import pytest
+
 from cairn.detectors.token_cohesiveness import (
+    DETECTOR,
+    TOCSIN_COHESIVENESS_SIGNATURE,
+    TOCSIN_COMBINED_SIGNATURE,
+    TOCSIN_SIGNATURE_TO_RAW_CHANNEL,
     TokenCohesivenessDetector,
     _heuristic_cohesiveness_to_p_llm,
-    DETECTOR,
 )
 
 
@@ -55,6 +60,11 @@ def test_combined_channel_surfaces_signals(monkeypatch):
     assert result.signals["cohesiveness_u"] == -1.0
     assert result.signals["base_v"] == 1.2
     assert "combined_w" in result.signals
+    assert result.signals["calibration_signature"] == TOCSIN_COMBINED_SIGNATURE
+    assert result.signals["calibration_raw_channel"] == "combined_w"
+    assert result.raw_score == pytest.approx(
+        result.signals["combined_w"], abs=1e-5
+    )
     assert 0.0 <= result.p_llm <= 1.0
 
 
@@ -71,8 +81,27 @@ def test_standalone_fallback_when_base_unavailable(monkeypatch):
     assert result.determination != "SKIP"
     assert result.signals["base_v"] is None
     assert result.signals["cohesiveness_u"] == -0.5
+    assert (
+        result.signals["calibration_signature"]
+        == TOCSIN_COHESIVENESS_SIGNATURE
+    )
+    assert result.signals["calibration_raw_channel"] == "cohesiveness_u"
+    assert result.raw_score == pytest.approx(
+        result.signals["cohesiveness_u"], abs=1e-5
+    )
     assert 0.0 <= result.p_llm <= 1.0
 
 
 def test_module_detector_id():
     assert DETECTOR.id == "token_cohesiveness"
+
+
+def test_signature_raw_channel_mapping_is_public_and_stable():
+    assert TOCSIN_COMBINED_SIGNATURE == (
+        "tocsin-bart-fastdetectgpt-combined-w-v1"
+    )
+    assert TOCSIN_COHESIVENESS_SIGNATURE == "tocsin-bart-cohesiveness-u-v1"
+    assert TOCSIN_SIGNATURE_TO_RAW_CHANNEL == {
+        TOCSIN_COMBINED_SIGNATURE: "combined_w",
+        TOCSIN_COHESIVENESS_SIGNATURE: "cohesiveness_u",
+    }

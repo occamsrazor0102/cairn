@@ -2,12 +2,14 @@
 
 These tests use synthetic fixtures only; real dataset calibration is Phase 7.
 """
+import json
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from cairn.calibration import DetectorCalibrator
+from cairn.calibration import CalibrationMetadata, DetectorCalibrator
+from cairn.detectors.token_cohesiveness import TOCSIN_COMBINED_SIGNATURE
 from cairn.fusion.conformal import ConformalWrapper
 from cairn.fusion.ebm import EBMFusion
 from cairn.contracts import LayerResult
@@ -50,12 +52,95 @@ def test_detector_calibrator_save_load_roundtrip(tmp_path):
     cal.fit("nssi", [0.2, 0.4, 0.6, 0.8], [0, 0, 1, 1])
     p = tmp_path / "cal.json"
     cal.save(p)
+    parsed = json.loads(p.read_text(encoding="utf-8"))
+    assert all(
+        set(entry) == {"X", "y", "schema"}
+        and entry["schema"] == "isotonic-thresholds-v1"
+        for entry in parsed.values()
+    )
 
     cal2 = DetectorCalibrator()
     cal2.load(p)
     for x in (0.15, 0.5, 0.85):
         assert cal2.transform("preamble", x) == pytest.approx(cal.transform("preamble", x))
         assert cal2.transform("nssi", x) == pytest.approx(cal.transform("nssi", x))
+
+    untouched = tmp_path / "cal-untouched.json"
+    cal2.save(untouched)
+    assert json.loads(untouched.read_text(encoding="utf-8")) == parsed
+
+
+def test_detector_calibrator_v2_save_load_roundtrip(tmp_path):
+    cal = DetectorCalibrator()
+    cal.fit(
+        "token_cohesiveness",
+        [-0.4, -0.2, 0.0, 0.1],
+        [0, 0, 1, 1],
+        metadata=CalibrationMetadata(
+            detector_signature=TOCSIN_COMBINED_SIGNATURE,
+            raw_channel="combined_w",
+            training_dataset_hash="sha256:abc",
+            weighting_policy={"policy": "source-length-balanced-v1"},
+        ),
+    )
+    path = tmp_path / "cal-v2.json"
+    cal.save(path)
+
+    expected_entry = {
+        "X": [-0.4, -0.2, 0.0, 0.1],
+        "y": [0.0, 0.0, 1.0, 1.0],
+        "schema": "isotonic-thresholds-v2",
+        "detector_signature": TOCSIN_COMBINED_SIGNATURE,
+        "raw_channel": "combined_w",
+        "support_min": -0.4,
+        "support_max": 0.1,
+        "training_rows": 4,
+        "class_counts": {"0": 2, "1": 2},
+        "training_dataset_hash": "sha256:abc",
+        "weighting_policy": {"policy": "source-length-balanced-v1"},
+    }
+    assert json.loads(path.read_text(encoding="utf-8")) == {
+        "token_cohesiveness": expected_entry
+    }
+
+    loaded = DetectorCalibrator()
+    loaded.load(path)
+    roundtrip = tmp_path / "cal-v2-roundtrip.json"
+    loaded.save(roundtrip)
+    assert json.loads(roundtrip.read_text(encoding="utf-8")) == {
+        "token_cohesiveness": expected_entry
+    }
+    for raw in (-0.4, -0.1, 0.1):
+        assert loaded.transform("token_cohesiveness", raw) == pytest.approx(
+            cal.transform("token_cohesiveness", raw)
+        )
+
+
+@pytest.mark.parametrize(
+    ("raw_scores", "labels", "sample_weight", "message"),
+    [
+        ([0.0, 1.0], [0], None, "raw_scores and labels must have the same shape"),
+        ([0.0, 1.0], [0, 1], [1.0], "sample_weight must match raw_scores"),
+        ([0.0, float("nan")], [0, 1], None, "raw_scores must all be finite"),
+        (
+            [0.0, 1.0],
+            [0, 1],
+            [1.0, 0.0],
+            "sample_weight must be finite and positive",
+        ),
+    ],
+)
+def test_detector_calibrator_fit_validates_training_inputs(
+    raw_scores, labels, sample_weight, message
+):
+    cal = DetectorCalibrator()
+    with pytest.raises(ValueError, match=message):
+        cal.fit(
+            "preamble",
+            raw_scores,
+            labels,
+            sample_weight=sample_weight,
+        )
 
 
 def test_conformal_wrapper_save_load_roundtrip(tmp_path):
