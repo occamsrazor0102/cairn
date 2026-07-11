@@ -332,6 +332,63 @@ def test_per_detector_auroc_applies_guard_and_excludes_rejected_results(
     assert "calibrator_signature_mismatch" in rejected.signals
 
 
+@pytest.mark.parametrize("calibrator_present", [False, True])
+def test_per_detector_auroc_filters_invalid_raw_after_optional_guard(
+    monkeypatch,
+    calibrator_present,
+):
+    calibrator = DetectorCalibrator() if calibrator_present else None
+    samples = []
+    cache = {}
+    for index in range(12):
+        text = normalize_text(f"valid raw sample {index}")
+        label = 0 if index < 6 else 1
+        result = make_tocsin_result(
+            -0.3 if label == 0 else 0.05,
+            TOCSIN_COMBINED_SIGNATURE,
+            "AMBER",
+        )
+        result.p_llm = 0.1 if label == 0 else 0.9
+        samples.append({"text": text, "label": label})
+        cache[text_hash(text)] = {
+            "results": [asdict(result)],
+            "router": {},
+        }
+    for offset, raw in enumerate(
+        [None, float("nan"), float("inf"), float("-inf")]
+    ):
+        text = normalize_text(f"invalid raw sample {offset}")
+        result = make_tocsin_result(
+            raw,
+            TOCSIN_COMBINED_SIGNATURE,
+            "AMBER",
+        )
+        result.p_llm = 0.99
+        samples.append({"text": text, "label": offset % 2})
+        cache[text_hash(text)] = {
+            "results": [asdict(result)],
+            "router": {},
+        }
+
+    apply_calls: list[LayerResult] = []
+    if calibrator is not None:
+        original_apply = calibrator.apply
+
+        def spy_apply(result: LayerResult) -> bool:
+            apply_calls.append(result)
+            return original_apply(result)
+
+        monkeypatch.setattr(calibrator, "apply", spy_apply)
+
+    auroc, counts = per_detector_auroc(samples, cache, calibrator)
+
+    assert counts["token_cohesiveness"] == 12
+    assert auroc["token_cohesiveness"] == pytest.approx(1.0)
+    if calibrator is not None:
+        assert len(apply_calls) == len(samples)
+        assert len({id(result) for result in apply_calls}) == len(samples)
+
+
 class _RecordingEBM:
     _cairn_feature_names = ["tocsin_missing"]
 

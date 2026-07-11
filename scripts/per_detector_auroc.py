@@ -76,6 +76,9 @@ def per_detector_auroc(
             result = LayerResult(**cached_result)
             if calibrator is not None:
                 calibrator.apply(result)
+            raw = result.raw_score
+            if raw is None or not math.isfinite(float(raw)):
+                continue
             if result.determination == "SKIP":
                 continue
             score_per_det[result.layer_id].append(float(result.p_llm))
