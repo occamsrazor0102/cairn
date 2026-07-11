@@ -24,6 +24,25 @@ from cairn.evaluation.tocsin_retrain import (
 
 
 _OOD_DATASETS = ("ood_m4_test", "ood_raid_test", "ood_mage_test")
+_LOCKED_SLICE_ORDER = (
+    "prompt_test",
+    "humanized_hard",
+    "ood_m4_test",
+    "ood_raid_test",
+    "ood_mage_test",
+    "challenge",
+)
+_PREDICTION_CSV_FIELDS = (
+    "profile",
+    "slice",
+    "id",
+    "label",
+    "p_llm",
+    "predicted_label",
+    "conformal_set",
+    "fusion_mode",
+    "reconstruction_error",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -98,42 +117,71 @@ def _profile_report(evaluation: ProfileEvaluation) -> dict[str, object]:
     }
 
 
-def _scalar_metric_rows(
-    role: str,
-    profile: str,
-    metrics: Mapping[str, object],
-):
-    for dataset, block in metrics.items():
-        if dataset == "ood":
-            for corpus, corpus_metrics in block.items():
-                for metric, value in corpus_metrics.items():
-                    if isinstance(value, (bool, int, float)) and math.isfinite(
-                        float(value)
-                    ):
-                        yield [role, profile, corpus, metric, value]
-            continue
-        if not isinstance(block, Mapping):
-            continue
-        for metric, value in block.items():
-            if isinstance(value, (bool, int, float)) and math.isfinite(float(value)):
-                yield [role, profile, dataset, metric, value]
+def _valid_probability(value: object) -> float | None:
+    try:
+        probability = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(probability) or not 0.0 <= probability <= 1.0:
+        return None
+    return probability
 
 
-def _render_benchmarks_long(
-    candidate_name: str,
-    candidate: Mapping[str, object],
-    comparators: Mapping[str, Mapping[str, object]],
-) -> str:
+def _finite_csv_number(value: object) -> float | str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return ""
+    return number if math.isfinite(number) else ""
+
+
+def _serialize_conformal_set(values: Sequence[str] | None) -> str:
+    if values is None:
+        return ""
+    members = {str(value) for value in values}
+    canonical = [name for name in ("human", "LLM") if name in members]
+    canonical.extend(sorted(members - {"human", "LLM"}))
+    return json.dumps(canonical, separators=(",", ":"), ensure_ascii=False)
+
+
+def _ordered_slices(evaluation: ProfileEvaluation) -> list[str]:
+    known = [name for name in _LOCKED_SLICE_ORDER if name in evaluation.rows]
+    return known + sorted(set(evaluation.rows) - set(_LOCKED_SLICE_ORDER))
+
+
+def _render_prediction_rows(evaluations: Sequence[ProfileEvaluation]) -> str:
     handle = io.StringIO(newline="")
-    writer = csv.writer(handle, lineterminator="\n")
-    writer.writerow(["role", "profile", "dataset", "metric", "value"])
-    writer.writerows(
-        _scalar_metric_rows("candidate", candidate_name, candidate)
+    writer = csv.DictWriter(
+        handle,
+        fieldnames=_PREDICTION_CSV_FIELDS,
+        lineterminator="\n",
     )
-    for name in sorted(comparators):
-        writer.writerows(
-            _scalar_metric_rows("comparator", name, comparators[name])
-        )
+    writer.writeheader()
+    for evaluation in evaluations:
+        for slice_name in _ordered_slices(evaluation):
+            for row in evaluation.rows[slice_name]:
+                probability = _valid_probability(row.p_llm)
+                writer.writerow(
+                    {
+                        "profile": evaluation.name,
+                        "slice": slice_name,
+                        "id": row.id,
+                        "label": row.label,
+                        "p_llm": probability if probability is not None else "",
+                        "predicted_label": (
+                            int(probability >= 0.5)
+                            if probability is not None
+                            else ""
+                        ),
+                        "conformal_set": _serialize_conformal_set(
+                            row.conformal_set
+                        ),
+                        "fusion_mode": row.fusion_mode,
+                        "reconstruction_error": _finite_csv_number(
+                            row.reconstruction_error
+                        ),
+                    }
+                )
     return handle.getvalue()
 
 
@@ -292,9 +340,7 @@ def _publish_full_reports(
     decision: Mapping[str, object],
     report: Mapping[str, object],
     *,
-    candidate_name: str,
-    candidate: Mapping[str, object],
-    comparators: Mapping[str, Mapping[str, object]],
+    evaluations: Sequence[ProfileEvaluation],
     challenge_rows: Sequence[Mapping[str, object]],
     detector: Mapping[str, object],
 ) -> None:
@@ -302,9 +348,7 @@ def _publish_full_reports(
     rendered = {
         "detector_calibration.json": _render_json(detector),
         "benchmarks.json": _render_json(report),
-        "benchmarks_long.csv": _render_benchmarks_long(
-            candidate_name, candidate, comparators
-        ),
+        "benchmarks_long.csv": _render_prediction_rows(evaluations),
         "july10_per_task.csv": _render_challenge_csv(challenge_rows),
         "promotion_decision.json": _render_json(decision),
         "PROMOTION_REPORT.md": _markdown_report(decision, report),
@@ -321,9 +365,7 @@ def _publish_empty_full_reports(
         out_dir,
         decision,
         report,
-        candidate_name=str(report.get("candidate_name") or "unavailable"),
-        candidate=report.get("candidate") or {},
-        comparators=report.get("comparators") or {},
+        evaluations=[],
         challenge_rows=[],
         detector=report.get("detector_calibration") or {},
     )
@@ -379,6 +421,19 @@ def _diagnostic_block_reason(preflight: Mapping[str, object]) -> str | None:
             "diagnostic-on-invalid-comparator requires at least one invalid comparator"
         )
     return None
+
+
+def _evaluations_from_outputs(outputs: Mapping[str, object]) -> list[ProfileEvaluation]:
+    evaluations: list[ProfileEvaluation] = []
+    candidate = outputs.get("candidate_eval")
+    if isinstance(candidate, ProfileEvaluation):
+        evaluations.append(candidate)
+    comparators = outputs.get("comparator_evals") or {}
+    for name in sorted(comparators):
+        evaluation = comparators[name]
+        if isinstance(evaluation, ProfileEvaluation):
+            evaluations.append(evaluation)
+    return evaluations
 
 
 def _run_full(args: argparse.Namespace, preflight: dict[str, object]) -> tuple[dict, dict]:
@@ -512,9 +567,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.out_dir,
         decision,
         report,
-        candidate_name=report["candidate_name"],
-        candidate=report["candidate"],
-        comparators=report["comparators"],
+        evaluations=_evaluations_from_outputs(outputs),
         challenge_rows=outputs["challenge_rows"],
         detector=report["detector_calibration"],
     )

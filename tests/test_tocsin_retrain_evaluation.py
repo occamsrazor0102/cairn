@@ -1,4 +1,5 @@
 import ast
+import csv
 import inspect
 import json
 import math
@@ -11,6 +12,8 @@ import pytest
 from cairn.calibration import DetectorCalibrator
 from cairn.evaluation.dataset import EvalSample
 from cairn.evaluation.tocsin_retrain import (
+    EvaluatedRow,
+    ProfileEvaluation,
     binomial_target_interval,
     build_humanized_hard_slice,
     decide_promotion,
@@ -1023,6 +1026,11 @@ def test_invalid_gate_metrics_still_publish_complete_json_safe_reports(
     )
     assert decision["status"] == "DO_NOT_PROMOTE"
     assert any(failure_fragment in failure for failure in decision["failures"])
+    assert (
+        tmp_path / "reports" / "benchmarks_long.csv"
+    ).read_text(encoding="utf-8").splitlines() == [
+        "profile,slice,id,label,p_llm,predicted_label,conformal_set,fusion_mode,reconstruction_error"
+    ]
 
 
 def test_report_render_failure_leaves_no_partial_report_set(tmp_path, monkeypatch):
@@ -1043,3 +1051,185 @@ def test_report_render_failure_leaves_no_partial_report_set(tmp_path, monkeypatc
         benchmark.main(_normal_full_args(tmp_path))
 
     assert list((tmp_path / "reports").iterdir()) == []
+
+
+def _evaluated_row(
+    digest_char: str,
+    *,
+    label: int,
+    p_llm: float,
+    conformal_set=("LLM",),
+    fusion_mode="ebm",
+    reconstruction_error=1e-12,
+) -> EvaluatedRow:
+    return EvaluatedRow(
+        id=f"locked:{digest_char * 64}",
+        source_id=None,
+        label=label,
+        p_llm=p_llm,
+        conformal_set=conformal_set,
+        fusion_mode=fusion_mode,
+        reconstruction_error=reconstruction_error,
+    )
+
+
+def _diagnostic_preflight() -> dict:
+    preflight = _valid_preflight()
+    preflight["comparators"]["prompts_specdetect"] = {
+        "name": "prompts_specdetect",
+        "valid": False,
+        "failures": ["missing comparator model"],
+    }
+    preflight["failures"] = [
+        "INVALID_COMPARATOR prompts_specdetect: missing comparator model"
+    ]
+    return preflight
+
+
+def test_diagnostic_benchmarks_long_is_exact_per_prediction_schema(tmp_path, monkeypatch):
+    preflight = _diagnostic_preflight()
+    report = _passing_report()
+    report["preflight"] = preflight
+    report["candidate_name"] = "prompts_only_tocsin_v2"
+    report["comparators"].pop("prompts_specdetect")
+    report["challenge"] = None
+    candidate = ProfileEvaluation(
+        name="prompts_only_tocsin_v2",
+        metrics={},
+        rows={
+            "ood_m4_test": (
+                _evaluated_row("b", label=0, p_llm=0.25, conformal_set=("human",)),
+            ),
+            "prompt_test": (
+                _evaluated_row(
+                    "a",
+                    label=1,
+                    p_llm=0.75,
+                    conformal_set=("LLM", "human"),
+                ),
+            ),
+        },
+    )
+    baseline = ProfileEvaluation(
+        name="prompts_only",
+        metrics={},
+        rows={
+            "ood_m4_test": (
+                _evaluated_row("b", label=0, p_llm=0.2, conformal_set=("human",)),
+            ),
+            "prompt_test": (
+                _evaluated_row("a", label=1, p_llm=0.6),
+            ),
+        },
+    )
+    outputs = {
+        "candidate_eval": candidate,
+        "comparator_evals": {"prompts_only": baseline},
+        "challenge_rows": [],
+    }
+    monkeypatch.setattr(benchmark, "preflight_profiles", lambda *args: preflight)
+    monkeypatch.setattr(benchmark, "_run_full", lambda *args: (report, outputs))
+
+    exit_code = benchmark.main(_diagnostic_args(tmp_path))
+
+    assert exit_code == 1
+    csv_path = tmp_path / "reports" / "benchmarks_long.csv"
+    raw = csv_path.read_text(encoding="utf-8")
+    assert raw.splitlines()[0] == (
+        "profile,slice,id,label,p_llm,predicted_label,conformal_set,"
+        "fusion_mode,reconstruction_error"
+    )
+    rows = list(csv.DictReader(raw.splitlines()))
+    assert [(row["profile"], row["slice"], row["id"]) for row in rows] == [
+        ("prompts_only_tocsin_v2", "prompt_test", f"locked:{'a' * 64}"),
+        ("prompts_only_tocsin_v2", "ood_m4_test", f"locked:{'b' * 64}"),
+        ("prompts_only", "prompt_test", f"locked:{'a' * 64}"),
+        ("prompts_only", "ood_m4_test", f"locked:{'b' * 64}"),
+    ]
+    assert rows[0] == {
+        "profile": "prompts_only_tocsin_v2",
+        "slice": "prompt_test",
+        "id": f"locked:{'a' * 64}",
+        "label": "1",
+        "p_llm": "0.75",
+        "predicted_label": "1",
+        "conformal_set": '["human","LLM"]',
+        "fusion_mode": "ebm",
+        "reconstruction_error": "1e-12",
+    }
+    assert "role" not in rows[0]
+    assert "text" not in raw and "source_rows" not in raw
+
+
+def test_prediction_csv_blanks_invalid_row_values_and_gate_stays_failed(
+    tmp_path, monkeypatch
+):
+    report = _full_report_with_preflight()
+    report["candidate"]["prompt_test"].update(
+        {
+            "finite": False,
+            "in_unit_interval": False,
+            "brier": None,
+            "log_loss": None,
+            "auroc": None,
+            "balanced_accuracy": None,
+            "human_fpr": None,
+            "max_ebm_reconstruction_error": math.inf,
+        }
+    )
+    invalid_candidate = ProfileEvaluation(
+        name="prompts_only_tocsin_v2",
+        metrics={},
+        rows={
+            "prompt_test": (
+                _evaluated_row(
+                    "c",
+                    label=1,
+                    p_llm=math.nan,
+                    conformal_set=None,
+                    reconstruction_error=math.inf,
+                ),
+            )
+        },
+    )
+    valid_comparators = {
+        name: ProfileEvaluation(
+            name=name,
+            metrics={},
+            rows={
+                "prompt_test": (
+                    _evaluated_row("c", label=1, p_llm=0.6),
+                )
+            },
+        )
+        for name in ("prompts_only", "prompts_specdetect")
+    }
+    outputs = {
+        "candidate_eval": invalid_candidate,
+        "comparator_evals": valid_comparators,
+        "challenge_rows": [],
+    }
+    monkeypatch.setattr(benchmark, "preflight_profiles", lambda *args: _valid_preflight())
+    monkeypatch.setattr(benchmark, "_run_full", lambda *args: (report, outputs))
+
+    exit_code = benchmark.main(_normal_full_args(tmp_path))
+
+    assert exit_code == 2
+    rows = list(
+        csv.DictReader(
+            (tmp_path / "reports" / "benchmarks_long.csv")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+    )
+    assert len(rows) == 3
+    assert rows[0]["profile"] == "prompts_only_tocsin_v2"
+    assert rows[0]["p_llm"] == ""
+    assert rows[0]["predicted_label"] == ""
+    assert rows[0]["conformal_set"] == ""
+    assert rows[0]["reconstruction_error"] == ""
+    decision = json.loads(
+        (tmp_path / "reports" / "promotion_decision.json").read_text()
+    )
+    assert decision["status"] == "DO_NOT_PROMOTE"
+    assert any("non-finite p_llm" in failure for failure in decision["failures"])
