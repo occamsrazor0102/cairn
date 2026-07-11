@@ -773,7 +773,7 @@ def test_hash_artifacts_cli_writes_indented_json(tmp_path: Path) -> None:
     assert json.loads(raw)[artifact.as_posix()]["sha256"] == sha256_file(artifact)
 
 
-def test_validate_cli_resolves_only_enabled_phase_1_to_3_layers(
+def test_validate_cli_reports_enabled_and_disabled_phase_1_to_3_layers(
     tmp_path: Path,
 ) -> None:
     text = long_text()
@@ -816,6 +816,9 @@ decision: {}
     assert completed.returncode == 0, completed.stderr
     manifest = json.loads(output.read_text())
     assert set(manifest["layer_counts"]) == {"token_cohesiveness"}
+    assert manifest["disabled_layer_ids"] == ["preamble"]
+    assert "cross_similarity" not in manifest["disabled_layer_ids"]
+    assert "contributor_graph" not in manifest["disabled_layer_ids"]
 
 
 def test_validate_cli_leaves_manifest_unchanged_on_failure(tmp_path: Path) -> None:

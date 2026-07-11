@@ -9,17 +9,22 @@ from cairn.config import load_config
 from cairn.tocsin_cache import validate_tocsin_cache, write_json_atomic
 
 
-def _enabled_cache_layer_ids(config: dict[str, object]) -> tuple[str, ...]:
+def _cache_layer_inventory(
+    config: dict[str, object],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
     configured = config.get("detectors", {})
     if not isinstance(configured, dict):
-        return ()
+        return (), ()
     phase_layer_ids = PHASE1_DETECTORS + PHASE2_DETECTORS + PHASE3_DETECTORS
     enabled: list[str] = []
+    disabled: list[str] = []
     for layer_id in phase_layer_ids:
         settings = configured.get(layer_id)
         if isinstance(settings, dict) and settings.get("enabled") is True:
             enabled.append(layer_id)
-    return tuple(enabled)
+        elif isinstance(settings, dict) and settings.get("enabled") is False:
+            disabled.append(layer_id)
+    return tuple(enabled), tuple(disabled)
 
 
 def main() -> None:
@@ -33,14 +38,17 @@ def main() -> None:
     args = parser.parse_args()
 
     config = load_config(args.config)
+    enabled_layer_ids, disabled_layer_ids = _cache_layer_inventory(config)
     summary = validate_tocsin_cache(
         args.dataset,
         args.cache,
         expected_signature=args.expected_signature,
-        expected_layer_ids=_enabled_cache_layer_ids(config),
+        expected_layer_ids=enabled_layer_ids,
         require_all_layers_seen=args.require_all_layers_seen,
     )
-    write_json_atomic(args.out_manifest, summary.to_dict())
+    manifest = summary.to_dict()
+    manifest["disabled_layer_ids"] = disabled_layer_ids
+    write_json_atomic(args.out_manifest, manifest)
 
 
 if __name__ == "__main__":
