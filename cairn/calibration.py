@@ -133,6 +133,26 @@ class DetectorCalibrator:
     def has(self, detector_id: str) -> bool:
         return detector_id in self._models
 
+    def identity(
+        self,
+        detector_id: str,
+    ) -> tuple[str | None, str | None] | None:
+        """Return the persisted detector identity, or ``None`` if absent.
+
+        Legacy v1 entries deliberately return ``(None, None)``.  They remain
+        valid for unsigned detectors, while identity-aware callers can detect
+        that the entry cannot safely calibrate their signed raw channel.
+        """
+        if detector_id not in self._models:
+            return None
+        entry = self._entry_metadata(detector_id)
+        signature = entry.get("detector_signature")
+        raw_channel = entry.get("raw_channel")
+        return (
+            signature if isinstance(signature, str) else None,
+            raw_channel if isinstance(raw_channel, str) else None,
+        )
+
     def support(self, detector_id: str) -> tuple[float, float]:
         metadata = self._metadata.get(detector_id)
         if metadata is not None:

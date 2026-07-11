@@ -319,6 +319,120 @@ def test_live_and_cached_pipeline_share_calibration_guard(
         assert vector["tocsin_missing"] == 1.0
 
 
+@pytest.mark.parametrize("rejection", ["identity", "invalid-artifact"])
+def test_live_and_cached_determinations_degrade_after_runtime_calibration_rejection(
+    tmp_path,
+    rejection,
+):
+    seed = make_tocsin_result(
+        0.0,
+        (
+            "stale-signature"
+            if rejection == "identity"
+            else TOCSIN_COMBINED_SIGNATURE
+        ),
+        "AMBER",
+    )
+
+    def prepared_calibrator() -> DetectorCalibrator:
+        calibrator = make_versioned_calibrator()
+        if rejection == "invalid-artifact":
+            calibrator._fit_stats["token_cohesiveness"]["support_min"] = float(
+                "nan"
+            )
+        return calibrator
+
+    config = load_config(SCREENING_CONFIG)
+    for detector_config in config["detectors"].values():
+        detector_config["enabled"] = False
+    config["detectors"]["token_cohesiveness"]["enabled"] = True
+    config["cascade"] = {
+        "phase1_short_circuit_high": 1.01,
+        "phase1_short_circuit_low": -0.01,
+    }
+    config["fusion"] = {}
+    live_pipeline = CairnPipeline(config)
+    live_pipeline._detector_calibrator = prepared_calibrator()
+    live_pipeline._detector_calibration_state = {
+        "state": "loaded",
+        "path": "runtime-fixture.json",
+        "error": None,
+    }
+    live_pipeline._calibration_status = "calibrated"
+    live_pipeline._detectors["token_cohesiveness"] = _SeedDetector(seed)
+
+    text = "I walked through the quiet garden and remembered the summer. " * 14
+    live_determination, live_results, _router = live_pipeline.analyze_detailed(text)
+    live_tocsin = next(
+        result
+        for result in live_results
+        if result.layer_id == "token_cohesiveness"
+    )
+
+    assert live_tocsin.determination == "SKIP"
+    assert live_tocsin.p_llm == pytest.approx(0.37)
+    assert live_determination.calibration_status == "degraded"
+    assert live_pipeline.detector_calibration_state["state"] == "loaded-incompatible"
+
+    cache_path = tmp_path / "runtime-rejection.features.jsonl"
+    config_path = tmp_path / "runtime-rejection.yaml"
+    normalized = normalize_text(text)
+    router = RouterDecision(
+        domain="prose",
+        confidence=1.0,
+        prompt_score=0.0,
+        prose_score=1.0,
+        word_count=len(normalized.split()),
+        recommended_detectors=["token_cohesiveness"],
+        skip_detectors=[],
+    )
+    with cache_path.open("w", encoding="utf-8") as handle:
+        write_record(handle, text_hash(normalized), [copy.deepcopy(seed)], router)
+    config_path.write_text(
+        """
+_profile: runtime_rejection
+detectors:
+  token_cohesiveness: {enabled: true}
+cascade:
+  phase1_short_circuit_high: 1.01
+  phase1_short_circuit_low: -0.01
+fusion: {}
+decision:
+  red_threshold: 0.75
+  amber_threshold: 0.50
+  yellow_threshold: 0.25
+  abstention: {enabled: false}
+""".strip(),
+        encoding="utf-8",
+    )
+    cached_pipeline = CachedPipeline(cache_path, config_path)
+    cached_pipeline._inner._detector_calibrator = prepared_calibrator()
+    cached_pipeline._inner._detector_calibration_state = {
+        "state": "loaded",
+        "path": "runtime-fixture.json",
+        "error": None,
+    }
+    cached_pipeline._inner._calibration_status = "calibrated"
+
+    cached_determination, cached_results, _router = (
+        cached_pipeline.analyze_detailed(text)
+    )
+    cached_tocsin = next(
+        result
+        for result in cached_results
+        if result.layer_id == "token_cohesiveness"
+    )
+
+    assert cached_tocsin.determination == live_tocsin.determination == "SKIP"
+    assert cached_tocsin.p_llm == pytest.approx(live_tocsin.p_llm)
+    assert cached_tocsin.signals.keys() == live_tocsin.signals.keys()
+    assert cached_determination.calibration_status == "degraded"
+    assert (
+        cached_pipeline._inner.detector_calibration_state["state"]
+        == "loaded-incompatible"
+    )
+
+
 def test_batch_cross_similarity_uses_guard_and_preserves_rejection_evidence(
     monkeypatch,
 ):
@@ -607,8 +721,8 @@ def test_loss_filter_replay_applies_guard_before_feature_assembly(monkeypatch):
 @pytest.mark.parametrize(
     "relative_path,guard_call",
     [
-        ("cairn/pipeline.py", "self._detector_calibrator.apply("),
-        ("cairn/feature_cache.py", "cal.apply("),
+        ("cairn/pipeline.py", "self._apply_detector_calibration("),
+        ("cairn/feature_cache.py", "self._inner._apply_detector_calibration("),
         ("scripts/per_detector_auroc.py", "calibrator.apply("),
         ("scripts/run_loss_filter.py", "calibrator.apply("),
         ("scripts/_formb_profile_grid.py", "cal.apply("),

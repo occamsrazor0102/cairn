@@ -63,6 +63,31 @@ def test_health_uses_pipeline_degraded_state_and_sanitizes_load_error(
     assert str(secret_path) not in str(data)
 
 
+def test_health_sanitizes_loaded_detector_identity_incompatibility(monkeypatch):
+    config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
+    pipeline = CairnPipeline(load_config(config_path))
+    pipeline._detector_calibration_state = {
+        "state": "loaded-incompatible",
+        "path": "private/detector-calibration.json",
+        "error": "token_cohesiveness expected secret-model-signature",
+    }
+    pipeline._calibration_status = "degraded"
+    monkeypatch.setattr(
+        CairnPipeline,
+        "from_config_file",
+        lambda _path: pipeline,
+    )
+
+    data = TestClient(create_app(config_path)).get("/health").json()
+
+    assert data["calibration_status"] == "degraded"
+    assert data["detector_calibration"] == {
+        "state": "loaded-incompatible",
+        "error": "artifact-incompatible",
+    }
+    assert "secret-model-signature" not in str(data)
+
+
 def test_config_is_redacted(client):
     r = client.get("/config")
     assert r.status_code == 200

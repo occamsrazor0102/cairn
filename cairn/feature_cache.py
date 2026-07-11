@@ -114,7 +114,7 @@ class CachedPipeline:
                         continue
                     result = _result_from_dict(payload)
                     if cal is not None:
-                        cal.apply(result)
+                        self._inner._apply_detector_calibration(result)
                     phase_results.append(result)
             return phase_results
 

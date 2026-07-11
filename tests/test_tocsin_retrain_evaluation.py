@@ -10,7 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from cairn.calibration import DetectorCalibrator
+from cairn.calibration import CalibrationMetadata, DetectorCalibrator
+from cairn.detectors.token_cohesiveness import TOCSIN_COMBINED_SIGNATURE
 from cairn.evaluation.dataset import EvalSample
 from cairn.evaluation.tocsin_retrain import (
     EvaluatedRow,
@@ -1146,6 +1147,113 @@ def test_preflight_rejects_an_existing_but_unloadable_detector_calibrator(
     assert result["candidate"]["failures"] == [
         "smoke detector calibrator did not load"
     ]
+
+
+def test_preflight_rejects_legacy_tocsin_comparator_but_accepts_matching_v2(
+    tmp_path,
+    monkeypatch,
+):
+    def write_calibration(path: Path, schema: str) -> None:
+        calibrator = DetectorCalibrator()
+        calibrator.fit("preamble", [0.0, 1.0], [0, 1])
+        if schema == "v1":
+            calibrator.fit("token_cohesiveness", [-0.4, 0.1], [0, 1])
+        elif schema == "v2":
+            calibrator.fit(
+                "token_cohesiveness",
+                [-0.4, -0.2, 0.0, 0.1],
+                [0, 0, 1, 1],
+                metadata=CalibrationMetadata(
+                    detector_signature=TOCSIN_COMBINED_SIGNATURE,
+                    raw_channel="combined_w",
+                    training_dataset_hash="sha256:test",
+                    weighting_policy={"policy": "uniform"},
+                ),
+            )
+        calibrator.save(path)
+
+    def write_profile(name: str, schema: str) -> Path:
+        calibration = tmp_path / f"{name}.calibration.json"
+        write_calibration(calibration, schema)
+        config = tmp_path / f"{name}.yaml"
+        config.write_text(
+            json.dumps(
+                {
+                    "_profile": f"profile_{name}",
+                    "detectors": {"token_cohesiveness": {"enabled": True}},
+                    "cascade": {},
+                    "decision": {},
+                    "fusion": {
+                        "detector_calibration_path": calibration.as_posix(),
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        return config
+
+    candidate = write_profile("prompts_only_tocsin_v2", "v2")
+    legacy = write_profile("prompts_only", "v1")
+    spec = write_profile("prompts_specdetect", "absent")
+    dataset = tmp_path / "smoke.jsonl"
+    _write_jsonl(dataset, [{"text": "smoke text", "label": 0}])
+
+    class LoadedConformal:
+        calibrated = True
+
+    class LoadedFusion:
+        _model = SimpleNamespace(intercept_=[0.0])
+        _conformal = LoadedConformal()
+
+    class FaithfulCachedPipeline:
+        def __init__(self, cache_path, config_path):
+            self._inner = CairnPipeline.from_config_file(config_path)
+
+        def analyze(self, text):
+            return SimpleNamespace(
+                fusion_mode="ebm",
+                p_llm=0.5,
+                feature_contributions={"feature": 0.0},
+            )
+
+    monkeypatch.setattr(
+        CairnPipeline,
+        "_build_fusion",
+        staticmethod(lambda _config: LoadedFusion()),
+    )
+    monkeypatch.setattr(
+        tocsin_retrain_module,
+        "profile_artifact_failures",
+        lambda _path: [],
+    )
+    monkeypatch.setattr(
+        tocsin_retrain_module,
+        "CachedPipeline",
+        FaithfulCachedPipeline,
+    )
+    monkeypatch.setattr(
+        tocsin_retrain_module,
+        "_reconstruction_error",
+        lambda _pipeline, _determination: 0.0,
+    )
+
+    result = preflight_profiles(
+        candidate,
+        [legacy, spec],
+        dataset,
+        tmp_path / "unused-cache.jsonl",
+    )
+
+    assert result["candidate"]["valid"] is True
+    assert result["comparators"]["prompts_specdetect"]["valid"] is True
+    assert result["comparators"]["prompts_only"]["valid"] is False
+    assert result["comparators"]["prompts_only"]["failures"] == [
+        "smoke calibration_status=degraded, expected calibrated*"
+    ]
+    assert any(
+        failure.startswith("INVALID_COMPARATOR prompts_only:")
+        for failure in result["failures"]
+    )
 
 
 def _write_missing_artifact_profile(tmp_path: Path, name: str, suffix: str) -> Path:

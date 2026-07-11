@@ -183,11 +183,14 @@ class CairnPipeline:
             logger.info(f"Detector '{name}' unavailable: {err}")
 
     def _compute_calibration_status(self) -> str:
-        # Pinned at init so determinations and audit records reflect the
-        # artifacts actually loaded, not later runtime mutation. Health APIs
-        # use calibration_health(), which adds router-conditional detail and
-        # publishes only a sanitized detector-calibration failure state.
-        if self._detector_calibration_state["state"] == "load-failed":
+        # Established at init from the artifacts actually loaded. A runtime
+        # identity or artifact rejection may only downgrade it to degraded.
+        # Health APIs use calibration_health(), which adds router-conditional
+        # detail and publishes only a sanitized detector-calibration state.
+        if self._detector_calibration_state["state"] in {
+            "load-failed",
+            "loaded-incompatible",
+        }:
             return "degraded"
         model = getattr(self._fusion, "_model", None)
         conformal = getattr(self._fusion, "_conformal", None)
@@ -211,7 +214,7 @@ class CairnPipeline:
             and getattr(conformal, "calibrated", False)
         )
         state = self._detector_calibration_state["state"]
-        if state == "load-failed":
+        if state in {"load-failed", "loaded-incompatible"}:
             calibration_status = "degraded"
         elif (
             model_loaded
@@ -231,11 +234,10 @@ class CairnPipeline:
             "calibration_status": calibration_status,
             "detector_calibration": {
                 "state": state,
-                "error": (
-                    "artifact-load-failed"
-                    if state == "load-failed"
-                    else None
-                ),
+                "error": {
+                    "load-failed": "artifact-load-failed",
+                    "loaded-incompatible": "artifact-incompatible",
+                }.get(state),
             },
         }
 
@@ -385,10 +387,16 @@ class CairnPipeline:
             from cairn.calibration import DetectorCalibrator
             cal = DetectorCalibrator()
             cal.load(path)
+            incompatibility = self._detector_calibration_incompatibility(
+                cal,
+                config,
+            )
             self._detector_calibration_state = {
-                "state": "loaded",
+                "state": (
+                    "loaded-incompatible" if incompatibility else "loaded"
+                ),
                 "path": path_text,
-                "error": None,
+                "error": incompatibility,
             }
             return cal
         except Exception as e:
@@ -399,6 +407,77 @@ class CairnPipeline:
             }
             logger.warning(f"Failed to load detector calibrator at {cal_path}: {e}")
             return None
+
+    def _detector_calibration_incompatibility(
+        self,
+        calibrator,
+        config: dict,
+    ) -> str | None:
+        """Validate enabled identity-aware detector entries at startup."""
+        detector_config = (config.get("detectors") or {}).get(
+            "token_cohesiveness"
+        )
+        if not isinstance(detector_config, dict) or not detector_config.get(
+            "enabled", True
+        ):
+            return None
+        artifact_identity = calibrator.identity("token_cohesiveness")
+        if artifact_identity is None:
+            return None
+
+        from cairn.benchmarks.fast_detectgpt import FAST_DETECTGPT_DEFAULT_MODEL
+        from cairn.detectors.token_cohesiveness import (
+            build_tocsin_calibration_signature,
+        )
+
+        detector = self._detectors.get("token_cohesiveness")
+        configured_bart = detector_config.get("model") or getattr(
+            detector,
+            "_model_name",
+            "facebook/bart-base",
+        )
+        base_adapter = getattr(detector, "_base", None)
+        configured_base = detector_config.get("base_model") or getattr(
+            base_adapter,
+            "model_name",
+            FAST_DETECTGPT_DEFAULT_MODEL,
+        )
+        try:
+            expected_signature, _identity = build_tocsin_calibration_signature(
+                "combined_w",
+                bart_model=str(configured_bart),
+                base_model=str(configured_base),
+            )
+        except (TypeError, ValueError) as exc:
+            return f"token_cohesiveness configured identity is invalid: {exc}"
+        expected_identity = (expected_signature, "combined_w")
+        if artifact_identity != expected_identity:
+            return (
+                "token_cohesiveness calibration identity mismatch: "
+                f"artifact={artifact_identity!r}, expected={expected_identity!r}"
+            )
+        return None
+
+    def _apply_detector_calibration(self, result: LayerResult) -> bool:
+        """Apply calibration and publish fail-closed runtime incompatibility."""
+        calibrator = self._detector_calibrator
+        if calibrator is None:
+            return False
+        applied = calibrator.apply(result)
+        rejection = None
+        if "calibrator_signature_mismatch" in result.signals:
+            rejection = "runtime detector calibration identity mismatch"
+        elif "calibrator_invalid_artifact" in result.signals:
+            rejection = "runtime detector calibration artifact is invalid"
+        if rejection is not None:
+            prior = self._detector_calibration_state
+            self._detector_calibration_state = {
+                "state": "loaded-incompatible",
+                "path": prior.get("path"),
+                "error": rejection,
+            }
+            self._calibration_status = "degraded"
+        return applied
 
     @classmethod
     def from_config_file(cls, path: Path | str) -> "CairnPipeline":
@@ -527,7 +606,7 @@ class CairnPipeline:
                     continue
                 det, results, rd = per_sub[sid]
                 if self._detector_calibrator is not None:
-                    self._detector_calibrator.apply(layer_result)
+                    self._apply_detector_calibration(layer_result)
                 results.append(layer_result)
                 fusion_result = self._fusion.fuse(
                     results, word_count=rd.word_count, domain=rd.domain
@@ -567,7 +646,7 @@ class CairnPipeline:
             try:
                 result = detector.analyze(text, det_config)
                 if self._detector_calibrator is not None:
-                    self._detector_calibrator.apply(result)
+                    self._apply_detector_calibration(result)
                 results.append(result)
             except Exception as exc:
                 logger.warning(
