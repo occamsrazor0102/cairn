@@ -9,6 +9,7 @@ a fully calibrated EBM + conformal run reported calibration_status="heuristic"
 on its determination (and in report.py), contradicting /health. These tests
 pin the invariant: the determination carries the pipeline's status.
 """
+import json
 from pathlib import Path
 
 import pytest
@@ -40,7 +41,7 @@ def _write_detector_calibration(
 ) -> None:
     calibrator = DetectorCalibrator()
     calibrator.fit("preamble", [0.0, 1.0], [0, 1])
-    if token_schema == "v1":
+    if token_schema in {"v1", "v1-extra-identity"}:
         calibrator.fit("token_cohesiveness", [-0.4, 0.1], [0, 1])
     elif token_schema == "v2":
         calibrator.fit(
@@ -55,6 +56,15 @@ def _write_detector_calibration(
             ),
         )
     calibrator.save(path)
+    if token_schema == "v1-extra-identity":
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["token_cohesiveness"].update(
+            {
+                "detector_signature": TOCSIN_COMBINED_SIGNATURE,
+                "raw_channel": "combined_w",
+            }
+        )
+        path.write_text(json.dumps(payload), encoding="utf-8")
 
 
 def _unsigned_preamble() -> LayerResult:
@@ -160,6 +170,7 @@ def test_no_detector_calibration_path_preserves_existing_status_semantics(monkey
     ("token_schema", "token_signature"),
     [
         ("v1", TOCSIN_COMBINED_SIGNATURE),
+        ("v1-extra-identity", TOCSIN_COMBINED_SIGNATURE),
         ("v2", "stale-tocsin-signature"),
     ],
 )

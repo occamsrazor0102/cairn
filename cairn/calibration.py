@@ -145,13 +145,10 @@ class DetectorCalibrator:
         """
         if detector_id not in self._models:
             return None
-        entry = self._entry_metadata(detector_id)
-        signature = entry.get("detector_signature")
-        raw_channel = entry.get("raw_channel")
-        return (
-            signature if isinstance(signature, str) else None,
-            raw_channel if isinstance(raw_channel, str) else None,
-        )
+        metadata = self._metadata.get(detector_id)
+        if metadata is None:
+            return (None, None)
+        return (metadata.detector_signature, metadata.raw_channel)
 
     def support(self, detector_id: str) -> tuple[float, float]:
         metadata = self._metadata.get(detector_id)
