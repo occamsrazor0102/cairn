@@ -553,7 +553,12 @@ def validate_tocsin_cache(
         )
     signature = next(iter(signatures), None)
     channel = next(iter(channels), None)
-    if expected_signature is not None and signature is not None:
+    if expected_signature is not None:
+        if signature is None:
+            raise ValueError(
+                f"{cache_path}: hash=<all>: layer={_TOCSIN_LAYER_ID}: expected "
+                f"TOCSIN signature {expected_signature!r}, observed none"
+            )
         if signature != expected_signature:
             raise ValueError(
                 f"{cache_path}: hash=<all>: layer={_TOCSIN_LAYER_ID}: expected "

@@ -573,6 +573,21 @@ def test_counts_identical_duplicate_hash_once(tmp_path: Path) -> None:
     assert summary.identical_duplicate_hashes == 1
 
 
+def test_expected_signature_rejects_all_short_cache_with_no_active_signature(
+    tmp_path: Path,
+) -> None:
+    text = short_text()
+    dataset = write_dataset(tmp_path / "data.jsonl", [text])
+    cache = write_cache(tmp_path / "features.jsonl", [cache_record(text)])
+
+    with pytest.raises(ValueError, match="expected TOCSIN signature.*observed none"):
+        validate_tocsin_cache(
+            dataset,
+            cache,
+            expected_signature=TOCSIN_COMBINED_SIGNATURE,
+        )
+
+
 @pytest.mark.parametrize("layer_id", ["contrastive_gen", "dna_gpt"])
 def test_rejects_any_api_backed_layer_result(
     tmp_path: Path, layer_id: str

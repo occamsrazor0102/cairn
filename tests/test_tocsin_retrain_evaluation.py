@@ -121,12 +121,45 @@ def _write_provenance_fixture(tmp_path: Path) -> dict[str, Path]:
         ),
         encoding="utf-8",
     )
+    artifact = lambda path: {
+        "path": path.relative_to(tmp_path).as_posix(),
+        "sha256": _sha256(path),
+        "bytes": path.stat().st_size,
+    }
+    retrospective = tmp_path / "retrospective.json"
+    retrospective.write_text(
+        json.dumps(
+            {
+                "schema": "cairn.tocsin-cache-retrospective.v1",
+                "status": "VERIFIED",
+                "diagnostic_allowed": True,
+                "promotion_allowed": True,
+                "calibration_identity": {"raw_channel": "combined_w"},
+                "unbound_fields": [],
+                "config": artifact(config),
+                "union": {
+                    "dataset": artifact(dataset),
+                    "cache": artifact(cache),
+                    "validation_manifest": artifact(cache_manifest),
+                },
+                "slices": {
+                    "prompts_v5_test": {
+                        "dataset": artifact(dataset),
+                        "cache": artifact(cache),
+                        "validation_manifest": artifact(cache_manifest),
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     return {
         "config": config,
         "candidate_manifest": candidate_manifest,
         "dataset": dataset,
         "cache": cache,
         "cache_manifest": cache_manifest,
+        "retrospective": retrospective,
     }
 
 
@@ -140,6 +173,7 @@ def test_benchmark_provenance_verifies_candidate_bytes_and_exact_slice_coverage(
         paths["candidate_manifest"],
         {"prompt_test": (paths["dataset"], paths["cache"])},
         [("prompt_test", paths["cache_manifest"])],
+        paths["retrospective"],
     )
 
     assert provenance["status"] == "VERIFIED"
@@ -185,6 +219,7 @@ def test_benchmark_provenance_rejects_missing_or_duplicate_slice_mapping(
             paths["candidate_manifest"],
             {"prompt_test": (paths["dataset"], paths["cache"])},
             resolved_mapping,
+            paths["retrospective"],
         )
 
 
@@ -201,6 +236,7 @@ def test_benchmark_provenance_rejects_changed_dataset_before_metrics(tmp_path):
             paths["candidate_manifest"],
             {"prompt_test": (paths["dataset"], paths["cache"])},
             [("prompt_test", paths["cache_manifest"])],
+            paths["retrospective"],
         )
 
 
@@ -218,6 +254,7 @@ def test_benchmark_provenance_rejects_duplicate_cache_hash_coverage(tmp_path):
             paths["candidate_manifest"],
             {"prompt_test": (paths["dataset"], paths["cache"])},
             [("prompt_test", paths["cache_manifest"])],
+            paths["retrospective"],
         )
 
 
@@ -234,6 +271,7 @@ def test_preflight_explicit_provenance_request_fails_closed_when_manifest_missin
         candidate_integrity_manifest=None,
         slice_inputs={"prompt_test": (paths["dataset"], paths["cache"])},
         cache_manifest_mappings=[],
+        retrospective_provenance_manifest=None,
     )
 
     assert result["provenance"]["status"] == "INVALID"
@@ -475,7 +513,16 @@ def _passing_report():
         for name in ("ood_m4_test", "ood_raid_test", "ood_mage_test")
     }
     return {
-        "preflight": {"failures": []},
+        "preflight": {
+            "failures": [],
+            "provenance": {
+                "status": "VERIFIED",
+                "diagnostic_allowed": True,
+                "promotion_allowed": True,
+                "calibration_identity": {"raw_channel": "combined_w"},
+                "unbound_fields": [],
+            },
+        },
         "detector_calibration": {
             "eligible_rows": 1822,
             "support_coverage": 1.0,
@@ -545,6 +592,13 @@ def _mixed_gate_audit_report():
             },
         },
         "comparator_identity_valid": True,
+        "provenance": {
+            "status": "VERIFIED",
+            "diagnostic_allowed": True,
+            "promotion_allowed": True,
+            "calibration_identity": {"raw_channel": "combined_w"},
+            "unbound_fields": [],
+        },
         "failures": [invalid_comparator_failure],
     }
     del report["comparators"]["prompts_specdetect"]
@@ -570,6 +624,7 @@ def _expected_locked_gate_ids():
     )
     ids = [
         "preflight.comparator_identity",
+        "preflight.provenance",
         "preflight.candidate_artifacts",
         "preflight.comparator.prompts_only.artifacts",
         "preflight.comparator.prompts_specdetect.artifacts",
@@ -686,6 +741,80 @@ def test_markdown_renders_every_gate_status_from_shared_audit():
     )
     assert rendered.count("`detector.eligible_rows`") == 1
     assert rendered.count("`comparator.prompts_only.prompt_test.human_fpr`") == 1
+
+
+def test_legacy_provenance_allows_diagnostics_but_is_an_automatic_promotion_fail():
+    report = _passing_report()
+    report["preflight"]["provenance"] = {
+        "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+        "diagnostic_allowed": True,
+        "promotion_allowed": False,
+        "unbound_fields": ["actual_base_identity"],
+    }
+    report["preflight"].update(_valid_preflight())
+    report["preflight"]["provenance"] = {
+        "status": "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND",
+        "diagnostic_allowed": True,
+        "promotion_allowed": False,
+        "unbound_fields": ["actual_base_identity"],
+    }
+    report["preflight"]["comparators"]["prompts_specdetect"]["valid"] = False
+    report["preflight"]["comparators"]["prompts_specdetect"]["failures"] = [
+        "missing comparator"
+    ]
+    report["preflight"]["failures"] = [
+        "INVALID_COMPARATOR prompts_specdetect: missing comparator"
+    ]
+
+    audit = tocsin_retrain_module.promotion_gate_audit(report)
+    row = next(row for row in audit if row["gate_id"] == "preflight.provenance")
+
+    assert row["status"] == "FAIL"
+    assert row["observed"] == "VERIFIED_BYTES_LEGACY_IDENTITY_UNBOUND"
+    assert "UNPROMOTABLE_PROVENANCE" in row["failure_detail"]
+    assert decide_promotion(report)["status"] == "DO_NOT_PROMOTE"
+    assert benchmark._diagnostic_block_reason(report["preflight"]) is None
+
+
+def test_fully_identity_bound_verified_provenance_passes_automatic_gate():
+    report = _passing_report()
+    report["preflight"]["provenance"] = {
+        "status": "VERIFIED",
+        "diagnostic_allowed": True,
+        "promotion_allowed": True,
+        "calibration_identity": {"raw_channel": "combined_w"},
+        "unbound_fields": [],
+    }
+
+    assert decide_promotion(report) == {"status": "PASS", "failures": []}
+
+
+def test_invalid_provenance_never_allows_diagnostic_full_run():
+    preflight = _valid_preflight()
+    preflight["provenance"] = {
+        "status": "INVALID",
+        "diagnostic_allowed": False,
+        "promotion_allowed": False,
+    }
+
+    assert "verified retrospective provenance" in benchmark._diagnostic_block_reason(
+        preflight
+    )
+
+
+def test_not_evaluated_gate_observed_values_are_always_null():
+    report, _ = _mixed_gate_audit_report()
+    audit = tocsin_retrain_module.promotion_gate_audit(report)
+
+    not_evaluated = [row for row in audit if row["status"] == "NOT_EVALUATED"]
+    assert not_evaluated
+    assert {row["observed"] for row in not_evaluated} == {None}
+    rendered = benchmark._markdown_report(decide_promotion(report), report)
+    assert all(
+        " | NA | " in line
+        for line in rendered.splitlines()
+        if "| NOT_EVALUATED |" in line
+    )
 
 
 def test_decide_promotion_accepts_every_gate_at_its_inclusive_boundary():
@@ -1039,6 +1168,8 @@ def test_benchmark_parser_appends_baselines_and_uses_two_path_dataset_pairs(tmp_
             "prompt.features.jsonl",
             "--candidate-integrity-manifest",
             "candidate-integrity.json",
+            "--retrospective-provenance-manifest",
+            "retrospective.json",
             "--cache-manifest",
             "prompt_test",
             "prompt.cache.json",
@@ -1050,6 +1181,7 @@ def test_benchmark_parser_appends_baselines_and_uses_two_path_dataset_pairs(tmp_
     assert args.baseline_config == [Path("baseline-a.yaml"), Path("baseline-b.yaml")]
     assert args.prompt_test == [Path("prompt.jsonl"), Path("prompt.features.jsonl")]
     assert args.candidate_integrity_manifest == Path("candidate-integrity.json")
+    assert args.retrospective_provenance_manifest == Path("retrospective.json")
     assert args.cache_manifest == [["prompt_test", "prompt.cache.json"]]
 
 
@@ -1080,6 +1212,8 @@ fusion:
             "--prompt-test",
             str(tmp_path / "does-not-exist.jsonl"),
             str(tmp_path / "does-not-exist.features.jsonl"),
+            "--retrospective-provenance-manifest",
+            str(tmp_path / "missing-retrospective.json"),
             "--out-dir",
             str(out_dir),
         ]
@@ -1171,6 +1305,15 @@ def test_preflight_rejects_legacy_tocsin_comparator_but_accepts_matching_v2(
                 ),
             )
         calibrator.save(path)
+        if schema == "v1":
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload["token_cohesiveness"].update(
+                {
+                    "detector_signature": TOCSIN_COMBINED_SIGNATURE,
+                    "raw_channel": "combined_w",
+                }
+            )
+            path.write_text(json.dumps(payload), encoding="utf-8")
 
     def write_profile(name: str, schema: str) -> Path:
         calibration = tmp_path / f"{name}.calibration.json"
@@ -1311,6 +1454,8 @@ def test_cli_preflight_locks_missing_duplicate_and_unexpected_comparator_identit
         "--prompt-test",
         str(tmp_path / "absent.jsonl"),
         str(tmp_path / "absent.features.jsonl"),
+        "--retrospective-provenance-manifest",
+        str(tmp_path / "missing-retrospective.json"),
         "--out-dir",
         str(out_dir),
     ]
@@ -1352,6 +1497,8 @@ def _diagnostic_args(tmp_path: Path) -> list[str]:
         "prompts-specdetect.yaml",
         "--stale-calibration",
         "stale.json",
+        "--retrospective-provenance-manifest",
+        "retrospective.json",
         "--out-dir",
         str(tmp_path / "reports"),
     ]
@@ -1386,6 +1533,13 @@ def _valid_preflight() -> dict:
             },
         },
         "comparator_identity_valid": True,
+        "provenance": {
+            "status": "VERIFIED",
+            "diagnostic_allowed": True,
+            "promotion_allowed": True,
+            "calibration_identity": {"raw_channel": "combined_w"},
+            "unbound_fields": [],
+        },
         "failures": [],
     }
 
@@ -1393,6 +1547,14 @@ def _valid_preflight() -> dict:
 def test_preflight_reports_serialize_verified_provenance_hashes(tmp_path):
     provenance = {
         "status": "VERIFIED",
+        "diagnostic_allowed": True,
+        "promotion_allowed": True,
+        "calibration_identity": {"raw_channel": "combined_w"},
+        "unbound_fields": [],
+        "retrospective_manifest": {
+            "path": "manifests/retrospective.json",
+            "sha256": "f" * 64,
+        },
         "candidate_integrity": {
             "manifest_path": "manifests/candidate-integrity.json",
             "manifest_sha256": "a" * 64,
@@ -1422,7 +1584,9 @@ def test_preflight_reports_serialize_verified_provenance_hashes(tmp_path):
     stored = json.loads((tmp_path / "promotion_decision.json").read_text())
     markdown = (tmp_path / "PROMOTION_REPORT.md").read_text()
     assert stored["provenance"] == provenance
-    assert "## Verified provenance" in markdown
+    assert "## Provenance status" in markdown
+    assert "Unbound fields: none" in markdown
+    assert "`" + "f" * 64 + "`" in markdown
     assert "`" + "a" * 64 + "`" in markdown
     assert "`" + "d" * 64 + "`" in markdown
     assert "`" + "e" * 64 + "`" in markdown
@@ -1447,6 +1611,8 @@ def test_valid_preflight_cli_exits_zero_with_non_promotable_incomplete_decision(
             "--prompt-test",
             "prompt.jsonl",
             "cache.jsonl",
+            "--retrospective-provenance-manifest",
+            "retrospective.json",
             "--out-dir",
             str(tmp_path),
         ]
@@ -1459,6 +1625,7 @@ def test_valid_preflight_cli_exits_zero_with_non_promotable_incomplete_decision(
         "failures": [
             "INCOMPLETE_EVALUATION: locked promotion gates remain NOT_EVALUATED"
         ],
+        "provenance": _valid_preflight()["provenance"],
     }
 
 

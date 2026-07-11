@@ -62,6 +62,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--stale-calibration", type=Path)
     parser.add_argument("--candidate-integrity-manifest", type=Path)
     parser.add_argument(
+        "--retrospective-provenance-manifest", type=Path, required=True
+    )
+    parser.add_argument(
         "--cache-manifest",
         nargs=2,
         action="append",
@@ -297,8 +300,28 @@ def _markdown_report(
         )
     provenance = preflight.get("provenance") or {}
     if provenance:
-        lines.extend(["", "## Verified provenance", ""])
-        lines.append(f"- Status: `{provenance.get('status', 'INVALID')}`")
+        lines.extend(["", "## Provenance status", ""])
+        lines.append(
+            f"- Provenance status: `{provenance.get('status', 'INVALID')}`"
+        )
+        lines.append(
+            f"- Diagnostic allowed: `{provenance.get('diagnostic_allowed', False)}`"
+        )
+        lines.append(
+            f"- Promotion allowed: `{provenance.get('promotion_allowed', False)}`"
+        )
+        retrospective = provenance.get("retrospective_manifest") or {}
+        if retrospective:
+            lines.append(
+                "- Retrospective manifest: "
+                f"`{retrospective.get('path')}` SHA-256 "
+                f"`{retrospective.get('sha256')}`"
+            )
+        unbound = provenance.get("unbound_fields") or []
+        lines.append(
+            "- Unbound fields: "
+            + (", ".join(f"`{field}`" for field in unbound) if unbound else "none")
+        )
         candidate_provenance = provenance.get("candidate_integrity") or {}
         if candidate_provenance:
             lines.append(
@@ -521,10 +544,16 @@ def _diagnostic_block_reason(preflight: Mapping[str, object]) -> str | None:
     candidate = preflight.get("candidate") or {}
     if not candidate.get("valid"):
         return "diagnostic-on-invalid-comparator requires a fully valid candidate"
-    if "provenance" in preflight and (
-        (preflight.get("provenance") or {}).get("status") != "VERIFIED"
+    provenance = preflight.get("provenance")
+    if (
+        not isinstance(provenance, Mapping)
+        or provenance.get("status") == "INVALID"
+        or provenance.get("diagnostic_allowed") is not True
     ):
-        return "diagnostic-on-invalid-comparator requires verified provenance"
+        return (
+            "diagnostic-on-invalid-comparator requires verified retrospective "
+            "provenance with diagnostic_allowed=true"
+        )
     if not preflight.get("comparator_identity_valid"):
         return (
             "diagnostic-on-invalid-comparator requires exactly the comparators "
@@ -640,6 +669,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.candidate_integrity_manifest,
         _slice_inputs_from_args(args),
         _cache_manifest_mappings(args),
+        args.retrospective_provenance_manifest,
     )
     report: dict[str, object] = {"preflight": preflight}
 

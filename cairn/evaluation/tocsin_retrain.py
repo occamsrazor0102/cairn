@@ -31,6 +31,10 @@ from cairn.detectors.token_cohesiveness import (
 )
 from cairn.evaluation.dataset import EvalSample
 from cairn.evaluation.metrics import auroc, brier, ece, tpr_at_fpr
+from cairn.evaluation.tocsin_legacy_provenance import (
+    FULLY_BOUND_PROVENANCE_STATUS,
+    verify_retrospective_cache_manifest,
+)
 from cairn.feature_cache import CachedPipeline, load_cache, text_hash
 from cairn.normalizer import normalize_text
 
@@ -587,6 +591,7 @@ def verify_benchmark_provenance(
     candidate_integrity_manifest: Path,
     slice_inputs: Mapping[str, tuple[Path, Path]],
     cache_manifest_mappings: Sequence[tuple[str, Path]],
+    retrospective_provenance_manifest: Path,
 ) -> dict[str, object]:
     """Verify immutable candidate and exact dataset/cache coverage before metrics."""
 
@@ -653,8 +658,41 @@ def verify_benchmark_provenance(
             "cache_sha256": cache_sha256,
             "unique_hashes": unique_count,
         }
+    retrospective = verify_retrospective_cache_manifest(
+        Path(retrospective_provenance_manifest)
+    )
+    retrospective_pairs = {
+        (
+            str(record["dataset"]["sha256"]),
+            str(record["cache"]["sha256"]),
+            str(record["validation_manifest"]["sha256"]),
+        )
+        for record in (retrospective.get("slices") or {}).values()
+        if isinstance(record, Mapping)
+        and isinstance(record.get("dataset"), Mapping)
+        and isinstance(record.get("cache"), Mapping)
+        and isinstance(record.get("validation_manifest"), Mapping)
+    }
+    for name, record in verified_slices.items():
+        observed = (
+            str(record["dataset_sha256"]),
+            str(record["cache_sha256"]),
+            str(record["manifest_sha256"]),
+        )
+        if observed not in retrospective_pairs:
+            raise ValueError(
+                f"{name} slice is not bound by the retrospective provenance manifest"
+            )
     return {
-        "status": "VERIFIED",
+        "status": retrospective["status"],
+        "diagnostic_allowed": retrospective["diagnostic_allowed"],
+        "promotion_allowed": retrospective["promotion_allowed"],
+        "calibration_identity": retrospective.get("calibration_identity"),
+        "unbound_fields": retrospective.get("unbound_fields", []),
+        "retrospective_manifest": {
+            "path": retrospective["manifest_path"],
+            "sha256": retrospective["manifest_sha256"],
+        },
         "candidate_integrity": candidate,
         "slices": verified_slices,
     }
@@ -726,6 +764,7 @@ def preflight_profiles(
     candidate_integrity_manifest: Path | None | object = _PROVENANCE_NOT_REQUESTED,
     slice_inputs: Mapping[str, tuple[Path, Path]] | object = _PROVENANCE_NOT_REQUESTED,
     cache_manifest_mappings: Sequence[tuple[str, Path]] | object = _PROVENANCE_NOT_REQUESTED,
+    retrospective_provenance_manifest: Path | None | object = _PROVENANCE_NOT_REQUESTED,
 ) -> dict[str, object]:
     """Validate all paths first, then load valid profiles and one cache row."""
 
@@ -781,6 +820,7 @@ def preflight_profiles(
             candidate_integrity_manifest,
             slice_inputs,
             cache_manifest_mappings,
+            retrospective_provenance_manifest,
         )
     )
     if provenance_requested:
@@ -794,16 +834,24 @@ def preflight_profiles(
                 raise ValueError("missing benchmark slice inputs")
             if cache_manifest_mappings is _PROVENANCE_NOT_REQUESTED:
                 raise ValueError("missing cache manifest mappings")
+            if retrospective_provenance_manifest in (
+                None,
+                _PROVENANCE_NOT_REQUESTED,
+            ):
+                raise ValueError("missing retrospective provenance manifest")
             provenance = verify_benchmark_provenance(
                 Path(candidate_config),
                 Path(candidate_integrity_manifest),
                 slice_inputs,
                 cache_manifest_mappings,
+                Path(retrospective_provenance_manifest),
             )
         except Exception as exc:
             provenance_failure = f"INVALID_PROVENANCE: {exc}"
             provenance = {
                 "status": "INVALID",
+                "diagnostic_allowed": False,
+                "promotion_allowed": False,
                 "failures": [str(exc)],
             }
 
@@ -915,7 +963,7 @@ def _audit_row(
         "profile": profile,
         "slice": slice_name,
         "status": status,
-        "observed": observed,
+        "observed": observed if evaluated else None,
         "operator": operator,
         "reference": reference,
         "failure_detail": failure_detail if status == "FAIL" else None,
@@ -1143,6 +1191,42 @@ def promotion_gate_audit(report: Mapping[str, object]) -> list[dict[str, object]
             reference=True,
             failure_detail=identity_failure,
             not_evaluated_reason="comparator identities were not inspected",
+        )
+    )
+
+    provenance_value = preflight.get("provenance")
+    provenance = _as_mapping(provenance_value)
+    provenance_evaluated = isinstance(provenance_value, Mapping) and isinstance(
+        provenance.get("status"), str
+    )
+    provenance_status = provenance.get("status") if provenance_evaluated else None
+    provenance_passed = (
+        provenance_evaluated
+        and provenance_status == FULLY_BOUND_PROVENANCE_STATUS
+        and provenance.get("diagnostic_allowed") is True
+        and provenance.get("promotion_allowed") is True
+        and isinstance(provenance.get("calibration_identity"), Mapping)
+        and provenance.get("unbound_fields") == []
+    )
+    unbound = provenance.get("unbound_fields") or []
+    audit.append(
+        _audit_row(
+            gate_id="preflight.provenance",
+            label="Identity-bound retrospective provenance",
+            scope="preflight",
+            profile=None,
+            slice_name=None,
+            evaluated=provenance_evaluated,
+            passed=bool(provenance_passed),
+            observed=provenance_status,
+            operator="==",
+            reference=FULLY_BOUND_PROVENANCE_STATUS,
+            failure_detail=(
+                "UNPROMOTABLE_PROVENANCE: status="
+                f"{provenance_status}; promotion_allowed="
+                f"{provenance.get('promotion_allowed')}; unbound_fields={list(unbound)}"
+            ),
+            not_evaluated_reason="retrospective provenance was not inspected",
         )
     )
 
