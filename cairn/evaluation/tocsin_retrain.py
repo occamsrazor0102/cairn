@@ -409,9 +409,9 @@ def legacy_unsafe_transform_for_diagnostic(
     detector_id: str,
     raw_score: float,
 ) -> float:
-    return calibrator.transform(
+    return calibrator.transform(  # AUDITED_UNSAFE_STALE_DIAGNOSTIC
         detector_id, raw_score
-    )  # AUDITED_UNSAFE_STALE_DIAGNOSTIC
+    )
 
 
 def profile_name(config_path: Path) -> str:

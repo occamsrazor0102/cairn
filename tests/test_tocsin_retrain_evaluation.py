@@ -766,6 +766,36 @@ def test_legacy_unsafe_helper_has_one_audited_production_call_site():
     assert source.count("AUDITED_UNSAFE_STALE_DIAGNOSTIC") == 1
 
 
+def test_locked_direct_transform_audit_requires_marker_on_call_line():
+    repo_root = Path(tocsin_retrain_module.__file__).resolve().parents[2]
+    direct_transform_tokens = (
+        "calibrator.transform",
+        "cal.transform",
+        "_detector_calibrator.transform",
+    )
+    direct_transforms = [
+        f"{path.relative_to(repo_root)}:{line_number}:{line}"
+        for source_root in (repo_root / "cairn", repo_root / "scripts")
+        for path in source_root.rglob("*.py")
+        for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        )
+        if any(token in line for token in direct_transform_tokens)
+    ]
+    unexpected_transforms = [
+        entry
+        for entry in direct_transforms
+        if not (
+            entry.startswith("cairn\\evaluation\\tocsin_retrain.py:")
+            or entry.startswith("cairn/evaluation/tocsin_retrain.py:")
+        )
+        or "AUDITED_UNSAFE_STALE_DIAGNOSTIC" not in entry
+    ]
+
+    assert len(direct_transforms) == 1
+    assert unexpected_transforms == []
+
+
 def test_current_specdetect_comparator_hard_fails_for_exact_missing_artifacts():
     failures = profile_artifact_failures(
         Path("configs/.profile_prompts_specdetect.yaml")
