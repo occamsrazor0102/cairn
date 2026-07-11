@@ -67,6 +67,10 @@ class DetectorCalibrator:
             raise ValueError("sample_weight must be finite and positive")
         if len(x) < 2 or len(set(y.tolist())) < 2:
             # Not enough variation to fit; skip silently.
+            self._models.pop(detector_id, None)
+            self._metadata.pop(detector_id, None)
+            self._fit_stats.pop(detector_id, None)
+            self._serialized_entries.pop(detector_id, None)
             return
         ir = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0)
         ir.fit(x, y, sample_weight=weights)
@@ -128,18 +132,28 @@ class DetectorCalibrator:
         artifact_channel = entry.get("raw_channel")
         result_signature = result.signals.get("calibration_signature")
         result_channel = result.signals.get("calibration_raw_channel")
-        identity_declared = any(
-            value is not None
-            for value in (
-                artifact_signature,
-                artifact_channel,
-                result_signature,
-                result_channel,
-            )
+        artifact_is_versioned = self._metadata.get(result.layer_id) is not None
+        artifact_identity_valid = all(
+            isinstance(value, str) and bool(value.strip())
+            for value in (artifact_signature, artifact_channel)
         )
-        if identity_declared and (
-            artifact_signature != result_signature
+        result_identity_valid = all(
+            isinstance(value, str) and bool(value.strip())
+            for value in (result_signature, result_channel)
+        )
+        identity_mismatch = (
+            not artifact_identity_valid
+            or not result_identity_valid
+            or artifact_signature != result_signature
             or artifact_channel != result_channel
+        )
+        legacy_identity_declared = any(
+            value is not None for value in (result_signature, result_channel)
+        )
+        if (
+            artifact_is_versioned and identity_mismatch
+        ) or (
+            not artifact_is_versioned and legacy_identity_declared
         ):
             result.signals["calibrator_signature_mismatch"] = {
                 "result_signature": result_signature,
@@ -222,8 +236,8 @@ class DetectorCalibrator:
             self._models[det_id] = ir
             if schema == "isotonic-thresholds-v2":
                 self._metadata[det_id] = CalibrationMetadata(
-                    detector_signature=params["detector_signature"],
-                    raw_channel=params["raw_channel"],
+                    detector_signature=params.get("detector_signature"),
+                    raw_channel=params.get("raw_channel"),
                     training_dataset_hash=params["training_dataset_hash"],
                     weighting_policy=params["weighting_policy"],
                 )

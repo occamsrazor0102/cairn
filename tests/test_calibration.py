@@ -46,6 +46,44 @@ def test_detector_calibrator_skips_degenerate_labels():
     assert not cal.has("preamble")
 
 
+def test_degenerate_refit_clears_prior_versioned_state():
+    cal = DetectorCalibrator()
+    cal.fit(
+        "preamble",
+        [0.0, 1.0],
+        [0, 1],
+        metadata=CalibrationMetadata(
+            detector_signature="preamble-v1",
+            raw_channel="raw_score",
+            training_dataset_hash="sha256:abc",
+            weighting_policy={"policy": "uniform"},
+        ),
+    )
+
+    cal.fit("preamble", [0.1, 0.2], [1, 1])
+
+    assert not cal.has("preamble")
+    assert "preamble" not in cal._metadata
+    assert "preamble" not in cal._fit_stats
+    assert "preamble" not in cal._serialized_entries
+
+
+def test_degenerate_refit_clears_prior_loaded_legacy_state(tmp_path):
+    original = DetectorCalibrator()
+    original.fit("preamble", [0.0, 1.0], [0, 1])
+    path = tmp_path / "legacy.json"
+    original.save(path)
+    loaded = DetectorCalibrator()
+    loaded.load(path)
+
+    loaded.fit("preamble", [0.1, 0.2], [1, 1])
+
+    assert not loaded.has("preamble")
+    assert "preamble" not in loaded._metadata
+    assert "preamble" not in loaded._fit_stats
+    assert "preamble" not in loaded._serialized_entries
+
+
 def test_detector_calibrator_save_load_roundtrip(tmp_path):
     cal = DetectorCalibrator()
     cal.fit("preamble", [0.1, 0.3, 0.5, 0.7, 0.9], [0, 0, 1, 1, 1])
