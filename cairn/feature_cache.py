@@ -95,24 +95,43 @@ class CachedPipeline:
                 f"text not present in feature cache (hash={key[:12]}...). "
                 f"Rebuild the cache to include this dataset."
             )
-        results = [_result_from_dict(r) for r in cached["results"]]
         rd = _router_from_dict(cached["router"])
-
-        # Apply the inner pipeline's calibrator (mirrors pipeline._run_phase
-        # at line 316-320 of cairn/pipeline.py).
+        raw_results = cached["results"]
+        detector_config = self._inner._config.get("detectors", {})
+        router_skips = set(rd.skip_detectors)
         cal = self._inner._detector_calibrator
-        if cal is not None:
-            for r in results:
-                cal.apply(r)
+
+        def replay_phase(phase: int) -> list[LayerResult]:
+            phase_results: list[LayerResult] = []
+            for detector_id in self._inner._cascade.detectors_for_phase(phase):
+                if detector_id in router_skips:
+                    continue
+                config = detector_config.get(detector_id, {}) or {}
+                if not config.get("enabled", True):
+                    continue
+                for payload in raw_results:
+                    if payload.get("layer_id") != detector_id:
+                        continue
+                    result = _result_from_dict(payload)
+                    if cal is not None:
+                        cal.apply(result)
+                    phase_results.append(result)
+            return phase_results
+
+        phases_run = [1]
+        results = replay_phase(1)
+        if self._inner._cascade.should_run_phase2(results):
+            results.extend(replay_phase(2))
+            phases_run.append(2)
+            if self._inner._cascade.should_run_phase3(results):
+                results.extend(replay_phase(3))
+                phases_run.append(3)
 
         fusion_result = self._inner._fusion.fuse(
             results, word_count=rd.word_count, domain=rd.domain,
         )
         determination = self._inner._decision.decide(fusion_result, results)
-        # Cache always contains all phases that the live pipeline would have
-        # run; we don't track which were short-circuited, so report [1,2,3]
-        # for downstream consumers that inspect cascade_phases.
-        determination.cascade_phases = [1, 2, 3]
+        determination.cascade_phases = phases_run
         determination.detector_errors = []
         return determination, results, rd
 

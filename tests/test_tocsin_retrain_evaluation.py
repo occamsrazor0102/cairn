@@ -1,5 +1,6 @@
 import ast
 import csv
+import hashlib
 import inspect
 import json
 import math
@@ -41,6 +42,203 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
     path.write_text(
         "".join(json.dumps(row) + "\n" for row in rows),
         encoding="utf-8",
+    )
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_provenance_fixture(tmp_path: Path) -> dict[str, Path]:
+    model = tmp_path / "ebm.skops"
+    hmac_path = tmp_path / "ebm.skops.hmac"
+    meta = tmp_path / "ebm.skops.meta.json"
+    conformal = tmp_path / "conformal.json"
+    calibration = tmp_path / "detector_calibration.json"
+    for index, path in enumerate(
+        (model, hmac_path, meta, conformal, calibration), start=1
+    ):
+        path.write_bytes(f"artifact-{index}".encode())
+    config = tmp_path / "candidate.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                "_profile: profile_prompts_only_tocsin_v2",
+                "detectors: {}",
+                "cascade: {}",
+                "decision: {}",
+                "fusion:",
+                f"  model_path: {json.dumps(model.as_posix())}",
+                f"  conformal_path: {json.dumps(conformal.as_posix())}",
+                "  detector_calibration_path: "
+                + json.dumps(calibration.as_posix()),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    artifacts = (config, model, hmac_path, meta, conformal, calibration)
+    candidate_manifest = tmp_path / "candidate-integrity.json"
+    candidate_manifest.write_text(
+        json.dumps(
+            {
+                str(path): {"sha256": _sha256(path), "bytes": path.stat().st_size}
+                for path in artifacts
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    dataset = tmp_path / "prompt.jsonl"
+    rows = [
+        {"id": "human", "text": "Human authored example", "label": 0},
+        {"id": "llm", "text": "Machine generated example", "label": 1},
+    ]
+    _write_jsonl(dataset, rows)
+    cache = tmp_path / "prompt.features.jsonl"
+    _write_jsonl(
+        cache,
+        [
+            {
+                "hash": text_hash(normalize_text(row["text"])),
+                "results": [],
+                "router": {},
+            }
+            for row in rows
+        ],
+    )
+    cache_manifest = tmp_path / "prompt.cache.json"
+    cache_manifest.write_text(
+        json.dumps(
+            {
+                "dataset_sha256": _sha256(dataset),
+                "cache_sha256": _sha256(cache),
+                "expected_unique_hashes": 2,
+                "cached_unique_hashes": 2,
+                "identical_duplicate_hashes": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "config": config,
+        "candidate_manifest": candidate_manifest,
+        "dataset": dataset,
+        "cache": cache,
+        "cache_manifest": cache_manifest,
+    }
+
+
+def test_benchmark_provenance_verifies_candidate_bytes_and_exact_slice_coverage(
+    tmp_path,
+):
+    paths = _write_provenance_fixture(tmp_path)
+
+    provenance = tocsin_retrain_module.verify_benchmark_provenance(
+        paths["config"],
+        paths["candidate_manifest"],
+        {"prompt_test": (paths["dataset"], paths["cache"])},
+        [("prompt_test", paths["cache_manifest"])],
+    )
+
+    assert provenance["status"] == "VERIFIED"
+    assert provenance["candidate_integrity"]["manifest_sha256"] == _sha256(
+        paths["candidate_manifest"]
+    )
+    assert provenance["slices"]["prompt_test"] == {
+        "manifest_path": str(paths["cache_manifest"]),
+        "manifest_sha256": _sha256(paths["cache_manifest"]),
+        "dataset_path": str(paths["dataset"]),
+        "dataset_sha256": _sha256(paths["dataset"]),
+        "cache_path": str(paths["cache"]),
+        "cache_sha256": _sha256(paths["cache"]),
+        "unique_hashes": 2,
+    }
+
+
+@pytest.mark.parametrize(
+    ("mapping", "expected"),
+    [
+        ([], "missing cache manifest mapping: prompt_test"),
+        (
+            [
+                ("prompt_test", "manifest"),
+                ("prompt_test", "manifest"),
+            ],
+            "duplicate cache manifest mapping: prompt_test",
+        ),
+    ],
+)
+def test_benchmark_provenance_rejects_missing_or_duplicate_slice_mapping(
+    tmp_path, mapping, expected
+):
+    paths = _write_provenance_fixture(tmp_path)
+    resolved_mapping = [
+        (name, paths["cache_manifest"] if value == "manifest" else Path(value))
+        for name, value in mapping
+    ]
+
+    with pytest.raises(ValueError, match=expected):
+        tocsin_retrain_module.verify_benchmark_provenance(
+            paths["config"],
+            paths["candidate_manifest"],
+            {"prompt_test": (paths["dataset"], paths["cache"])},
+            resolved_mapping,
+        )
+
+
+def test_benchmark_provenance_rejects_changed_dataset_before_metrics(tmp_path):
+    paths = _write_provenance_fixture(tmp_path)
+    paths["dataset"].write_text(
+        paths["dataset"].read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="prompt_test dataset SHA-256 mismatch"):
+        tocsin_retrain_module.verify_benchmark_provenance(
+            paths["config"],
+            paths["candidate_manifest"],
+            {"prompt_test": (paths["dataset"], paths["cache"])},
+            [("prompt_test", paths["cache_manifest"])],
+        )
+
+
+def test_benchmark_provenance_rejects_duplicate_cache_hash_coverage(tmp_path):
+    paths = _write_provenance_fixture(tmp_path)
+    first = paths["cache"].read_text(encoding="utf-8").splitlines()[0]
+    paths["cache"].write_text(first + "\n" + first + "\n", encoding="utf-8")
+    manifest = json.loads(paths["cache_manifest"].read_text(encoding="utf-8"))
+    manifest["cache_sha256"] = _sha256(paths["cache"])
+    paths["cache_manifest"].write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="prompt_test cache duplicate hash"):
+        tocsin_retrain_module.verify_benchmark_provenance(
+            paths["config"],
+            paths["candidate_manifest"],
+            {"prompt_test": (paths["dataset"], paths["cache"])},
+            [("prompt_test", paths["cache_manifest"])],
+        )
+
+
+def test_preflight_explicit_provenance_request_fails_closed_when_manifest_missing(
+    tmp_path,
+):
+    paths = _write_provenance_fixture(tmp_path)
+
+    result = preflight_profiles(
+        paths["config"],
+        [paths["config"]],
+        paths["dataset"],
+        paths["cache"],
+        candidate_integrity_manifest=None,
+        slice_inputs={"prompt_test": (paths["dataset"], paths["cache"])},
+        cache_manifest_mappings=[],
+    )
+
+    assert result["provenance"]["status"] == "INVALID"
+    assert any(
+        failure.startswith("INVALID_PROVENANCE: missing candidate integrity manifest")
+        for failure in result["failures"]
     )
 
 
@@ -493,6 +691,17 @@ def test_decide_promotion_accepts_every_gate_at_its_inclusive_boundary():
     assert decide_promotion(_passing_report()) == {"status": "PASS", "failures": []}
 
 
+def test_decide_promotion_rejects_clean_but_incomplete_preflight():
+    decision = decide_promotion({"preflight": _valid_preflight()})
+
+    assert decision == {
+        "status": "DO_NOT_PROMOTE",
+        "failures": [
+            "INCOMPLETE_EVALUATION: locked promotion gates remain NOT_EVALUATED"
+        ],
+    }
+
+
 @pytest.mark.parametrize(
     ("mutate", "failure_fragment"),
     [
@@ -827,6 +1036,11 @@ def test_benchmark_parser_appends_baselines_and_uses_two_path_dataset_pairs(tmp_
             "--prompt-test",
             "prompt.jsonl",
             "prompt.features.jsonl",
+            "--candidate-integrity-manifest",
+            "candidate-integrity.json",
+            "--cache-manifest",
+            "prompt_test",
+            "prompt.cache.json",
             "--out-dir",
             str(tmp_path),
         ]
@@ -834,6 +1048,8 @@ def test_benchmark_parser_appends_baselines_and_uses_two_path_dataset_pairs(tmp_
 
     assert args.baseline_config == [Path("baseline-a.yaml"), Path("baseline-b.yaml")]
     assert args.prompt_test == [Path("prompt.jsonl"), Path("prompt.features.jsonl")]
+    assert args.candidate_integrity_manifest == Path("candidate-integrity.json")
+    assert args.cache_manifest == [["prompt_test", "prompt.cache.json"]]
 
 
 def test_preflight_only_writes_decision_and_markdown_without_reading_dataset(tmp_path):
@@ -1063,6 +1279,78 @@ def _valid_preflight() -> dict:
         },
         "comparator_identity_valid": True,
         "failures": [],
+    }
+
+
+def test_preflight_reports_serialize_verified_provenance_hashes(tmp_path):
+    provenance = {
+        "status": "VERIFIED",
+        "candidate_integrity": {
+            "manifest_path": "manifests/candidate-integrity.json",
+            "manifest_sha256": "a" * 64,
+            "artifacts": {
+                "candidate.yaml": {"sha256": "b" * 64, "bytes": 123}
+            },
+        },
+        "slices": {
+            "prompt_test": {
+                "manifest_path": "manifests/prompt.cache.json",
+                "manifest_sha256": "c" * 64,
+                "dataset_path": "data/prompt.jsonl",
+                "dataset_sha256": "d" * 64,
+                "cache_path": "caches/prompt.features.jsonl",
+                "cache_sha256": "e" * 64,
+                "unique_hashes": 2,
+            }
+        },
+    }
+    preflight = _valid_preflight()
+    preflight["provenance"] = provenance
+    report = {"preflight": preflight}
+    decision = decide_promotion(report)
+
+    benchmark._write_decision_reports(tmp_path, decision, report)
+
+    stored = json.loads((tmp_path / "promotion_decision.json").read_text())
+    markdown = (tmp_path / "PROMOTION_REPORT.md").read_text()
+    assert stored["provenance"] == provenance
+    assert "## Verified provenance" in markdown
+    assert "`" + "a" * 64 + "`" in markdown
+    assert "`" + "d" * 64 + "`" in markdown
+    assert "`" + "e" * 64 + "`" in markdown
+
+
+def test_valid_preflight_cli_exits_zero_with_non_promotable_incomplete_decision(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        benchmark, "preflight_profiles", lambda *args, **kwargs: _valid_preflight()
+    )
+
+    exit_code = benchmark.main(
+        [
+            "--preflight-only",
+            "--candidate-config",
+            "candidate.yaml",
+            "--baseline-config",
+            "prompts-only.yaml",
+            "--baseline-config",
+            "prompts-specdetect.yaml",
+            "--prompt-test",
+            "prompt.jsonl",
+            "cache.jsonl",
+            "--out-dir",
+            str(tmp_path),
+        ]
+    )
+
+    decision = json.loads((tmp_path / "promotion_decision.json").read_text())
+    assert exit_code == 0
+    assert decision == {
+        "status": "DO_NOT_PROMOTE",
+        "failures": [
+            "INCOMPLETE_EVALUATION: locked promotion gates remain NOT_EVALUATED"
+        ],
     }
 
 

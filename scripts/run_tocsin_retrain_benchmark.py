@@ -60,6 +60,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ood-mage", type=Path, nargs=2)
     parser.add_argument("--challenge", type=Path, nargs=2)
     parser.add_argument("--stale-calibration", type=Path)
+    parser.add_argument("--candidate-integrity-manifest", type=Path)
+    parser.add_argument(
+        "--cache-manifest",
+        nargs=2,
+        action="append",
+        metavar=("SLICE", "PATH"),
+        help="Exact slice name and validation-manifest path (repeatable)",
+    )
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument(
@@ -287,6 +295,36 @@ def _markdown_report(
         lines.append(
             f"- Comparator `{name}`: {'VALID' if record.get('valid') else 'INVALID'}"
         )
+    provenance = preflight.get("provenance") or {}
+    if provenance:
+        lines.extend(["", "## Verified provenance", ""])
+        lines.append(f"- Status: `{provenance.get('status', 'INVALID')}`")
+        candidate_provenance = provenance.get("candidate_integrity") or {}
+        if candidate_provenance:
+            lines.append(
+                "- Candidate integrity manifest: "
+                f"`{candidate_provenance.get('manifest_path')}` "
+                f"SHA-256 `{candidate_provenance.get('manifest_sha256')}`"
+            )
+            for path, record in sorted(
+                (candidate_provenance.get("artifacts") or {}).items()
+            ):
+                lines.append(
+                    f"  - `{path}` SHA-256 `{record.get('sha256')}` "
+                    f"({record.get('bytes')} bytes)"
+                )
+        for slice_name, record in sorted((provenance.get("slices") or {}).items()):
+            lines.extend(
+                [
+                    f"- Slice `{slice_name}` ({record.get('unique_hashes')} unique hashes):",
+                    f"  - Dataset `{record.get('dataset_path')}` SHA-256 "
+                    f"`{record.get('dataset_sha256')}`",
+                    f"  - Cache `{record.get('cache_path')}` SHA-256 "
+                    f"`{record.get('cache_sha256')}`",
+                    f"  - Manifest `{record.get('manifest_path')}` SHA-256 "
+                    f"`{record.get('manifest_sha256')}`",
+                ]
+            )
     lines.extend(["", "## Automatic promotion gates", ""])
     lines.extend(
         [
@@ -361,8 +399,12 @@ def _write_decision_reports(
     decision: Mapping[str, object],
     report: Mapping[str, object],
 ) -> None:
+    decision_payload = dict(decision)
+    provenance = (report.get("preflight") or {}).get("provenance")
+    if provenance is not None:
+        decision_payload["provenance"] = provenance
     rendered = {
-        "promotion_decision.json": _render_json(decision),
+        "promotion_decision.json": _render_json(decision_payload),
         "PROMOTION_REPORT.md": _markdown_report(decision, report),
     }
     _atomic_write_set(out_dir, rendered)
@@ -383,12 +425,16 @@ def _publish_full_reports(
     detector: Mapping[str, object],
 ) -> None:
     # Every renderer runs before the first destination path is replaced.
+    decision_payload = dict(decision)
+    provenance = (report.get("preflight") or {}).get("provenance")
+    if provenance is not None:
+        decision_payload["provenance"] = provenance
     rendered = {
         "detector_calibration.json": _render_json(detector),
         "benchmarks.json": _render_json(report),
         "benchmarks_long.csv": _render_prediction_rows(evaluations),
         "july10_per_task.csv": _render_challenge_csv(challenge_rows),
-        "promotion_decision.json": _render_json(decision),
+        "promotion_decision.json": _render_json(decision_payload),
         "PROMOTION_REPORT.md": _markdown_report(decision, report),
     }
     _atomic_write_set(out_dir, rendered)
@@ -424,6 +470,33 @@ def _required_full_arguments(args: argparse.Namespace) -> list[str]:
     return missing
 
 
+def _slice_inputs_from_args(
+    args: argparse.Namespace,
+) -> dict[str, tuple[Path, Path]]:
+    inputs: dict[str, tuple[Path, Path]] = {}
+    for attribute in (
+        "prompt_test",
+        "humanized",
+        "hard_human",
+        "ood_m4",
+        "ood_raid",
+        "ood_mage",
+        "challenge",
+    ):
+        pair = getattr(args, attribute)
+        if pair is not None:
+            inputs[attribute] = (Path(pair[0]), Path(pair[1]))
+    return inputs
+
+
+def _cache_manifest_mappings(
+    args: argparse.Namespace,
+) -> list[tuple[str, Path]]:
+    return [
+        (str(name), Path(path)) for name, path in (args.cache_manifest or [])
+    ]
+
+
 def _valid_baseline_paths(
     baseline_paths: Sequence[Path], preflight: Mapping[str, object]
 ) -> list[Path]:
@@ -448,6 +521,10 @@ def _diagnostic_block_reason(preflight: Mapping[str, object]) -> str | None:
     candidate = preflight.get("candidate") or {}
     if not candidate.get("valid"):
         return "diagnostic-on-invalid-comparator requires a fully valid candidate"
+    if "provenance" in preflight and (
+        (preflight.get("provenance") or {}).get("status") != "VERIFIED"
+    ):
+        return "diagnostic-on-invalid-comparator requires verified provenance"
     if not preflight.get("comparator_identity_valid"):
         return (
             "diagnostic-on-invalid-comparator requires exactly the comparators "
@@ -560,6 +637,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.baseline_config,
         args.prompt_test[0],
         args.prompt_test[1],
+        args.candidate_integrity_manifest,
+        _slice_inputs_from_args(args),
+        _cache_manifest_mappings(args),
     )
     report: dict[str, object] = {"preflight": preflight}
 

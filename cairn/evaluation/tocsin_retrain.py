@@ -6,6 +6,7 @@ None of the helpers mutate source datasets or production profile artifacts.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import dataclass
@@ -44,6 +45,7 @@ _LOCKED_EVALUATION_SLICES = (
     "ood_mage_test",
 )
 _LOCKED_COMPARATOR_PROFILES = ("prompts_only", "prompts_specdetect")
+_PROVENANCE_NOT_REQUESTED = object()
 
 
 @dataclass(frozen=True)
@@ -421,6 +423,243 @@ def profile_name(config_path: Path) -> str:
     return raw_name.removeprefix("profile_")
 
 
+def _sha256_file(path: Path) -> str:
+    path = Path(path)
+    if not path.is_file():
+        raise ValueError(f"required provenance file is missing: {path}")
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _json_object(path: Path, *, label: str) -> Mapping[str, object]:
+    path = Path(path)
+    if not path.is_file():
+        raise ValueError(f"missing {label}: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise ValueError(f"invalid {label} {path}: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"invalid {label} {path}: expected a JSON object")
+    return payload
+
+
+def _candidate_artifact_paths(candidate_config: Path) -> tuple[Path, ...]:
+    candidate_config = Path(candidate_config)
+    fusion = load_config(candidate_config).get("fusion") or {}
+    required = {
+        "model_path": fusion.get("model_path"),
+        "conformal_path": fusion.get("conformal_path"),
+        "detector_calibration_path": fusion.get("detector_calibration_path"),
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise ValueError(
+            "candidate config lacks required artifact path(s): " + ", ".join(missing)
+        )
+    model = Path(str(required["model_path"]))
+    return (
+        candidate_config,
+        model,
+        model.with_suffix(model.suffix + ".hmac"),
+        model.with_suffix(model.suffix + ".meta.json"),
+        Path(str(required["conformal_path"])),
+        Path(str(required["detector_calibration_path"])),
+    )
+
+
+def _verify_candidate_integrity(
+    candidate_config: Path, manifest_path: Path
+) -> dict[str, object]:
+    manifest_path = Path(manifest_path)
+    manifest = _json_object(manifest_path, label="candidate integrity manifest")
+    by_resolved_path: dict[Path, tuple[str, Mapping[str, object]]] = {}
+    for raw_path, raw_record in manifest.items():
+        resolved = Path(str(raw_path)).resolve()
+        if resolved in by_resolved_path:
+            raise ValueError(
+                f"duplicate candidate integrity path: {resolved}"
+            )
+        if not isinstance(raw_record, Mapping):
+            raise ValueError(
+                f"invalid candidate integrity record for {raw_path}"
+            )
+        by_resolved_path[resolved] = (str(raw_path), raw_record)
+
+    expected_paths = _candidate_artifact_paths(candidate_config)
+    expected_by_resolved = {path.resolve(): path for path in expected_paths}
+    missing = sorted(
+        str(expected_by_resolved[path])
+        for path in set(expected_by_resolved) - set(by_resolved_path)
+    )
+    extra = sorted(
+        by_resolved_path[path][0]
+        for path in set(by_resolved_path) - set(expected_by_resolved)
+    )
+    if missing or extra:
+        details: list[str] = []
+        if missing:
+            details.append("missing=" + ",".join(missing))
+        if extra:
+            details.append("unexpected=" + ",".join(extra))
+        raise ValueError(
+            "candidate integrity mapping mismatch: " + "; ".join(details)
+        )
+
+    verified: dict[str, dict[str, object]] = {}
+    for resolved, expected_path in expected_by_resolved.items():
+        manifest_key, record = by_resolved_path[resolved]
+        actual_sha256 = _sha256_file(expected_path)
+        actual_bytes = expected_path.stat().st_size
+        if record.get("sha256") != actual_sha256:
+            raise ValueError(
+                f"candidate artifact SHA-256 mismatch: {expected_path}"
+            )
+        declared_bytes = record.get("bytes")
+        if isinstance(declared_bytes, bool) or declared_bytes != actual_bytes:
+            raise ValueError(f"candidate artifact byte mismatch: {expected_path}")
+        verified[manifest_key] = {
+            "sha256": actual_sha256,
+            "bytes": actual_bytes,
+        }
+    return {
+        "manifest_path": str(manifest_path),
+        "manifest_sha256": _sha256_file(manifest_path),
+        "artifacts": verified,
+    }
+
+
+def _dataset_text_hashes(path: Path, *, slice_name: str) -> set[str]:
+    hashes: set[str] = set()
+    with Path(path).open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except Exception as exc:
+                raise ValueError(
+                    f"{slice_name} dataset invalid JSON at line {line_number}: {exc}"
+                ) from exc
+            if not isinstance(row, Mapping) or "text" not in row:
+                raise ValueError(
+                    f"{slice_name} dataset missing text at line {line_number}"
+                )
+            digest = text_hash(normalize_text(str(row["text"])))
+            if digest in hashes:
+                raise ValueError(
+                    f"{slice_name} dataset duplicate normalized hash: {digest}"
+                )
+            hashes.add(digest)
+    if not hashes:
+        raise ValueError(f"{slice_name} dataset has no rows")
+    return hashes
+
+
+def _cache_record_hashes(path: Path, *, slice_name: str) -> set[str]:
+    hashes: set[str] = set()
+    with Path(path).open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except Exception as exc:
+                raise ValueError(
+                    f"{slice_name} cache invalid JSON at line {line_number}: {exc}"
+                ) from exc
+            digest = row.get("hash") if isinstance(row, Mapping) else None
+            if not isinstance(digest, str) or len(digest) != 64:
+                raise ValueError(
+                    f"{slice_name} cache invalid hash at line {line_number}"
+                )
+            if digest in hashes:
+                raise ValueError(f"{slice_name} cache duplicate hash: {digest}")
+            hashes.add(digest)
+    return hashes
+
+
+def verify_benchmark_provenance(
+    candidate_config: Path,
+    candidate_integrity_manifest: Path,
+    slice_inputs: Mapping[str, tuple[Path, Path]],
+    cache_manifest_mappings: Sequence[tuple[str, Path]],
+) -> dict[str, object]:
+    """Verify immutable candidate and exact dataset/cache coverage before metrics."""
+
+    candidate = _verify_candidate_integrity(
+        Path(candidate_config), Path(candidate_integrity_manifest)
+    )
+    manifest_paths: dict[str, Path] = {}
+    for raw_name, raw_path in cache_manifest_mappings:
+        name = str(raw_name)
+        if name in manifest_paths:
+            raise ValueError(f"duplicate cache manifest mapping: {name}")
+        manifest_paths[name] = Path(raw_path)
+    missing = sorted(set(slice_inputs) - set(manifest_paths))
+    if missing:
+        raise ValueError("missing cache manifest mapping: " + ", ".join(missing))
+    extra = sorted(set(manifest_paths) - set(slice_inputs))
+    if extra:
+        raise ValueError("unexpected cache manifest mapping: " + ", ".join(extra))
+    resolved_manifests = [path.resolve() for path in manifest_paths.values()]
+    if len(resolved_manifests) != len(set(resolved_manifests)):
+        raise ValueError("one cache manifest cannot cover multiple slices")
+
+    resolved_datasets = [Path(pair[0]).resolve() for pair in slice_inputs.values()]
+    resolved_caches = [Path(pair[1]).resolve() for pair in slice_inputs.values()]
+    if len(resolved_datasets) != len(set(resolved_datasets)):
+        raise ValueError("one dataset cannot map to multiple benchmark slices")
+    if len(resolved_caches) != len(set(resolved_caches)):
+        raise ValueError("one cache cannot map to multiple benchmark slices")
+
+    verified_slices: dict[str, dict[str, object]] = {}
+    for name, (raw_dataset_path, raw_cache_path) in slice_inputs.items():
+        dataset_path = Path(raw_dataset_path)
+        cache_path = Path(raw_cache_path)
+        manifest_path = manifest_paths[name]
+        manifest = _json_object(manifest_path, label=f"{name} cache manifest")
+        dataset_sha256 = _sha256_file(dataset_path)
+        cache_sha256 = _sha256_file(cache_path)
+        if manifest.get("dataset_sha256") != dataset_sha256:
+            raise ValueError(f"{name} dataset SHA-256 mismatch")
+        if manifest.get("cache_sha256") != cache_sha256:
+            raise ValueError(f"{name} cache SHA-256 mismatch")
+        dataset_hashes = _dataset_text_hashes(dataset_path, slice_name=name)
+        cache_hashes = _cache_record_hashes(cache_path, slice_name=name)
+        if dataset_hashes != cache_hashes:
+            missing_hashes = len(dataset_hashes - cache_hashes)
+            unexpected_hashes = len(cache_hashes - dataset_hashes)
+            raise ValueError(
+                f"{name} cache coverage mismatch: missing={missing_hashes}, "
+                f"unexpected={unexpected_hashes}"
+            )
+        unique_count = len(dataset_hashes)
+        if manifest.get("expected_unique_hashes") != unique_count:
+            raise ValueError(f"{name} expected_unique_hashes mismatch")
+        if manifest.get("cached_unique_hashes") != unique_count:
+            raise ValueError(f"{name} cached_unique_hashes mismatch")
+        if manifest.get("identical_duplicate_hashes") != 0:
+            raise ValueError(f"{name} cache manifest reports duplicate hashes")
+        verified_slices[name] = {
+            "manifest_path": str(manifest_path),
+            "manifest_sha256": _sha256_file(manifest_path),
+            "dataset_path": str(dataset_path),
+            "dataset_sha256": dataset_sha256,
+            "cache_path": str(cache_path),
+            "cache_sha256": cache_sha256,
+            "unique_hashes": unique_count,
+        }
+    return {
+        "status": "VERIFIED",
+        "candidate_integrity": candidate,
+        "slices": verified_slices,
+    }
+
+
 def profile_artifact_failures(config_path: Path) -> list[str]:
     """Return missing hard requirements without instantiating the profile."""
 
@@ -484,6 +723,9 @@ def preflight_profiles(
     baseline_configs: Sequence[Path],
     smoke_dataset: Path,
     smoke_cache: Path,
+    candidate_integrity_manifest: Path | None | object = _PROVENANCE_NOT_REQUESTED,
+    slice_inputs: Mapping[str, tuple[Path, Path]] | object = _PROVENANCE_NOT_REQUESTED,
+    cache_manifest_mappings: Sequence[tuple[str, Path]] | object = _PROVENANCE_NOT_REQUESTED,
 ) -> dict[str, object]:
     """Validate all paths first, then load valid profiles and one cache row."""
 
@@ -531,6 +773,40 @@ def preflight_profiles(
     )
     comparator_identity_valid = not identity_issues
 
+    provenance: dict[str, object] | None = None
+    provenance_failure: str | None = None
+    provenance_requested = any(
+        value is not _PROVENANCE_NOT_REQUESTED
+        for value in (
+            candidate_integrity_manifest,
+            slice_inputs,
+            cache_manifest_mappings,
+        )
+    )
+    if provenance_requested:
+        try:
+            if candidate_integrity_manifest in (
+                None,
+                _PROVENANCE_NOT_REQUESTED,
+            ):
+                raise ValueError("missing candidate integrity manifest")
+            if not isinstance(slice_inputs, Mapping):
+                raise ValueError("missing benchmark slice inputs")
+            if cache_manifest_mappings is _PROVENANCE_NOT_REQUESTED:
+                raise ValueError("missing cache manifest mappings")
+            provenance = verify_benchmark_provenance(
+                Path(candidate_config),
+                Path(candidate_integrity_manifest),
+                slice_inputs,
+                cache_manifest_mappings,
+            )
+        except Exception as exc:
+            provenance_failure = f"INVALID_PROVENANCE: {exc}"
+            provenance = {
+                "status": "INVALID",
+                "failures": [str(exc)],
+            }
+
     # Dataset/cache reads happen only after every candidate/comparator artifact
     # has been inventoried, preventing fallback fusion from entering history.
     if any(not record["failures"] for record in records):
@@ -572,6 +848,8 @@ def preflight_profiles(
                     record["failures"].append(f"smoke profile error: {exc}")
 
     failures: list[str] = []
+    if provenance_failure is not None:
+        failures.append(provenance_failure)
     if identity_issues:
         failures.append(
             "INVALID_COMPARATOR_SET:\n" + "\n".join(identity_issues)
@@ -599,12 +877,15 @@ def preflight_profiles(
             failures.append(
                 f"{prefix} {record['name']}:\n" + "\n".join(record["failures"])
             )
-    return {
+    result: dict[str, object] = {
         "candidate": candidate_record,
         "comparators": comparator_records,
         "comparator_identity_valid": comparator_identity_valid,
         "failures": failures,
     }
+    if provenance is not None:
+        result["provenance"] = provenance
+    return result
 
 
 def _as_mapping(value: object) -> Mapping[str, object]:
@@ -1319,13 +1600,18 @@ def decide_promotion(report: Mapping[str, object]) -> dict[str, object]:
 
     failures: list[str] = []
     seen: set[str] = set()
-    for row in promotion_gate_audit(report):
+    audit = promotion_gate_audit(report)
+    for row in audit:
         if row["status"] != "FAIL":
             continue
         detail = str(row["failure_detail"])
         if detail not in seen:
             failures.append(detail)
             seen.add(detail)
+    if not failures and any(row["status"] == "NOT_EVALUATED" for row in audit):
+        failures.append(
+            "INCOMPLETE_EVALUATION: locked promotion gates remain NOT_EVALUATED"
+        )
     return {
         "status": "PASS" if not failures else "DO_NOT_PROMOTE",
         "failures": failures,
