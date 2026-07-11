@@ -6,6 +6,7 @@ download facebook/bart-base to assert wiring.
 """
 import pytest
 
+import cairn.detectors.token_cohesiveness as tc
 from cairn.detectors.token_cohesiveness import (
     DETECTOR,
     TOCSIN_COHESIVENESS_SIGNATURE,
@@ -16,6 +17,76 @@ from cairn.detectors.token_cohesiveness import (
 )
 
 
+class FakeTensor:
+    def __init__(self):
+        self.to_calls = []
+
+    def to(self, device):
+        self.to_calls.append(device)
+        return self
+
+
+class FakeTokenizer:
+    def __init__(self):
+        self.tensors = []
+
+    def __call__(self, _text, **_kwargs):
+        tensor = FakeTensor()
+        self.tensors.append(tensor)
+        return {"input_ids": tensor}
+
+
+class FakeLoss:
+    def item(self):
+        return 1.25
+
+
+class FakeBartOutput:
+    loss = FakeLoss()
+
+
+class FakeBart:
+    def __init__(self):
+        self.to_calls = []
+        self.eval_called = False
+
+    def to(self, device):
+        self.to_calls.append(device)
+        return self
+
+    def eval(self):
+        self.eval_called = True
+
+    def __call__(self, **_kwargs):
+        return FakeBartOutput()
+
+
+class FakeNoGrad:
+    def __enter__(self):
+        return None
+
+    def __exit__(self, _exc_type, _exc, _traceback):
+        return False
+
+
+class FakeCudaTorch:
+    class cuda:
+        @staticmethod
+        def is_available():
+            return True
+
+    @staticmethod
+    def no_grad():
+        return FakeNoGrad()
+
+
+class FakeCpuTorch:
+    class cuda:
+        @staticmethod
+        def is_available():
+            return False
+
+
 def test_skips_short_text():
     d = TokenCohesivenessDetector()
     result = d.analyze("too short to score", {})
@@ -23,15 +94,13 @@ def test_skips_short_text():
     assert result.signals["skipped"] == "too_short"
 
 
-def test_skips_cleanly_when_tier2_absent_or_runs():
+def test_skips_cleanly_when_tier2_absent(monkeypatch):
+    monkeypatch.setattr(tc, "_try_import_torch", lambda: None)
     d = TokenCohesivenessDetector()
     long_text = " ".join(["word"] * 80)
     result = d.analyze(long_text, {})
-    # Without torch this must SKIP, not raise.
-    if result.determination == "SKIP":
-        assert result.signals["skipped"] in {
-            "too_short", "tier2_unavailable", "bart_load_failed",
-        }
+    assert result.determination == "SKIP"
+    assert result.signals["skipped"] == "tier2_unavailable"
 
 
 def test_cohesiveness_heuristic_is_monotone_increasing():
@@ -105,3 +174,60 @@ def test_signature_raw_channel_mapping_is_public_and_stable():
         TOCSIN_COMBINED_SIGNATURE: "combined_w",
         TOCSIN_COHESIVENESS_SIGNATURE: "cohesiveness_u",
     }
+
+
+def test_tocsin_moves_bart_tensors_and_fastdetectgpt_to_cuda(monkeypatch):
+    tokenizer = FakeTokenizer()
+    bart = FakeBart()
+    monkeypatch.setattr(tc, "_try_import_torch", lambda: FakeCudaTorch)
+    monkeypatch.setattr(
+        tc,
+        "_load_bart_components",
+        lambda _name: (tokenizer, bart),
+    )
+
+    detector = TokenCohesivenessDetector()
+
+    assert detector._device == "cuda"
+    assert detector._base._device == "cuda"
+    detector._ensure_bart()
+    assert bart.to_calls == ["cuda"]
+    assert bart.eval_called is True
+    assert detector._bart_score("source", "target") == -1.25
+    assert [tensor.to_calls for tensor in tokenizer.tensors] == [
+        ["cuda"],
+        ["cuda"],
+    ]
+
+
+def test_tocsin_defaults_to_cpu_without_cuda(monkeypatch):
+    monkeypatch.setattr(tc, "_try_import_torch", lambda: FakeCpuTorch)
+
+    detector = TokenCohesivenessDetector()
+
+    assert detector._device == "cpu"
+    assert detector._base._device == "cpu"
+
+
+def test_tocsin_honors_explicit_device(monkeypatch):
+    monkeypatch.setattr(tc, "_try_import_torch", lambda: FakeCudaTorch)
+
+    detector = TokenCohesivenessDetector(device="cpu")
+
+    assert detector._device == "cpu"
+    assert detector._base._device == "cpu"
+
+
+def test_lazy_tocsin_passes_explicit_device_from_config(monkeypatch):
+    monkeypatch.setattr(tc._LazyTOCSIN, "_instance", None)
+    monkeypatch.setattr(tc, "_try_import_torch", lambda: FakeCudaTorch)
+    wrapper = tc._LazyTOCSIN()
+
+    wrapper.analyze(
+        "too short",
+        {"device": "cpu", "model": "fake-bart"},
+    )
+
+    assert wrapper._instance._model_name == "fake-bart"
+    assert wrapper._instance._device == "cpu"
+    assert wrapper._instance._base._device == "cpu"

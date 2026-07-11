@@ -54,11 +54,17 @@ class FastDetectGPTDetector:
     domain = "universal"
     compute_cost = "moderate"
 
-    def __init__(self, scoring_model: str | None = None) -> None:
-        # Adapter construction is cheap — it only records the model name
-        # and defers torch/transformers import and weight loading until
-        # the first scored text.
-        self._adapter = FastDetectGPTAdapter(scoring_model=scoring_model)
+    def __init__(
+        self,
+        scoring_model: str | None = None,
+        device: str | None = None,
+    ) -> None:
+        # Adapter construction only probes the local torch device; transformer
+        # imports and model-weight loading remain deferred until first score.
+        self._adapter = FastDetectGPTAdapter(
+            scoring_model=scoring_model,
+            device=device,
+        )
 
     def _skip(self, reason: str, **extra) -> LayerResult:
         return LayerResult(
@@ -134,6 +140,7 @@ class _LazyFastDetectGPT:
                 if self._instance is None:  # double-checked
                     type(self)._instance = FastDetectGPTDetector(
                         scoring_model=(config or {}).get("model"),
+                        device=(config or {}).get("device"),
                     )
         return self._instance.analyze(text, config)
 

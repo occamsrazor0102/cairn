@@ -49,6 +49,16 @@ def _try_import_torch() -> tuple[Any, bool]:
         return None, False
 
 
+def _select_device(torch_module, requested: str | None = None) -> str:
+    if requested is not None:
+        return requested
+    return (
+        "cuda"
+        if torch_module is not None and torch_module.cuda.is_available()
+        else "cpu"
+    )
+
+
 def _try_import_transformers() -> tuple[Any, Any, bool]:
     try:
         from transformers import AutoModelForCausalLM, AutoTokenizer  # type: ignore
@@ -94,9 +104,13 @@ class FastDetectGPTAdapter:
             or os.environ.get("CAIRN_FAST_DETECTGPT_MODEL")
             or "gpt2"
         )
-        self._device = device or os.environ.get(
-            "CAIRN_FAST_DETECTGPT_DEVICE", "cpu"
+        torch, _ = _try_import_torch()
+        requested_device = (
+            device
+            if device is not None
+            else os.environ.get("CAIRN_FAST_DETECTGPT_DEVICE")
         )
+        self._device = _select_device(torch, requested_device)
         self._model: Any = None
         self._tokenizer: Any = None
 

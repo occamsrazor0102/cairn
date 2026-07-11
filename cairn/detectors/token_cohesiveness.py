@@ -44,6 +44,7 @@ import threading
 from cairn.benchmarks.fast_detectgpt import (
     FastDetectGPTAdapter,
     _heuristic_curvature_to_p_llm,
+    _select_device,
 )
 from cairn.contracts import LayerResult
 
@@ -74,32 +75,40 @@ def _try_import_torch():
         return None
 
 
+def _load_bart_components(model_name: str):
+    from transformers import AutoTokenizer, BartForConditionalGeneration
+
+    return (
+        AutoTokenizer.from_pretrained(model_name),
+        BartForConditionalGeneration.from_pretrained(model_name),
+    )
+
+
 class TokenCohesivenessDetector:
     id = "token_cohesiveness"
     domain = "prose"
     compute_cost = "moderate"
 
-    def __init__(self, model_name: str = _BART_MODEL) -> None:
+    def __init__(
+        self,
+        model_name: str = _BART_MODEL,
+        device: str | None = None,
+    ) -> None:
         self._model_name = model_name
+        torch = _try_import_torch()
+        self._device = _select_device(torch, device)
         self._bart = None
         self._bart_tok = None
         # Base logprob channel v(x); shares the tier-2 deps with BART.
-        self._base = FastDetectGPTAdapter()
+        self._base = FastDetectGPTAdapter(device=self._device)
 
     # -------------------------------------------------------------- loading
 
     def _ensure_bart(self) -> None:
         if self._bart is not None:
             return
-        from transformers import (  # type: ignore
-            AutoTokenizer,
-            BartForConditionalGeneration,
-        )
-
-        self._bart_tok = AutoTokenizer.from_pretrained(self._model_name)
-        self._bart = BartForConditionalGeneration.from_pretrained(
-            self._model_name
-        )
+        self._bart_tok, self._bart = _load_bart_components(self._model_name)
+        self._bart = self._bart.to(self._device)
         self._bart.eval()
 
     def _bart_score(self, source: str, target: str) -> float:
@@ -110,12 +119,15 @@ class TokenCohesivenessDetector:
         negated loss is the mean log-probability.
         """
         torch = _try_import_torch()
-        enc = self._bart_tok(
-            source, return_tensors="pt", truncation=True, max_length=512
-        )
+        enc = {
+            key: value.to(self._device)
+            for key, value in self._bart_tok(
+                source, return_tensors="pt", truncation=True, max_length=512
+            ).items()
+        }
         labels = self._bart_tok(
             target, return_tensors="pt", truncation=True, max_length=512
-        )["input_ids"]
+        )["input_ids"].to(self._device)
         with torch.no_grad():
             out = self._bart(**enc, labels=labels)
         return float(-out.loss.item())
@@ -255,6 +267,7 @@ class _LazyTOCSIN:
                 if self._instance is None:  # double-checked
                     type(self)._instance = TokenCohesivenessDetector(
                         model_name=(config or {}).get("model", _BART_MODEL),
+                        device=(config or {}).get("device"),
                     )
         return self._instance.analyze(text, config)
 

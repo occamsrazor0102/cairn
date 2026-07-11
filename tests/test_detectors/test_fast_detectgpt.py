@@ -4,7 +4,24 @@ The no-torch paths (short-text SKIP, tier2-unavailable SKIP, heuristic
 monotonicity) run everywhere; the real-model path is exercised via a
 monkeypatched curvature so CI doesn't download GPT-2 to assert wiring.
 """
+import cairn.benchmarks.fast_detectgpt as benchmark_fast_detectgpt
+import cairn.detectors.fast_detectgpt as detector_fast_detectgpt
+from cairn.benchmarks.fast_detectgpt import FastDetectGPTAdapter
 from cairn.detectors.fast_detectgpt import FastDetectGPTDetector, DETECTOR
+
+
+class FakeCudaTorch:
+    class cuda:
+        @staticmethod
+        def is_available():
+            return True
+
+
+class FakeCpuTorch:
+    class cuda:
+        @staticmethod
+        def is_available():
+            return False
 
 
 def test_skips_short_text():
@@ -14,19 +31,20 @@ def test_skips_short_text():
     assert result.signals["skipped"] == "too_short"
 
 
-def test_skips_when_tier2_unavailable_or_runs():
-    # In an environment without torch/transformers the detector must SKIP
-    # cleanly (not raise); where they're present it produces a real verdict.
+def test_skips_when_tier2_unavailable(monkeypatch):
     d = FastDetectGPTDetector()
+    monkeypatch.setattr(d._adapter, "is_available", lambda: False)
+    monkeypatch.setattr(
+        d._adapter,
+        "available_dependencies",
+        lambda: {"torch": False, "transformers": False},
+    )
     long_text = " ".join(["word"] * 80)
     result = d.analyze(long_text, {})
-    if result.determination == "SKIP":
-        assert result.signals["skipped"] in {"too_short", "tier2_unavailable"}
-        assert result.p_llm == 0.5
-        assert result.confidence == 0.0
-    else:
-        assert "curvature" in result.signals
-        assert 0.0 <= result.p_llm <= 1.0
+    assert result.determination == "SKIP"
+    assert result.signals["skipped"] == "tier2_unavailable"
+    assert result.p_llm == 0.5
+    assert result.confidence == 0.0
 
 
 def test_curvature_maps_into_unit_range_and_surfaces_signal(monkeypatch):
@@ -56,3 +74,76 @@ def test_negative_curvature_leans_human(monkeypatch):
 def test_module_detector_id():
     assert DETECTOR.id == "fast_detectgpt"
     assert DETECTOR.domain == "universal"
+
+
+def test_standalone_fastdetectgpt_uses_cuda_when_available(monkeypatch):
+    monkeypatch.delenv("CAIRN_FAST_DETECTGPT_DEVICE", raising=False)
+    monkeypatch.setattr(
+        benchmark_fast_detectgpt,
+        "_try_import_torch",
+        lambda: (FakeCudaTorch, True),
+    )
+
+    detector = FastDetectGPTDetector()
+
+    assert detector._adapter._device == "cuda"
+
+
+def test_fastdetectgpt_adapter_defaults_to_cpu_without_cuda(monkeypatch):
+    monkeypatch.delenv("CAIRN_FAST_DETECTGPT_DEVICE", raising=False)
+    monkeypatch.setattr(
+        benchmark_fast_detectgpt,
+        "_try_import_torch",
+        lambda: (FakeCpuTorch, True),
+    )
+
+    adapter = FastDetectGPTAdapter()
+
+    assert adapter._device == "cpu"
+
+
+def test_fastdetectgpt_adapter_honors_environment_before_cuda(monkeypatch):
+    monkeypatch.setenv("CAIRN_FAST_DETECTGPT_DEVICE", "cpu")
+    monkeypatch.setattr(
+        benchmark_fast_detectgpt,
+        "_try_import_torch",
+        lambda: (FakeCudaTorch, True),
+    )
+
+    adapter = FastDetectGPTAdapter()
+
+    assert adapter._device == "cpu"
+
+
+def test_fastdetectgpt_adapter_honors_explicit_device_before_environment(
+    monkeypatch,
+):
+    monkeypatch.setenv("CAIRN_FAST_DETECTGPT_DEVICE", "cuda")
+    monkeypatch.setattr(
+        benchmark_fast_detectgpt,
+        "_try_import_torch",
+        lambda: (FakeCudaTorch, True),
+    )
+
+    adapter = FastDetectGPTAdapter(device="cpu")
+
+    assert adapter._device == "cpu"
+
+
+def test_lazy_fastdetectgpt_passes_explicit_device_from_config(monkeypatch):
+    monkeypatch.setattr(
+        detector_fast_detectgpt._LazyFastDetectGPT,
+        "_instance",
+        None,
+    )
+    monkeypatch.delenv("CAIRN_FAST_DETECTGPT_DEVICE", raising=False)
+    monkeypatch.setattr(
+        benchmark_fast_detectgpt,
+        "_try_import_torch",
+        lambda: (FakeCpuTorch, True),
+    )
+    wrapper = detector_fast_detectgpt._LazyFastDetectGPT()
+
+    wrapper.analyze("too short", {"device": "cuda:7"})
+
+    assert wrapper._instance._adapter._device == "cuda:7"
