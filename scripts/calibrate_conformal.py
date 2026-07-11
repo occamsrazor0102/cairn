@@ -10,9 +10,17 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from collections import Counter
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+import platform
 from pathlib import Path
+import tempfile
 
 import numpy as np
+import sklearn
 
 from cairn.dotenv import load_dotenv
 from cairn.evaluation.dataset import load_dataset
@@ -27,6 +35,39 @@ except ImportError:  # pragma: no cover - tqdm is optional
         return it
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_json_atomic(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            handle.write(
+                json.dumps(
+                    payload,
+                    indent=2,
+                    sort_keys=True,
+                    allow_nan=False,
+                )
+                + "\n"
+            )
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path.exists():
+            temporary_path.unlink()
+
+
 def main() -> None:
     load_dotenv()
     ap = argparse.ArgumentParser()
@@ -37,6 +78,10 @@ def main() -> None:
     ap.add_argument("--features-cache", type=Path, default=None,
                     help="Path to a precomputed feature cache (built by "
                          "scripts/cache_pipeline_features.py).")
+    ap.add_argument(
+        "--manifest-out", type=Path, default=None,
+        help="Optional path for an atomic calibration provenance manifest.",
+    )
     args = ap.parse_args()
 
     pipeline = (
@@ -62,12 +107,59 @@ def main() -> None:
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     wrapper.save(args.out)
+    if args.manifest_out is not None:
+        class_counts = Counter(labels)
+        router_counts = Counter(router_classes)
+        threshold_per_class = wrapper.threshold_per_class or {}
+        threshold_per_router = wrapper.threshold_per_router or {}
+        manifest: dict[str, object] = {
+            "dataset_path": str(args.dataset),
+            "dataset_sha256": _sha256_file(args.dataset),
+            "features_cache_path": (
+                str(args.features_cache)
+                if args.features_cache is not None
+                else None
+            ),
+            "features_cache_sha256": (
+                _sha256_file(args.features_cache)
+                if args.features_cache is not None
+                else None
+            ),
+            "alpha": float(wrapper.alpha),
+            "n_calibration": len(scores),
+            "class_counts": {
+                str(label): int(count)
+                for label, count in sorted(class_counts.items())
+            },
+            "router_counts": {
+                str(router): int(count)
+                for router, count in sorted(router_counts.items())
+            },
+            "threshold_per_class": {
+                str(label): float(threshold)
+                for label, threshold in sorted(threshold_per_class.items())
+            },
+            "threshold_per_router": {
+                str(router): {
+                    str(label): float(threshold)
+                    for label, threshold in sorted(thresholds.items())
+                }
+                for router, thresholds in sorted(threshold_per_router.items())
+            },
+            "python_version": platform.python_version(),
+            "numpy_version": np.__version__,
+            "sklearn_version": sklearn.__version__,
+            "calibrated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _write_json_atomic(args.manifest_out, manifest)
     print(
         f"calibrated on {len(scores)} samples (alpha={args.alpha}); "
         f"per-class={wrapper.threshold_per_class}; "
         f"per-router={list((wrapper.threshold_per_router or {}).keys())}; "
         f"wrote {args.out}"
     )
+    if args.manifest_out is not None:
+        print(f"wrote {args.manifest_out}")
 
 
 if __name__ == "__main__":

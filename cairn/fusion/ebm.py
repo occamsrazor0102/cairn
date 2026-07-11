@@ -355,9 +355,21 @@ class EBMFusion:
 
         # Per-feature contributions from EBM
         try:
-            local = self._model.explain_local(X)
-            contribs = dict(zip(features, local.data(0)["scores"]))
-            top = sorted(contribs.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
+            local_data = self._model.explain_local(X).data(0)
+            names = list(local_data.get("names") or features)
+            scores = list(local_data["scores"])
+            if len(names) != len(scores):
+                raise RuntimeError(
+                    f"EBM explanation returned {len(names)} names "
+                    f"for {len(scores)} scores"
+                )
+            contribs = {
+                str(name): float(score)
+                for name, score in zip(names, scores)
+            }
+            top = sorted(
+                contribs.items(), key=lambda item: abs(item[1]), reverse=True
+            )[:5]
         except Exception:
             logger.warning("EBM explain_local failed; feature attributions unavailable", exc_info=True)
             contribs = {}

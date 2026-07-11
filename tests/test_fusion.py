@@ -237,3 +237,108 @@ def test_ebm_fuse_with_domain_none_warns_and_defaults_to_prose(caplog):
         fusion.fuse([lr], word_count=200, domain=None)
     assert any("domain=None" in m for m in caplog.messages), \
         "fuse(domain=None) must emit a WARNING; saw " + repr(caplog.messages)
+
+
+def test_ebm_interaction_contributions_reconstruct_probability():
+    class _InteractionModel:
+        _cairn_feature_names = ["preamble_p_llm", "nssi_p_llm"]
+        _cairn_column_means = {
+            "preamble_p_llm": 0.5,
+            "nssi_p_llm": 0.5,
+        }
+        intercept_ = np.array([0.15])
+        term_names = [
+            "preamble_p_llm",
+            "nssi_p_llm",
+            "preamble_p_llm & nssi_p_llm",
+        ]
+        term_scores = [0.25, -0.1, 0.45]
+
+        def predict_proba(self, X):
+            logit = float(np.ravel(self.intercept_)[0]) + sum(self.term_scores)
+            p_llm = 1.0 / (1.0 + np.exp(-logit))
+            return np.array([[1.0 - p_llm, p_llm]])
+
+        def explain_local(self, X):
+            data = {"names": self.term_names, "scores": self.term_scores}
+
+            class _Explanation:
+                def data(self, _):
+                    return data
+
+            return _Explanation()
+
+    model = _InteractionModel()
+    fusion = EBMFusion(model=model)
+    layers = [
+        _make_layer_result("preamble", 0.8),
+        _make_layer_result("nssi", 0.7),
+    ]
+
+    result = fusion.fuse(layers, word_count=100, domain="prose")
+    assert "preamble_p_llm & nssi_p_llm" in result.feature_contributions
+
+    intercept = float(np.ravel(model.intercept_)[0])
+    logit = intercept + sum(result.feature_contributions.values())
+    reconstructed = 1.0 / (1.0 + np.exp(-logit))
+    assert reconstructed == pytest.approx(result.p_llm, abs=1e-9)
+
+
+def test_ebm_interaction_name_score_mismatch_uses_empty_fallback(caplog):
+    class _MismatchedExplanationModel:
+        _cairn_feature_names = ["preamble_p_llm"]
+        _cairn_column_means = {"preamble_p_llm": 0.5}
+
+        def predict_proba(self, X):
+            return np.array([[0.5, 0.5]])
+
+        def explain_local(self, X):
+            class _Explanation:
+                def data(self, _):
+                    return {
+                        "names": ["preamble_p_llm"],
+                        "scores": [0.1, 0.2],
+                    }
+
+            return _Explanation()
+
+    fusion = EBMFusion(model=_MismatchedExplanationModel())
+
+    with caplog.at_level("WARNING", logger="cairn.fusion"):
+        result = fusion.fuse(
+            [_make_layer_result("preamble", 0.5)],
+            word_count=100,
+            domain="prose",
+        )
+
+    assert result.feature_contributions == {}
+    assert result.top_contributors == []
+    assert any(
+        "feature attributions unavailable" in message
+        for message in caplog.messages
+    )
+
+
+def test_ebm_interaction_explanation_unsupported_preserves_fallback(caplog):
+    class _NoExplanationModel:
+        _cairn_feature_names = ["preamble_p_llm"]
+        _cairn_column_means = {"preamble_p_llm": 0.5}
+
+        def predict_proba(self, X):
+            return np.array([[0.5, 0.5]])
+
+    fusion = EBMFusion(model=_NoExplanationModel())
+
+    with caplog.at_level("WARNING", logger="cairn.fusion"):
+        result = fusion.fuse(
+            [_make_layer_result("preamble", 0.5)],
+            word_count=100,
+            domain="prose",
+        )
+
+    assert result.feature_contributions == {}
+    assert result.top_contributors == []
+    assert any(
+        "feature attributions unavailable" in message
+        for message in caplog.messages
+    )
