@@ -63,6 +63,111 @@ def make_tocsin_result(
     )
 
 
+def _cached_layer(layer_id: str, p_llm: float) -> LayerResult:
+    return LayerResult(
+        layer_id=layer_id,
+        domain="universal",
+        raw_score=p_llm,
+        p_llm=p_llm,
+        confidence=1.0,
+        signals={},
+        determination="RED" if p_llm >= 0.75 else "AMBER",
+        attacker_tiers=["A0"],
+        compute_cost="test",
+        min_text_length=0,
+    )
+
+
+def _write_replay_fixture(
+    tmp_path: Path, *, force_full: bool
+) -> tuple[Path, Path, str]:
+    text = normalize_text("cached cascade replay text")
+    cache_path = tmp_path / "features.jsonl"
+    config_path = tmp_path / "profile.yaml"
+    router = RouterDecision(
+        domain="prose",
+        confidence=1.0,
+        prompt_score=0.0,
+        prose_score=1.0,
+        word_count=100,
+        recommended_detectors=[],
+        skip_detectors=["prompt_structure"],
+    )
+    results = [
+        _cached_layer("preamble", 0.99),
+        _cached_layer("prompt_structure", 0.01),
+        _cached_layer("token_cohesiveness", 0.50),
+        _cached_layer("specdetect", 0.50),
+        _cached_layer("perturbation", 0.50),
+    ]
+    with cache_path.open("w", encoding="utf-8") as handle:
+        write_record(handle, text_hash(text), results, router)
+    if force_full:
+        cascade = """cascade:
+  phase1_short_circuit_high: 1.01
+  phase1_short_circuit_low: -0.01
+  phase2_short_circuit_high: 1.01
+  phase2_short_circuit_low: -0.01
+  phase3_always_run: true
+"""
+    else:
+        cascade = "cascade: {}\n"
+    config_path.write_text(
+        f"""
+_profile: cached_replay_test
+detectors:
+  preamble: {{enabled: true}}
+  prompt_structure: {{enabled: true}}
+  token_cohesiveness: {{enabled: true}}
+  specdetect: {{enabled: false}}
+  perturbation: {{enabled: true}}
+{cascade}
+fusion: {{}}
+decision:
+  red_threshold: 0.75
+  amber_threshold: 0.50
+  yellow_threshold: 0.25
+  abstention: {{enabled: false}}
+""".strip(),
+        encoding="utf-8",
+    )
+    return cache_path, config_path, text
+
+
+def test_cached_replay_short_circuits_after_phase_one_and_filters_router_skips(
+    tmp_path,
+):
+    cache_path, config_path, text = _write_replay_fixture(
+        tmp_path, force_full=False
+    )
+
+    determination, results, _router = CachedPipeline(
+        cache_path, config_path
+    ).analyze_detailed(text)
+
+    assert determination.cascade_phases == [1]
+    assert [result.layer_id for result in results] == ["preamble"]
+
+
+def test_cached_replay_forced_full_runs_all_phases_and_filters_disabled_layers(
+    tmp_path,
+):
+    cache_path, config_path, text = _write_replay_fixture(
+        tmp_path, force_full=True
+    )
+
+    determination, results, _router = CachedPipeline(
+        cache_path, config_path
+    ).analyze_detailed(text)
+
+    assert determination.cascade_phases == [1, 2, 3]
+    assert [result.layer_id for result in results] == [
+        "preamble",
+        "token_cohesiveness",
+        "perturbation",
+    ]
+
+
 class _SeedDetector:
     def __init__(self, seed: LayerResult) -> None:
         self._seed = seed
@@ -124,6 +229,7 @@ def run_stubbed_cached_pipeline(
         write_record(handle, text_hash(text), [copy.deepcopy(seed)], router)
 
     pipeline = CachedPipeline(cache_path, SCREENING_CONFIG)
+    pipeline._inner._config["detectors"]["token_cohesiveness"]["enabled"] = True
     pipeline._inner._detector_calibrator = calibrator
     _determination, results, _router = pipeline.analyze_detailed(text)
 
