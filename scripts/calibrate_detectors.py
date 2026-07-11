@@ -30,7 +30,7 @@ from cairn.calibration_training import (
 from cairn.contracts import LayerResult, RouterDecision
 from cairn.dotenv import load_dotenv
 from cairn.evaluation.dataset import EvalSample, load_dataset
-from cairn.feature_cache import CachedPipeline, load_cache, text_hash
+from cairn.feature_cache import load_cache, text_hash
 from cairn.pipeline import CairnPipeline, normalize_text
 
 try:
@@ -46,6 +46,7 @@ _CALIBRATOR_REJECTION_SIGNAL_KEYS = frozenset(
         "calibrator_nonfinite_raw",
         "calibrator_out_of_domain",
         "calibrator_signature_mismatch",
+        "calibrator_invalid_artifact",
     }
 )
 
@@ -369,16 +370,44 @@ def _validate_mode_args(
 
 
 def _run_legacy_mode(args: argparse.Namespace, samples: Sequence[EvalSample]) -> None:
+    cache = load_cache(args.features_cache) if args.features_cache else None
     pipeline = (
-        CachedPipeline(args.features_cache, args.config)
-        if args.features_cache
+        None
+        if cache is not None
         else CairnPipeline.from_config_file(args.config)
     )
+    # Calibration fitting must consume the detector's native raw result.
+    if pipeline is not None:
+        pipeline._detector_calibrator = None
     scores: dict[str, list[float]] = defaultdict(list)
     labels: dict[str, list[int]] = defaultdict(list)
     for sample in tqdm(samples, desc="analyzing", unit="sample"):
-        _, results, _ = pipeline.analyze_detailed(sample.text)
+        if cache is not None:
+            key = text_hash(normalize_text(sample.text))
+            cached = cache.get(key)
+            if cached is None:
+                raise KeyError(
+                    f"text not present in feature cache (hash={key[:12]}...)"
+                )
+            results = [LayerResult(**row) for row in cached["results"]]
+            for result in results:
+                _require_native_cached_result(result, result.layer_id, sample)
+        else:
+            assert pipeline is not None
+            _, results, _ = pipeline.analyze_detailed(sample.text)
         for result in results:
+            signature = result.signals.get("calibration_signature")
+            raw_channel = result.signals.get("calibration_raw_channel")
+            if signature is not None or raw_channel is not None:
+                raise ValueError(
+                    "legacy all-detector calibration encountered a signed "
+                    f"calibration observation for detector {result.layer_id!r}; "
+                    "signed observations require isolated v2 training. Re-run "
+                    f"with --only-detector {result.layer_id} "
+                    f"--detector-signature {signature} "
+                    f"--raw-channel {raw_channel} and the remaining isolated "
+                    "calibration flags."
+                )
             if result.determination == "SKIP":
                 continue
             scores[result.layer_id].append(float(result.raw_score))

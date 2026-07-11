@@ -287,6 +287,10 @@
   <span class="mode" id="profileIndicator"></span>
   <span class="mode" id="calibrationIndicator" style="margin-left:auto;"></span>
 </header>
+<div id="degradedBanner" hidden style="background:rgba(248,81,73,0.14);border-bottom:1px solid rgba(248,81,73,0.45);color:var(--ink);padding:8px 24px;font-size:12px;">
+  <strong>Calibration degraded</strong> â€” the profile declares a detector-calibration artifact that could not be loaded.
+  Detector probabilities are not fully calibrated; review the service logs and artifact deployment before relying on verdicts.
+</div>
 <div id="heuristicBanner" hidden style="background:rgba(228,163,58,0.15);border-bottom:1px solid rgba(228,163,58,0.4);color:var(--ink);padding:8px 24px;font-size:12px;">
   <strong>Heuristic mode</strong> — no trained fusion model or conformal calibrator loaded.
   P(LLM) values and confidence intervals come from hand-picked thresholds, not from a labeled dataset.
@@ -1741,9 +1745,12 @@ async function refreshProfileIndicator() {
     $("profileIndicator").textContent = _currentProfile ? `profile: ${_currentProfile}` : "";
     const cal = h.calibration_status || (h.model_loaded ? "fusion-only" : "heuristic");
     const calEl = $("calibrationIndicator");
-    if (cal === "calibrated") {
-      calEl.textContent = "calibrated";
+    if (cal === "calibrated" || cal === "calibrated-router-conditional") {
+      calEl.textContent = cal;
       calEl.style.color = "var(--green)";
+    } else if (cal === "degraded") {
+      calEl.textContent = "degraded calibration";
+      calEl.style.color = "var(--red)";
     } else if (cal === "fusion-only") {
       calEl.textContent = "fusion-only (no conformal)";
       calEl.style.color = "var(--amber)";
@@ -1751,6 +1758,7 @@ async function refreshProfileIndicator() {
       calEl.textContent = "heuristic (untrained)";
       calEl.style.color = "var(--amber)";
     }
+    $("degradedBanner").hidden = cal !== "degraded";
     $("heuristicBanner").hidden = cal !== "heuristic";
   } catch { /* swallow */ }
 }

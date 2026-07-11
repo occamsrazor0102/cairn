@@ -87,6 +87,7 @@ def test_health_reports_history_flag_and_profile(sidecar):
     assert h["profile"] == "screening"
     assert h["calibration_status"] in (
         "heuristic", "fusion-only", "calibrated", "calibrated-router-conditional",
+        "degraded",
     )
 
 
@@ -105,6 +106,26 @@ def test_health_reports_calibrated_router_conditional(sidecar, monkeypatch):
     ))
     h = sc.handle("health", {})
     assert h["calibration_status"] == "calibrated-router-conditional"
+
+
+def test_health_reports_sanitized_detector_calibration_failure(sidecar, tmp_path):
+    sc, _ = sidecar
+    secret_path = tmp_path / "private-calibration.json"
+    sc._pipeline._detector_calibration_state = {
+        "state": "load-failed",
+        "path": str(secret_path),
+        "error": f"failed to parse {secret_path}",
+    }
+    sc._pipeline._calibration_status = "degraded"
+
+    health = sc.handle("health", {})
+
+    assert health["calibration_status"] == "degraded"
+    assert health["detector_calibration"] == {
+        "state": "load-failed",
+        "error": "artifact-load-failed",
+    }
+    assert str(secret_path) not in str(health)
 
 
 def test_feedback_also_writes_history_feedback(sidecar):

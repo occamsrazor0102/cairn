@@ -45,7 +45,8 @@ docker compose up --build
 Endpoints:
 
 - `GET  /health`   — liveness + model info + `calibration_status` (one of
-  `heuristic`, `fusion-only`, `calibrated`, `calibrated-router-conditional`);
+  `heuristic`, `fusion-only`, `calibrated`, `calibrated-router-conditional`,
+  `degraded`); detector-calibration details are sanitized for this endpoint.
   see [`docs/calibration.md`](calibration.md) for what each tier means and
   which profiles produce it.
 - `GET  /config`   — current (redacted) config

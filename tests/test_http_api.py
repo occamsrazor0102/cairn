@@ -147,7 +147,59 @@ def test_health_reports_history_enabled(server):
     # The UI relies on this field to show the right calibration banner.
     assert body["calibration_status"] in (
         "heuristic", "fusion-only", "calibrated", "calibrated-router-conditional",
+        "degraded",
     )
+
+
+def test_gui_health_reports_sanitized_detector_calibration_failure(tmp_path):
+    config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
+    cfg = load_config(config_path)
+    pipeline = CairnPipeline(cfg)
+    secret_path = tmp_path / "private-calibration.json"
+    pipeline._detector_calibration_state = {
+        "state": "load-failed",
+        "path": str(secret_path),
+        "error": f"failed to parse {secret_path}",
+    }
+    pipeline._calibration_status = "degraded"
+    ctx = RuntimeContext(pipeline, "screening", cfg)
+    history = HistoryStore(tmp_path / "degraded-history.sqlite3")
+    handler = _make_handler(
+        meta=MetaDetector(),
+        feedback_path=tmp_path / "degraded-feedback.jsonl",
+        history=history,
+        ctx=ctx,
+        drift=DriftMonitor(tmp_path / "degraded-drift", cfg),
+    )
+    httpd = HTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        _status, health = _get_json(
+            f"http://127.0.0.1:{httpd.server_address[1]}",
+            "/health",
+        )
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+
+    assert health["calibration_status"] == "degraded"
+    assert health["detector_calibration"] == {
+        "state": "load-failed",
+        "error": "artifact-load-failed",
+    }
+    assert str(secret_path) not in str(health)
+
+
+def test_static_ui_has_explicit_degraded_calibration_banner():
+    html = (
+        Path(__file__).parent.parent / "cairn" / "gui" / "static" / "index.html"
+    ).read_text(encoding="utf-8")
+
+    assert 'id="degradedBanner"' in html
+    assert 'cal === "degraded"' in html
+    assert '$("degradedBanner").hidden = cal !== "degraded"' in html
 
 
 def test_index_served(server):

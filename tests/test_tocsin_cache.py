@@ -13,6 +13,7 @@ import pytest
 from cairn.detectors.token_cohesiveness import (
     TOCSIN_COHESIVENESS_SIGNATURE,
     TOCSIN_COMBINED_SIGNATURE,
+    build_tocsin_calibration_signature,
 )
 from cairn.feature_cache import text_hash
 from cairn.normalizer import normalize_text
@@ -162,6 +163,32 @@ def write_cache(path: Path, records: list[dict[str, object]]) -> Path:
     return path
 
 
+def custom_identity_record(
+    text: str,
+    *,
+    channel: str = "combined_w",
+    bart_model: str = "org/custom-bart",
+    base_model: str | None = "org/custom-fast",
+) -> tuple[dict[str, object], str, dict[str, str]]:
+    signature, identity = build_tocsin_calibration_signature(
+        channel,
+        bart_model=bart_model,
+        base_model=base_model,
+    )
+    record = cache_record(text)
+    signals = record["results"][0]["signals"]  # type: ignore[index]
+    signals.update(
+        {
+            "calibration_signature": signature,
+            "calibration_raw_channel": channel,
+            "calibration_identity": identity,
+            "base_v": 0.32 if channel == "combined_w" else None,
+        }
+    )
+    signals[channel] = record["results"][0]["raw_score"]  # type: ignore[index]
+    return record, signature, identity
+
+
 def test_valid_combined_signature_cache_passes(tmp_path: Path) -> None:
     texts = [long_text("active"), short_text("skip")]
     dataset = write_dataset(tmp_path / "data.jsonl", texts)
@@ -204,6 +231,91 @@ def test_valid_combined_signature_cache_passes(tmp_path: Path) -> None:
     assert summary.to_dict()["layer_counts"] == summary.layer_counts
     with pytest.raises(FrozenInstanceError):
         summary.active_rows = 99  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    ("channel", "base_model"),
+    [
+        ("combined_w", "org/custom-fast"),
+        ("cohesiveness_u", None),
+    ],
+)
+def test_valid_identity_bound_custom_signature_cache_passes(
+    tmp_path: Path,
+    channel: str,
+    base_model: str | None,
+) -> None:
+    text = long_text("custom")
+    dataset = write_dataset(tmp_path / "data.jsonl", [text])
+    record, signature, _identity = custom_identity_record(
+        text,
+        channel=channel,
+        base_model=base_model,
+    )
+    cache = write_cache(tmp_path / "features.jsonl", [record])
+
+    summary = validate_tocsin_cache(
+        dataset,
+        cache,
+        expected_signature=signature,
+    )
+
+    assert summary.calibration_signature == signature
+    assert summary.calibration_raw_channel == channel
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing", "custom.*calibration_identity"),
+        ("not-object", "calibration_identity.*object"),
+        ("missing-model", "calibration_identity"),
+        ("identity-mismatch", "signature.*identity"),
+        ("spoofed-signature", "signature.*identity"),
+    ],
+)
+def test_rejects_invalid_or_spoofed_custom_calibration_identity(
+    tmp_path: Path,
+    mutation: str,
+    message: str,
+) -> None:
+    text = long_text(mutation)
+    dataset = write_dataset(tmp_path / "data.jsonl", [text])
+    record, _signature, _identity = custom_identity_record(text)
+    signals = record["results"][0]["signals"]  # type: ignore[index]
+    if mutation == "missing":
+        del signals["calibration_identity"]
+    elif mutation == "not-object":
+        signals["calibration_identity"] = "not-an-object"
+    elif mutation == "missing-model":
+        del signals["calibration_identity"]["bart_model"]
+    elif mutation == "identity-mismatch":
+        signals["calibration_identity"]["base_model"] = "org/spoofed-fast"
+    else:
+        signals["calibration_signature"] = (
+            TOCSIN_COMBINED_SIGNATURE + "-0000000000000000"
+        )
+    cache = write_cache(tmp_path / "features.jsonl", [record])
+
+    with pytest.raises(ValueError, match=message):
+        validate_tocsin_cache(dataset, cache)
+
+
+def test_rejects_default_signature_with_spoofed_identity(tmp_path: Path) -> None:
+    text = long_text("default-spoof")
+    dataset = write_dataset(tmp_path / "data.jsonl", [text])
+    record = cache_record(text)
+    record["results"][0]["signals"]["calibration_identity"] = {  # type: ignore[index]
+        "raw_channel": "combined_w",
+        "tocsin_algorithm": "random-deletion-bartscore-v1",
+        "bart_model": "org/custom-bart",
+        "base_algorithm": "fast-detectgpt-curvature-v1",
+        "base_model": "org/custom-fast",
+    }
+    cache = write_cache(tmp_path / "features.jsonl", [record])
+
+    with pytest.raises(ValueError, match="signature.*identity"):
+        validate_tocsin_cache(dataset, cache)
 
 
 def test_rejects_normalized_text_hash_coverage_mismatch(tmp_path: Path) -> None:

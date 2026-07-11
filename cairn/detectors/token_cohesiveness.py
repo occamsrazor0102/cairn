@@ -36,12 +36,16 @@ Privacy: all scoring is on-device.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import math
 import random
 import threading
 
 from cairn.benchmarks.fast_detectgpt import (
+    FAST_DETECTGPT_ALGORITHM_ID,
+    FAST_DETECTGPT_DEFAULT_MODEL,
     FastDetectGPTAdapter,
     _heuristic_curvature_to_p_llm,
     _select_device,
@@ -61,9 +65,59 @@ TOCSIN_SIGNATURE_TO_RAW_CHANNEL = {
 _DELETION_RATIO = 0.015          # ρ — fraction of tokens deleted per copy
 _N_COPIES = 10                   # number of deleted copies per text
 _BART_MODEL = "facebook/bart-base"
+_TOCSIN_ALGORITHM_ID = "random-deletion-bartscore-v1"
 # TOCSIN degrades on passages under ~90 tokens; ~60 words is a comparable
 # floor. Below this we SKIP rather than emit a noisy verdict.
 _MIN_WORDS = 60
+
+
+def build_tocsin_calibration_signature(
+    raw_channel: str,
+    *,
+    bart_model: str,
+    base_model: str | None = None,
+) -> tuple[str, dict[str, str]]:
+    """Return a stable calibration signature and its auditable identity tuple."""
+    if not isinstance(bart_model, str) or not bart_model.strip():
+        raise ValueError("bart_model must be a non-empty string")
+    if raw_channel == "combined_w":
+        if not isinstance(base_model, str) or not base_model.strip():
+            raise ValueError(
+                "base_model must be a non-empty string for combined_w"
+            )
+        base_signature = TOCSIN_COMBINED_SIGNATURE
+        identity = {
+            "raw_channel": raw_channel,
+            "tocsin_algorithm": _TOCSIN_ALGORITHM_ID,
+            "bart_model": bart_model,
+            "base_algorithm": FAST_DETECTGPT_ALGORITHM_ID,
+            "base_model": base_model,
+        }
+        is_default = (
+            bart_model == _BART_MODEL
+            and base_model == FAST_DETECTGPT_DEFAULT_MODEL
+        )
+    elif raw_channel == "cohesiveness_u":
+        base_signature = TOCSIN_COHESIVENESS_SIGNATURE
+        identity = {
+            "raw_channel": raw_channel,
+            "tocsin_algorithm": _TOCSIN_ALGORITHM_ID,
+            "bart_model": bart_model,
+        }
+        is_default = bart_model == _BART_MODEL
+    else:  # defensive: signatures are calibration contracts, not free text
+        raise ValueError(f"unsupported TOCSIN raw channel {raw_channel!r}")
+
+    if is_default:
+        return base_signature, identity
+    canonical = json.dumps(
+        identity,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    suffix = hashlib.sha256(canonical).hexdigest()[:16]
+    return f"{base_signature}-{suffix}", identity
 
 
 def _try_import_torch():
@@ -189,7 +243,13 @@ class TokenCohesivenessDetector:
             # cohesiveness alone: more cohesive (u→0) → more LLM-like.
             p_llm = _heuristic_cohesiveness_to_p_llm(cohesiveness_u)
             raw_score = cohesiveness_u
-            calibration_signature = TOCSIN_COHESIVENESS_SIGNATURE
+            calibration_raw_channel = "cohesiveness_u"
+            calibration_signature, calibration_identity = (
+                build_tocsin_calibration_signature(
+                    calibration_raw_channel,
+                    bart_model=self._model_name,
+                )
+            )
         else:
             # Paper's exponential combination, sign-aware on the base score.
             if base_v >= 0:
@@ -198,11 +258,14 @@ class TokenCohesivenessDetector:
                 combined_w = math.exp(-cohesiveness_u) * base_v
             p_llm = _heuristic_curvature_to_p_llm(combined_w)
             raw_score = combined_w
-            calibration_signature = TOCSIN_COMBINED_SIGNATURE
-
-        calibration_raw_channel = TOCSIN_SIGNATURE_TO_RAW_CHANNEL[
-            calibration_signature
-        ]
+            calibration_raw_channel = "combined_w"
+            calibration_signature, calibration_identity = (
+                build_tocsin_calibration_signature(
+                    calibration_raw_channel,
+                    bart_model=self._model_name,
+                    base_model=self._base.model_name,
+                )
+            )
 
         if p_llm >= 0.75:
             determination = "RED"
@@ -223,6 +286,7 @@ class TokenCohesivenessDetector:
                 "combined_w": round(float(combined_w), 5),
                 "calibration_signature": calibration_signature,
                 "calibration_raw_channel": calibration_raw_channel,
+                "calibration_identity": calibration_identity,
                 "deletion_ratio": _DELETION_RATIO,
                 "n_copies": _N_COPIES,
             },

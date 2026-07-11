@@ -45,11 +45,12 @@ see [`docs/benchmarks/README.md`](benchmarks/README.md).
 ## Calibration tiers — what `/health` reports
 
 The pipeline above produces artifacts that the loader classifies into
-one of four `calibration_status` tiers, surfaced by `/health` and the
+one of five `calibration_status` states, surfaced by `/health` and the
 GUI banner:
 
 | Tier | Stage 3 artifacts present | Coverage guarantee |
 |------|---------------------------|--------------------|
+| `degraded` | a declared detector-calibration artifact failed to load | none; operator action required before calibrated use |
 | `heuristic` | none — no EBM, no conformal | none; naive weighted-mean fusion |
 | `fusion-only` | EBM `model_path` only | none; calibrated `p_llm` but no conformal sets |
 | `calibrated` | EBM + split-conformal (v1/v2 schema) | marginal coverage at calibrated alpha |

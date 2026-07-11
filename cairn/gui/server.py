@@ -185,28 +185,9 @@ def _make_handler(
                 self._serve_static("index.html")
             elif path == "/health":
                 pipe = ctx.pipeline
-                model_loaded = pipe._fusion._model is not None
-                conformal_loaded = (
-                    pipe._fusion._conformal is not None
-                    and getattr(pipe._fusion._conformal, "calibrated", False)
-                )
-                router_conditional = (
-                    conformal_loaded
-                    and getattr(pipe._fusion._conformal, "threshold_per_router", None)
-                )
-                if model_loaded and router_conditional:
-                    cal_status = "calibrated-router-conditional"
-                elif model_loaded and conformal_loaded:
-                    cal_status = "calibrated"
-                elif model_loaded:
-                    cal_status = "fusion-only"
-                else:
-                    cal_status = "heuristic"
                 self._send_json(200, {
                     "status": "ok",
-                    "model_loaded": model_loaded,
-                    "conformal_loaded": conformal_loaded,
-                    "calibration_status": cal_status,
+                    **pipe.calibration_health(),
                     "history_enabled": history is not None,
                     "profile": ctx.profile,
                     "auth": auth_status_for_health(auth_cfg),

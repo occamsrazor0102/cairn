@@ -284,8 +284,8 @@ leaves the old context untouched.
   }
   ```
 
-  `calibration_status` mirrors the `/health` ladder exactly — one of
-  `"heuristic"`, `"fusion-only"`, or `"calibrated"` (with the same
+  `calibration_status` records one of `"heuristic"`, `"fusion-only"`,
+  `"calibrated"`, or `"degraded"` (with the same
   `getattr(conformal, "calibrated", False)` guard so a loaded-but-unfit
   conformal does not falsely promote records).
 

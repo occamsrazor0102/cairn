@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -343,6 +344,7 @@ def test_live_isolated_collection_disables_configured_calibration_before_analysi
     [
         ("applied", "calibrator_applied=True"),
         ("guard_rejected", "calibrator_signature_mismatch"),
+        ("invalid_artifact", "calibrator_invalid_artifact"),
     ],
 )
 def test_cached_isolated_collection_rejects_calibrator_mutated_target_rows(
@@ -355,13 +357,18 @@ def test_cached_isolated_collection_rejects_calibrator_mutated_target_rows(
     if cached_state == "applied":
         result.calibrator_applied = True
         result.p_llm = 0.99
-    else:
+    elif cached_state == "guard_rejected":
         result.determination = "SKIP"
         result.signals["calibrator_signature_mismatch"] = {
             "result_signature": SIGNATURE,
             "artifact_signature": "stale-signature",
             "result_raw_channel": RAW_CHANNEL,
             "artifact_raw_channel": RAW_CHANNEL,
+        }
+    else:
+        result.determination = "SKIP"
+        result.signals["calibrator_invalid_artifact"] = {
+            "reason": "corrupt runtime state"
         }
     cache = tmp_path / "cache.jsonl"
     with cache.open("w", encoding="utf-8", newline="\n") as handle:
@@ -655,6 +662,86 @@ def test_legacy_no_flag_mode_still_fits_all_detector_ids_unweighted(tmp_path):
     assert payload["legacy_b"]["schema"] == "isotonic-thresholds-v1"
     assert "weighting_policy" not in payload["legacy_a"]
     assert "weighting_policy" not in payload["legacy_b"]
+
+
+def test_legacy_no_flag_mode_rejects_signed_observations_with_isolated_guidance(
+    tmp_path,
+):
+    dataset = tmp_path / "dataset.jsonl"
+    cache = tmp_path / "cache.jsonl"
+    samples = [
+        _sample("human", word_count=60, label=0),
+        _sample("positive", word_count=60, label=1),
+    ]
+    _write_cached_fixture(dataset, cache, samples)
+    config = tmp_path / "config.yaml"
+    config.write_text("_extends: default\n", encoding="utf-8")
+    out = tmp_path / "legacy.json"
+
+    with pytest.raises(ValueError) as exc:
+        calibrate_cli.main(
+            [
+                "--dataset",
+                str(dataset),
+                "--config",
+                str(config),
+                "--features-cache",
+                str(cache),
+                "--out",
+                str(out),
+            ]
+        )
+
+    message = str(exc.value)
+    assert "signed calibration observation" in message
+    assert "--only-detector token_cohesiveness" in message
+    assert f"--detector-signature {SIGNATURE}" in message
+    assert f"--raw-channel {RAW_CHANNEL}" in message
+    assert not out.exists()
+
+
+def test_live_legacy_collection_disables_configured_calibrator(tmp_path, monkeypatch):
+    samples = [
+        _sample("human-live", word_count=60, label=0),
+        _sample("positive-live", word_count=60, label=1),
+    ]
+
+    class PoisonCalibrator:
+        def apply(self, result):
+            result.determination = "SKIP"
+
+    class LivePipeline:
+        def __init__(self):
+            self._detector_calibrator = PoisonCalibrator()
+
+        def analyze_detailed(self, text):
+            raw = 1.0 if "positive-live" in text else 0.0
+            result = _layer(
+                raw,
+                layer_id="legacy_live",
+                signature=None,
+                raw_channel=None,
+            )
+            if self._detector_calibrator is not None:
+                self._detector_calibrator.apply(result)
+            return object(), [result], _router(60)
+
+    pipeline = LivePipeline()
+    monkeypatch.setattr(
+        calibrate_cli.CairnPipeline,
+        "from_config_file",
+        lambda _path: pipeline,
+    )
+    out = tmp_path / "legacy-live.json"
+
+    calibrate_cli._run_legacy_mode(
+        SimpleNamespace(features_cache=None, config=tmp_path / "config.yaml", out=out),
+        samples,
+    )
+
+    assert pipeline._detector_calibrator is None
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["legacy_live"]["schema"] == "isotonic-thresholds-v1"
 
 
 @pytest.mark.parametrize(

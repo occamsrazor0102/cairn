@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Iterator, Sequence
 
 from cairn.detectors.token_cohesiveness import (
+    build_tocsin_calibration_signature,
     TOCSIN_SIGNATURE_TO_RAW_CHANNEL,
     _DELETION_RATIO,
     _MIN_WORDS,
@@ -24,6 +25,46 @@ _TOCSIN_LAYER_ID = "token_cohesiveness"
 _API_LAYER_IDS = frozenset({"contrastive_gen", "dna_gpt"})
 _FULL_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _RAW_CHANNEL_ABS_TOLERANCE = 1e-5
+
+
+def _validated_calibration_identity(
+    identity: object,
+) -> tuple[str, str]:
+    if not isinstance(identity, dict):
+        raise ValueError("calibration_identity must be an object")
+    channel = identity.get("raw_channel")
+    if channel == "combined_w":
+        required = {
+            "raw_channel",
+            "tocsin_algorithm",
+            "bart_model",
+            "base_algorithm",
+            "base_model",
+        }
+    elif channel == "cohesiveness_u":
+        required = {"raw_channel", "tocsin_algorithm", "bart_model"}
+    else:
+        raise ValueError("calibration_identity has an unsupported raw_channel")
+    if set(identity) != required or not all(
+        isinstance(identity[field], str) and bool(identity[field].strip())
+        for field in required
+    ):
+        raise ValueError("calibration_identity fields are malformed")
+    try:
+        expected_signature, expected_identity = (
+            build_tocsin_calibration_signature(
+                channel,
+                bart_model=identity["bart_model"],
+                base_model=identity.get("base_model"),
+            )
+        )
+    except ValueError as exc:
+        raise ValueError(f"calibration_identity is malformed: {exc}") from exc
+    if identity != expected_identity:
+        raise ValueError(
+            "calibration signature identity uses unsupported algorithm metadata"
+        )
+    return expected_signature, channel
 
 
 @dataclass(frozen=True)
@@ -255,13 +296,34 @@ def _validate_tocsin_result(
             f"{cache_path}: hash={key}: layer={layer}: missing TOCSIN "
             "calibration_signature"
         )
-    if not isinstance(signature, str) or signature not in TOCSIN_SIGNATURE_TO_RAW_CHANNEL:
+    if not isinstance(signature, str) or not signature:
         raise ValueError(
             f"{cache_path}: hash={key}: layer={layer}: unsupported TOCSIN "
             f"calibration_signature={signature!r}"
         )
-    expected_channel = TOCSIN_SIGNATURE_TO_RAW_CHANNEL[signature]
     channel = signals.get("calibration_raw_channel")
+    identity = signals.get("calibration_identity")
+    if signature in TOCSIN_SIGNATURE_TO_RAW_CHANNEL and identity is None:
+        expected_channel = TOCSIN_SIGNATURE_TO_RAW_CHANNEL[signature]
+    else:
+        if identity is None:
+            raise ValueError(
+                f"{cache_path}: hash={key}: layer={layer}: custom TOCSIN "
+                "signature requires calibration_identity"
+            )
+        try:
+            expected_signature, expected_channel = (
+                _validated_calibration_identity(identity)
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"{cache_path}: hash={key}: layer={layer}: {exc}"
+            ) from exc
+        if signature != expected_signature:
+            raise ValueError(
+                f"{cache_path}: hash={key}: layer={layer}: calibration "
+                "signature disagrees with calibration_identity"
+            )
     if channel != expected_channel:
         raise ValueError(
             f"{cache_path}: hash={key}: layer={layer}: raw channel {channel!r} "

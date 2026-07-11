@@ -11,6 +11,8 @@ fastapi = pytest.importorskip("fastapi", reason="FastAPI not installed")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from cairn.api import create_app  # noqa: E402
+from cairn.config import load_config  # noqa: E402
+from cairn.pipeline import CairnPipeline  # noqa: E402
 
 
 @pytest.fixture
@@ -28,7 +30,37 @@ def test_health(client):
     assert "detectors" in data
     assert data["calibration_status"] in (
         "heuristic", "fusion-only", "calibrated", "calibrated-router-conditional",
+        "degraded",
     )
+
+
+def test_health_uses_pipeline_degraded_state_and_sanitizes_load_error(
+    tmp_path,
+    monkeypatch,
+):
+    secret_path = tmp_path / "private" / "bad-calibration.json"
+    config_path = Path(__file__).parent.parent / "configs" / "screening.yaml"
+    pipeline = CairnPipeline(load_config(config_path))
+    pipeline._detector_calibration_state = {
+        "state": "load-failed",
+        "path": str(secret_path),
+        "error": f"invalid JSON at {secret_path}",
+    }
+    pipeline._calibration_status = "degraded"
+    monkeypatch.setattr(
+        CairnPipeline,
+        "from_config_file",
+        lambda _path: pipeline,
+    )
+
+    data = TestClient(create_app(config_path)).get("/health").json()
+
+    assert data["calibration_status"] == "degraded"
+    assert data["detector_calibration"] == {
+        "state": "load-failed",
+        "error": "artifact-load-failed",
+    }
+    assert str(secret_path) not in str(data)
 
 
 def test_config_is_redacted(client):

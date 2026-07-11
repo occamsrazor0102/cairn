@@ -183,16 +183,12 @@ class CairnPipeline:
             logger.info(f"Detector '{name}' unavailable: {err}")
 
     def _compute_calibration_status(self) -> str:
-        # Mirrors the /health computation in sidecar.py / gui/server.py
-        # exactly — including the `calibrated` attr guard, so a
-        # loaded-but-unfit ConformalWrapper does not falsely promote
-        # audit records to "calibrated". Pinned at init so the audit
-        # record reflects the artifact actually loaded, not whatever
-        # might be swapped in mid-process later. Note: post-merge with
-        # the honest-calibration sprint, /health may emit a 4-tier
-        # vocabulary including "calibrated-router-conditional"; the
-        # audit chain currently coarsens to the 3-tier ladder. See the
-        # follow-up issue tracked in the deferred backlog.
+        # Pinned at init so determinations and audit records reflect the
+        # artifacts actually loaded, not later runtime mutation. Health APIs
+        # use calibration_health(), which adds router-conditional detail and
+        # publishes only a sanitized detector-calibration failure state.
+        if self._detector_calibration_state["state"] == "load-failed":
+            return "degraded"
         model = getattr(self._fusion, "_model", None)
         conformal = getattr(self._fusion, "_conformal", None)
         conformal_loaded = (
@@ -204,6 +200,44 @@ class CairnPipeline:
         if model is not None:
             return "fusion-only"
         return "heuristic"
+
+    def calibration_health(self) -> dict[str, object]:
+        """Return the canonical, sanitized calibration state for health APIs."""
+        model = getattr(self._fusion, "_model", None)
+        conformal = getattr(self._fusion, "_conformal", None)
+        model_loaded = model is not None
+        conformal_loaded = (
+            conformal is not None
+            and getattr(conformal, "calibrated", False)
+        )
+        state = self._detector_calibration_state["state"]
+        if state == "load-failed":
+            calibration_status = "degraded"
+        elif (
+            model_loaded
+            and conformal_loaded
+            and getattr(conformal, "threshold_per_router", None)
+        ):
+            calibration_status = "calibrated-router-conditional"
+        elif model_loaded and conformal_loaded:
+            calibration_status = "calibrated"
+        elif model_loaded:
+            calibration_status = "fusion-only"
+        else:
+            calibration_status = "heuristic"
+        return {
+            "model_loaded": model_loaded,
+            "conformal_loaded": conformal_loaded,
+            "calibration_status": calibration_status,
+            "detector_calibration": {
+                "state": state,
+                "error": (
+                    "artifact-load-failed"
+                    if state == "load-failed"
+                    else None
+                ),
+            },
+        }
 
     @staticmethod
     def _compute_model_artifact_hash(config: dict) -> str | None:
@@ -307,20 +341,62 @@ class CairnPipeline:
             word_count_clamp=int(clamp) if clamp is not None else None,
         )
 
-    @staticmethod
-    def _build_detector_calibrator(config: dict):
+    @property
+    def detector_calibration_state(self) -> dict[str, str | None]:
+        """Audit-safe state for the detector-calibration artifact declaration."""
+        return dict(self._detector_calibration_state)
+
+    def _build_detector_calibrator(self, config: dict):
         fusion_cfg = config.get("fusion", {}) or {}
         cal_path = fusion_cfg.get("detector_calibration_path")
-        if not cal_path or not Path(cal_path).exists():
-            if cal_path:
-                logger.info(f"Detector calibration path '{cal_path}' not found; skipping")
+        if not cal_path:
+            self._detector_calibration_state = {
+                "state": "not-configured",
+                "path": None,
+                "error": None,
+            }
+            return None
+        path_text = str(cal_path)
+        try:
+            path = Path(cal_path)
+        except (TypeError, ValueError) as exc:
+            self._detector_calibration_state = {
+                "state": "load-failed",
+                "path": path_text,
+                "error": str(exc),
+            }
+            logger.warning(
+                f"Failed to resolve detector calibrator path {cal_path}: {exc}"
+            )
+            return None
+        if not path.exists():
+            error = "artifact path not found"
+            self._detector_calibration_state = {
+                "state": "load-failed",
+                "path": path_text,
+                "error": error,
+            }
+            logger.warning(
+                f"Detector calibration path '{cal_path}' not found; "
+                "marking calibration degraded"
+            )
             return None
         try:
             from cairn.calibration import DetectorCalibrator
             cal = DetectorCalibrator()
-            cal.load(Path(cal_path))
+            cal.load(path)
+            self._detector_calibration_state = {
+                "state": "loaded",
+                "path": path_text,
+                "error": None,
+            }
             return cal
         except Exception as e:
+            self._detector_calibration_state = {
+                "state": "load-failed",
+                "path": path_text,
+                "error": str(e) or type(e).__name__,
+            }
             logger.warning(f"Failed to load detector calibrator at {cal_path}: {e}")
             return None
 

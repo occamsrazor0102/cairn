@@ -39,6 +39,9 @@ from cairn.benchmarks.base import CompetitorAdapter
 
 log = logging.getLogger("cairn.benchmarks.fast_detectgpt")
 
+FAST_DETECTGPT_ALGORITHM_ID = "fast-detectgpt-curvature-v1"
+FAST_DETECTGPT_DEFAULT_MODEL = "gpt2"
+
 
 def _try_import_torch() -> tuple[Any, bool]:
     try:
@@ -102,7 +105,7 @@ class FastDetectGPTAdapter:
         self._model_name = (
             scoring_model
             or os.environ.get("CAIRN_FAST_DETECTGPT_MODEL")
-            or "gpt2"
+            or FAST_DETECTGPT_DEFAULT_MODEL
         )
         torch, _ = _try_import_torch()
         requested_device = (
@@ -113,6 +116,11 @@ class FastDetectGPTAdapter:
         self._device = _select_device(torch, requested_device)
         self._model: Any = None
         self._tokenizer: Any = None
+
+    @property
+    def model_name(self) -> str:
+        """Resolved scoring-model identity used by this adapter instance."""
+        return self._model_name
 
     # ------------------------------------------------------------------ deps
 

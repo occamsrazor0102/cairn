@@ -4,6 +4,7 @@ import copy
 import json
 import math
 
+import numpy as np
 import pytest
 
 from cairn.calibration import CalibrationMetadata, DetectorCalibrator
@@ -129,35 +130,18 @@ def test_malformed_versioned_fit_cannot_apply_as_legacy(
     artifact_signature, artifact_channel
 ):
     calibrator = DetectorCalibrator()
-    calibrator.fit(
-        "token_cohesiveness",
-        [-0.4, -0.2, 0.0, 0.1],
-        [0, 0, 1, 1],
-        metadata=CalibrationMetadata(
-            detector_signature=artifact_signature,
-            raw_channel=artifact_channel,
-            training_dataset_hash="sha256:abc",
-            weighting_policy={"policy": "source-length-balanced-v1"},
-        ),
-    )
-    result = layer(
-        raw=0.0,
-        signature=artifact_signature,
-        raw_channel=artifact_channel,
-    )
-
-    assert calibrator.apply(result) is False
-    assert result.calibrator_applied is False
-    assert result.determination == "SKIP"
-    assert result.signals["calibrator_signature_mismatch"] == {
-        "result_signature": artifact_signature,
-        "artifact_signature": artifact_signature,
-        "result_raw_channel": artifact_channel,
-        "artifact_raw_channel": artifact_channel,
-    }
-    assert result.raw_score == pytest.approx(0.0)
-    assert result.p_llm == pytest.approx(0.37)
-    assert result.signals["native_evidence"] == "preserve-me"
+    with pytest.raises(ValueError, match="invalid v2 calibration metadata"):
+        calibrator.fit(
+            "token_cohesiveness",
+            [-0.4, -0.2, 0.0, 0.1],
+            [0, 0, 1, 1],
+            metadata=CalibrationMetadata(
+                detector_signature=artifact_signature,
+                raw_channel=artifact_channel,
+                training_dataset_hash="sha256:abc",
+                weighting_policy={"policy": "source-length-balanced-v1"},
+            ),
+        )
 
 
 @pytest.mark.parametrize(
@@ -193,25 +177,115 @@ def test_malformed_loaded_v2_cannot_apply_as_legacy(
     path = tmp_path / "malformed-v2.json"
     write_versioned_artifact(path, identity)
     calibrator = DetectorCalibrator()
-    calibrator.load(path)
-    result = layer(
-        raw=0.0,
-        signature=artifact_signature,
-        raw_channel=artifact_channel,
+    with pytest.raises(RuntimeError, match="invalid v2 calibration artifact"):
+        calibrator.load(path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("X", [-0.4, float("nan"), 0.1]),
+        ("X", [-0.4, 0.0, -0.2]),
+        ("y", [0.0, float("inf"), 1.0, 1.0]),
+        ("y", [0.0, 1.0, 0.5, 1.0]),
+        ("support_min", float("nan")),
+        ("support_min", -0.3),
+        ("support_max", -0.5),
+        ("support_max", 0.2),
+        ("training_rows", 0),
+        ("training_rows", 3),
+        ("class_counts", {"0": 4, "1": 0}),
+        ("class_counts", {"0": 2, "1": float("inf")}),
+        ("training_dataset_hash", ""),
+        ("weighting_policy", {"policy": "weighted", "max_weight": float("nan")}),
+    ],
+)
+def test_load_rejects_malformed_v2_numeric_and_metadata_state(
+    tmp_path,
+    field,
+    value,
+):
+    path = tmp_path / "malformed-v2.json"
+    write_versioned_artifact(
+        path,
+        {
+            "detector_signature": TOCSIN_COMBINED_SIGNATURE,
+            "raw_channel": "combined_w",
+        },
     )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["token_cohesiveness"][field] = value
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="invalid v2 calibration artifact"):
+        DetectorCalibrator().load(path)
+
+
+def test_apply_rejects_v2_model_corrupted_after_load():
+    calibrator = fitted_versioned()
+    calibrator._fit_stats["token_cohesiveness"]["support_min"] = float("nan")
+    result = layer(raw=999.0)
 
     assert calibrator.apply(result) is False
     assert result.calibrator_applied is False
     assert result.determination == "SKIP"
-    assert result.signals["calibrator_signature_mismatch"] == {
-        "result_signature": artifact_signature,
-        "artifact_signature": artifact_signature,
-        "result_raw_channel": artifact_channel,
-        "artifact_raw_channel": artifact_channel,
-    }
-    assert result.raw_score == pytest.approx(0.0)
+    assert result.signals["calibrator_invalid_artifact"]["reason"]
     assert result.p_llm == pytest.approx(0.37)
-    assert result.signals["native_evidence"] == "preserve-me"
+
+
+@pytest.mark.parametrize(
+    ("corruption", "value"),
+    [
+        ("X_thresholds_", None),
+        ("y_thresholds_", [0.0, 1.0]),
+        ("X_thresholds_", np.asarray([[0.0, 1.0]])),
+    ],
+)
+def test_apply_normalizes_malformed_runtime_knot_state(
+    corruption,
+    value,
+):
+    calibrator = fitted_versioned()
+    setattr(calibrator._models["token_cohesiveness"], corruption, value)
+    result = layer(raw=0.0)
+
+    assert calibrator.apply(result) is False
+    assert result.determination == "SKIP"
+    assert result.calibrator_applied is False
+    assert "calibrator_invalid_artifact" in result.signals
+    assert result.p_llm == pytest.approx(0.37)
+
+
+def test_apply_normalizes_missing_runtime_knot_state():
+    calibrator = fitted_versioned()
+    del calibrator._models["token_cohesiveness"].X_thresholds_
+    result = layer(raw=0.0)
+
+    assert calibrator.apply(result) is False
+    assert result.determination == "SKIP"
+    assert "calibrator_invalid_artifact" in result.signals
+
+
+@pytest.mark.parametrize("failure", ["raises", "nonfinite"])
+def test_apply_rejects_prediction_failure_or_nonfinite_output(
+    failure,
+    monkeypatch,
+):
+    calibrator = fitted_versioned()
+    model = calibrator._models["token_cohesiveness"]
+    if failure == "raises":
+        def predict(_values):
+            raise ValueError("corrupt predictor")
+    else:
+        def predict(_values):
+            return np.asarray([float("nan")])
+    monkeypatch.setattr(model, "predict", predict)
+    result = layer(raw=0.0)
+
+    assert calibrator.apply(result) is False
+    assert result.determination == "SKIP"
+    assert "calibrator_invalid_artifact" in result.signals
+    assert result.p_llm == pytest.approx(0.37)
 
 
 def test_matching_entry_rejects_beyond_support_tolerance():
