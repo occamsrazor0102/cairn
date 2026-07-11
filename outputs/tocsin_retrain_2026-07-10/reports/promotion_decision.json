@@ -1,0 +1,11 @@
+{
+  "failures": [
+    "INVALID_COMPARATOR prompts_specdetect:\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops\nmissing models/calib2000/profiles/prompts_specdetect/ebm.skops.hmac",
+    "detector: candidate Brier must beat constant prevalence",
+    "prompts_only prompt_test Human FPR: candidate regressed",
+    "prompts_only ood_m4_test auroc: regression exceeds 0.02",
+    "prompts_only ood_raid_test auroc: regression exceeds 0.02",
+    "prompts_only ood_mage_test auroc: regression exceeds 0.02"
+  ],
+  "status": "DO_NOT_PROMOTE"
+}

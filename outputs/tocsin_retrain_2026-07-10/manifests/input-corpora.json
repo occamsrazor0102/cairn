@@ -1,0 +1,76 @@
+{
+  "datasets": [
+    {
+      "path": "data/prompts_v2_train.jsonl",
+      "sha256": "950342668d4b50ff91fb9822c8162ab278bd7be6c64f3a20f84daa27fa6ffc74",
+      "total_rows": 20732,
+      "unique_rows": 20732,
+      "duplicate_rows": 0,
+      "eligible_rows": 8484
+    },
+    {
+      "path": "data/prompts_only_calib.jsonl",
+      "sha256": "1ea4d7bd2ce61e355f3ddb9adb8240750a2fc1bab10158961b8874fc58a76035",
+      "total_rows": 3660,
+      "unique_rows": 3660,
+      "duplicate_rows": 0,
+      "eligible_rows": 1026
+    },
+    {
+      "path": "data/prompts_v5_test.jsonl",
+      "sha256": "30dd89ce7f50ed2fca8f0019ade08bb10e78ec21d870a9c34259e635d9635a3b",
+      "total_rows": 6098,
+      "unique_rows": 6098,
+      "duplicate_rows": 0,
+      "eligible_rows": 1822
+    },
+    {
+      "path": "data/_humanized_eval.jsonl",
+      "sha256": "6d3a946fa88c386807def5b90f7a727516308f909210eecd61f89a93e503680c",
+      "total_rows": 502,
+      "unique_rows": 502,
+      "duplicate_rows": 0,
+      "eligible_rows": 440
+    },
+    {
+      "path": "data/_hard_human_clean.jsonl",
+      "sha256": "cb1cb45b17c884e1fdd95d43b62969858ed09998c84a213503758722332f2142",
+      "total_rows": 296,
+      "unique_rows": 296,
+      "duplicate_rows": 0,
+      "eligible_rows": 296
+    },
+    {
+      "path": "data/ood_m4_test.jsonl",
+      "sha256": "d074bc99480cca4868a1e991b70f05b67727a61ca67a51485a5a303d7fde2db3",
+      "total_rows": 200,
+      "unique_rows": 200,
+      "duplicate_rows": 0,
+      "eligible_rows": 160
+    },
+    {
+      "path": "data/ood_raid_test.jsonl",
+      "sha256": "a4d967f3adbf4e4e11c10d0b45acafbd23c2ddd31bdc86d05e9d78efbe73b23d",
+      "total_rows": 200,
+      "unique_rows": 200,
+      "duplicate_rows": 0,
+      "eligible_rows": 197
+    },
+    {
+      "path": "data/ood_mage_test.jsonl",
+      "sha256": "393c533e8bec02270ccf9f272397b75201e1673b50ea51b3e0f17c2feae5a31f",
+      "total_rows": 200,
+      "unique_rows": 200,
+      "duplicate_rows": 0,
+      "eligible_rows": 135
+    }
+  ],
+  "union": {
+    "path": "outputs/tocsin_retrain_2026-07-10/inputs/all_corpora_union.jsonl",
+    "sha256": "6b8a148630becb7c39dbd03d8e3bbab3cc6f36131e30855664a8fbae48ae1acf",
+    "total_rows": 31888,
+    "unique_rows": 31192,
+    "duplicate_rows": 696,
+    "eligible_rows": 11926
+  }
+}

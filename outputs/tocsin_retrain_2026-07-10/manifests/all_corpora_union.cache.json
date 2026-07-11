@@ -1,0 +1,120 @@
+{
+  "dataset_sha256": "6b8a148630becb7c39dbd03d8e3bbab3cc6f36131e30855664a8fbae48ae1acf",
+  "cache_sha256": "9f3c398ec93f9445934e08df4e16e35d740bf0056b79fe92fdf2ed3b16997bf0",
+  "expected_unique_hashes": 31192,
+  "cached_unique_hashes": 31192,
+  "active_rows": 11926,
+  "skip_rows": 19266,
+  "calibration_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+  "calibration_raw_channel": "combined_w",
+  "raw_min": -208.7164371206058,
+  "raw_max": 0.4480276375821587,
+  "identical_duplicate_hashes": 0,
+  "api_layer_ids": [],
+  "layer_counts": {
+    "preamble": {
+      "present": 31192,
+      "active": 31192,
+      "skip": 0,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "fingerprint_vocab": {
+      "present": 31192,
+      "active": 31192,
+      "skip": 0,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "prompt_structure": {
+      "present": 13390,
+      "active": 13390,
+      "skip": 0,
+      "router_skipped": 17802,
+      "unexpected_absent": 0
+    },
+    "voice_spec": {
+      "present": 13390,
+      "active": 13390,
+      "skip": 0,
+      "router_skipped": 17802,
+      "unexpected_absent": 0
+    },
+    "instruction_density": {
+      "present": 13390,
+      "active": 13390,
+      "skip": 0,
+      "router_skipped": 17802,
+      "unexpected_absent": 0
+    },
+    "nssi": {
+      "present": 30940,
+      "active": 30940,
+      "skip": 0,
+      "router_skipped": 252,
+      "unexpected_absent": 0
+    },
+    "surprisal_dynamics": {
+      "present": 31192,
+      "active": 23143,
+      "skip": 8049,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "contrastive_lm": {
+      "present": 31192,
+      "active": 13536,
+      "skip": 17656,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "fast_detectgpt": {
+      "present": 31192,
+      "active": 15797,
+      "skip": 15395,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "token_cohesiveness": {
+      "present": 31192,
+      "active": 11926,
+      "skip": 19266,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "mixed_boundary": {
+      "present": 31192,
+      "active": 7728,
+      "skip": 23464,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "semantic_kinematics": {
+      "present": 31192,
+      "active": 0,
+      "skip": 31192,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "specdetect": {
+      "present": 31192,
+      "active": 13536,
+      "skip": 17656,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    },
+    "perturbation": {
+      "present": 31192,
+      "active": 8266,
+      "skip": 22926,
+      "router_skipped": 0,
+      "unexpected_absent": 0
+    }
+  },
+  "unexpected_layer_ids": [],
+  "disabled_layer_ids": [
+    "contrastive_gen",
+    "dna_gpt",
+    "lapd"
+  ]
+}

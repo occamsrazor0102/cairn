@@ -1,0 +1,282 @@
+{
+  "dataset_path": "data\\prompts_v2_train.jsonl",
+  "dataset_sha256": "950342668d4b50ff91fb9822c8162ab278bd7be6c64f3a20f84daa27fa6ffc74",
+  "features_cache_path": "outputs\\tocsin_retrain_2026-07-10\\caches\\prompts_v2_train.features.jsonl",
+  "features_cache_sha256": "8c7bc250c42f6b7e5a04e5b1d355a0e28435b8b3f25670b10b71b69a1ac52808",
+  "detector_id": "token_cohesiveness",
+  "detector_signature": "tocsin-bart-fastdetectgpt-combined-w-v1",
+  "raw_channel": "combined_w",
+  "observed_rows": 20732,
+  "accepted_rows": 8484,
+  "rejected_rows": 12248,
+  "accepted_reasons": {
+    "matched": 8484
+  },
+  "rejected_reasons": {
+    "inactive": 12248
+  },
+  "class_counts": {
+    "0": 4516,
+    "1": 3968
+  },
+  "support": {
+    "min": -208.7164371206058,
+    "max": 0.4100659212904795
+  },
+  "weighting_policy": {
+    "policy": "source-length-balanced-v1",
+    "bins": [
+      "60-100",
+      "100-150",
+      "150-250",
+      "250-inf"
+    ],
+    "clip_multiple": 10.0,
+    "strata": [
+      {
+        "length_bin": "60-100",
+        "label": 0,
+        "rows": 1968,
+        "target_weight": 442.0,
+        "actual_weight": 442.00000000000006,
+        "median_inverse_source_weight": 0.000942507068803016,
+        "clip_cap": 0.00942507068803016,
+        "effective_sample_size": 832.7538665431832,
+        "source_rows": {
+          "prompt_bbh_causal_judgement": 1,
+          "prompt_bbh_logical_deduction_five_objects": 3,
+          "prompt_gpqa": 1,
+          "prompt_gsm8k": 553,
+          "prompt_hc3_medicine": 5,
+          "prompt_humaneval": 36,
+          "prompt_medqa": 1061,
+          "prompt_mmlu_pro_biology": 16,
+          "prompt_mmlu_pro_business": 26,
+          "prompt_mmlu_pro_chemistry": 33,
+          "prompt_mmlu_pro_computer science": 29,
+          "prompt_mmlu_pro_economics": 13,
+          "prompt_mmlu_pro_engineering": 42,
+          "prompt_mmlu_pro_health": 28,
+          "prompt_mmlu_pro_history": 5,
+          "prompt_mmlu_pro_law": 39,
+          "prompt_mmlu_pro_math": 23,
+          "prompt_mmlu_pro_other": 16,
+          "prompt_mmlu_pro_philosophy": 2,
+          "prompt_mmlu_pro_physics": 30,
+          "prompt_mmlu_pro_psychology": 6
+        },
+        "source_total_weights": {
+          "prompt_bbh_causal_judgement": 0.7806428823737196,
+          "prompt_bbh_logical_deduction_five_objects": 2.3419286471211587,
+          "prompt_gpqa": 0.7806428823737196,
+          "prompt_gsm8k": 82.82620981985166,
+          "prompt_hc3_medicine": 3.903214411868598,
+          "prompt_humaneval": 28.103143765453904,
+          "prompt_medqa": 82.82620981985166,
+          "prompt_mmlu_pro_biology": 12.490286117979513,
+          "prompt_mmlu_pro_business": 20.296714941716708,
+          "prompt_mmlu_pro_chemistry": 25.761215118332746,
+          "prompt_mmlu_pro_computer science": 22.63864358883787,
+          "prompt_mmlu_pro_economics": 10.148357470858354,
+          "prompt_mmlu_pro_engineering": 32.78700105969622,
+          "prompt_mmlu_pro_health": 21.85800070646415,
+          "prompt_mmlu_pro_history": 3.903214411868598,
+          "prompt_mmlu_pro_law": 30.445072412575065,
+          "prompt_mmlu_pro_math": 17.95478629459555,
+          "prompt_mmlu_pro_other": 12.490286117979513,
+          "prompt_mmlu_pro_philosophy": 1.5612857647474392,
+          "prompt_mmlu_pro_physics": 23.41928647121159,
+          "prompt_mmlu_pro_psychology": 4.683857294242317
+        }
+      },
+      {
+        "length_bin": "60-100",
+        "label": 1,
+        "rows": 442,
+        "target_weight": 442.0,
+        "actual_weight": 442.0,
+        "median_inverse_source_weight": 0.0024752475247524753,
+        "clip_cap": 0.024752475247524754,
+        "effective_sample_size": 146.20742150333015,
+        "source_rows": {
+          "prompt_alpaca": 18,
+          "prompt_slimorca": 404,
+          "prompt_wizardlm": 20
+        },
+        "source_total_weights": {
+          "prompt_alpaca": 101.47959183673468,
+          "prompt_slimorca": 227.765306122449,
+          "prompt_wizardlm": 112.75510204081633
+        }
+      },
+      {
+        "length_bin": "100-150",
+        "label": 0,
+        "rows": 1583,
+        "target_weight": 320.0,
+        "actual_weight": 320.0,
+        "median_inverse_source_weight": 0.0007396449704142012,
+        "clip_cap": 0.0073964497041420114,
+        "effective_sample_size": 548.4313757565843,
+        "source_rows": {
+          "prompt_bbh_causal_judgement": 7,
+          "prompt_bbh_logical_deduction_five_objects": 2,
+          "prompt_gpqa": 3,
+          "prompt_gsm8k": 39,
+          "prompt_humaneval": 15,
+          "prompt_medqa": 1352,
+          "prompt_mmlu_pro_biology": 2,
+          "prompt_mmlu_pro_business": 10,
+          "prompt_mmlu_pro_chemistry": 2,
+          "prompt_mmlu_pro_computer science": 8,
+          "prompt_mmlu_pro_economics": 4,
+          "prompt_mmlu_pro_engineering": 8,
+          "prompt_mmlu_pro_health": 22,
+          "prompt_mmlu_pro_history": 31,
+          "prompt_mmlu_pro_law": 74,
+          "prompt_mmlu_pro_math": 1,
+          "prompt_mmlu_pro_physics": 2,
+          "prompt_mmlu_pro_psychology": 1
+        },
+        "source_total_weights": {
+          "prompt_bbh_causal_judgement": 6.116876024030584,
+          "prompt_bbh_logical_deduction_five_objects": 1.7476788640087384,
+          "prompt_gpqa": 2.6215182960131074,
+          "prompt_gsm8k": 34.079737848170396,
+          "prompt_humaneval": 13.107591480065539,
+          "prompt_medqa": 118.14309120699072,
+          "prompt_mmlu_pro_biology": 1.7476788640087384,
+          "prompt_mmlu_pro_business": 8.738394320043692,
+          "prompt_mmlu_pro_chemistry": 1.7476788640087384,
+          "prompt_mmlu_pro_computer science": 6.990715456034954,
+          "prompt_mmlu_pro_economics": 3.495357728017477,
+          "prompt_mmlu_pro_engineering": 6.990715456034954,
+          "prompt_mmlu_pro_health": 19.224467504096122,
+          "prompt_mmlu_pro_history": 27.089022392135444,
+          "prompt_mmlu_pro_law": 64.66411796832332,
+          "prompt_mmlu_pro_math": 0.8738394320043692,
+          "prompt_mmlu_pro_physics": 1.7476788640087384,
+          "prompt_mmlu_pro_psychology": 0.8738394320043692
+        }
+      },
+      {
+        "length_bin": "100-150",
+        "label": 1,
+        "rows": 320,
+        "target_weight": 320.0,
+        "actual_weight": 320.0,
+        "median_inverse_source_weight": 0.003436426116838488,
+        "clip_cap": 0.03436426116838488,
+        "effective_sample_size": 105.78533375117516,
+        "source_rows": {
+          "gen_openai": 12,
+          "prompt_alpaca": 6,
+          "prompt_slimorca": 291,
+          "prompt_wizardlm": 11
+        },
+        "source_total_weights": {
+          "gen_openai": 66.09294320137694,
+          "prompt_alpaca": 33.04647160068847,
+          "prompt_slimorca": 160.27538726333907,
+          "prompt_wizardlm": 60.585197934595534
+        }
+      },
+      {
+        "length_bin": "150-250",
+        "label": 0,
+        "rows": 912,
+        "target_weight": 912.0,
+        "actual_weight": 911.9999999999999,
+        "median_inverse_source_weight": 0.001336898395721925,
+        "clip_cap": 0.013368983957219251,
+        "effective_sample_size": 341.11436847702424,
+        "source_rows": {
+          "prompt_bbh_causal_judgement": 4,
+          "prompt_humaneval": 4,
+          "prompt_medqa": 748,
+          "prompt_mmlu_pro_computer science": 3,
+          "prompt_mmlu_pro_health": 7,
+          "prompt_mmlu_pro_history": 83,
+          "prompt_mmlu_pro_law": 63
+        },
+        "source_total_weights": {
+          "prompt_bbh_causal_judgement": 15.819601040763224,
+          "prompt_humaneval": 15.819601040763224,
+          "prompt_medqa": 295.8265394622723,
+          "prompt_mmlu_pro_computer science": 11.864700780572418,
+          "prompt_mmlu_pro_health": 27.684301821335644,
+          "prompt_mmlu_pro_history": 295.8265394622723,
+          "prompt_mmlu_pro_law": 249.15871639202078
+        }
+      },
+      {
+        "length_bin": "150-250",
+        "label": 1,
+        "rows": 1642,
+        "target_weight": 912.0,
+        "actual_weight": 912.0000000000001,
+        "median_inverse_source_weight": 0.001447178002894356,
+        "clip_cap": 0.01447178002894356,
+        "effective_sample_size": 1245.1597685452828,
+        "source_rows": {
+          "gen_anthropic": 691,
+          "gen_openai": 704,
+          "prompt_alpaca": 1,
+          "prompt_slimorca": 245,
+          "prompt_wizardlm": 1
+        },
+        "source_total_weights": {
+          "gen_anthropic": 301.0950788342093,
+          "gen_openai": 301.0950788342093,
+          "prompt_alpaca": 4.357381748686096,
+          "prompt_slimorca": 301.0950788342093,
+          "prompt_wizardlm": 4.357381748686096
+        }
+      },
+      {
+        "length_bin": "250-inf",
+        "label": 0,
+        "rows": 53,
+        "target_weight": 53.0,
+        "actual_weight": 53.0,
+        "median_inverse_source_weight": 0.037037037037037035,
+        "clip_cap": 0.37037037037037035,
+        "effective_sample_size": 27.1374080192221,
+        "source_rows": {
+          "prompt_bbh_causal_judgement": 2,
+          "prompt_medqa": 12,
+          "prompt_mmlu_pro_health": 1,
+          "prompt_mmlu_pro_history": 27,
+          "prompt_mmlu_pro_law": 11
+        },
+        "source_total_weights": {
+          "prompt_bbh_causal_judgement": 9.54954954954955,
+          "prompt_medqa": 12.891891891891891,
+          "prompt_mmlu_pro_health": 4.774774774774775,
+          "prompt_mmlu_pro_history": 12.891891891891891,
+          "prompt_mmlu_pro_law": 12.891891891891895
+        }
+      },
+      {
+        "length_bin": "250-inf",
+        "label": 1,
+        "rows": 1564,
+        "target_weight": 53.0,
+        "actual_weight": 53.0,
+        "median_inverse_source_weight": 0.0014641288433382138,
+        "clip_cap": 0.014641288433382138,
+        "effective_sample_size": 1035.8496554373464,
+        "source_rows": {
+          "gen_anthropic": 709,
+          "gen_openai": 683,
+          "prompt_slimorca": 172
+        },
+        "source_total_weights": {
+          "gen_anthropic": 17.666666666666668,
+          "gen_openai": 17.666666666666668,
+          "prompt_slimorca": 17.666666666666668
+        }
+      }
+    ]
+  }
+}

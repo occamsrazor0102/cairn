@@ -1,0 +1,34 @@
+{
+  "configs/.profile_prompts_only.yaml": {
+    "sha256": "707d470a1bc1a1d28cf21a6d75db586f7413bc250cf54598bb2f16faca31bde1",
+    "bytes": 659
+  },
+  "models/calib2000/profiles/prompts_only/conformal.json": {
+    "sha256": "df97928bfae53b32582dc560baa90d36c8d2016da50db6cb7d6570f5fcb4aa94",
+    "bytes": 110
+  },
+  "models/calib2000/profiles/prompts_only/detector_calibration.json": {
+    "sha256": "0188bf457fa56b054649e7e0e59a5c2868bca2dfbdbeda701388f892025364b3",
+    "bytes": 6280
+  },
+  "models/calib2000/profiles/prompts_only/ebm.pkl": {
+    "sha256": "30c0204b21abfc6347347fac8d00e1f0f41c5bd49a54550aafcd311118f7a96d",
+    "bytes": 1156073
+  },
+  "models/calib2000/profiles/prompts_only/ebm.skops": {
+    "sha256": "03473048c531e253036b40351d80037672acc912fc269491ad158db15466e843",
+    "bytes": 1426920
+  },
+  "models/calib2000/profiles/prompts_only/ebm.skops.hmac": {
+    "sha256": "727a808a512d31ddc44ceeec031139f5c4e5bf8ab858337034ad6806e0523ded",
+    "bytes": 64
+  },
+  "models/calib2000/profiles/prompts_only/ebm.skops.meta.json": {
+    "sha256": "7d2c26ae15bc786627486e50010baba7e5138021f3c2e37f4f28dda004ef7f3e",
+    "bytes": 325
+  },
+  "models/calib2000/profiles/prompts_only/train.jsonl": {
+    "sha256": "b0ab38b78ae6269b85d4720922abbc02100bfb4cef9cc9522fb16186bf59d3bb",
+    "bytes": 10217572
+  }
+}

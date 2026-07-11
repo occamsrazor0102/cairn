@@ -1,0 +1,273 @@
+{
+  "candidate": {
+    "auroc": 0.49812359770647097,
+    "brier": 0.2493550781715259,
+    "ece": 0.2151058262325362,
+    "endpoint_fraction": 0.0005488474204171241,
+    "finite": true,
+    "human_mean": 0.49805818973510546,
+    "in_unit_interval": true,
+    "log_loss": 0.6925921704459008,
+    "n": 1822,
+    "n_unique": 5,
+    "positive_mean": 0.49895120077835914,
+    "reliability_curve": [
+      {
+        "count": 0,
+        "lower": 0.0,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.1
+      },
+      {
+        "count": 0,
+        "lower": 0.1,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.2
+      },
+      {
+        "count": 0,
+        "lower": 0.2,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.30000000000000004
+      },
+      {
+        "count": 0,
+        "lower": 0.30000000000000004,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.4
+      },
+      {
+        "count": 1810,
+        "lower": 0.4,
+        "mean_probability": 0.4970484325844133,
+        "positive_rate": 0.2839779005524862,
+        "upper": 0.5
+      },
+      {
+        "count": 8,
+        "lower": 0.5,
+        "mean_probability": 0.5708225137653046,
+        "positive_rate": 0.0,
+        "upper": 0.6000000000000001
+      },
+      {
+        "count": 0,
+        "lower": 0.6000000000000001,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.7000000000000001
+      },
+      {
+        "count": 1,
+        "lower": 0.7000000000000001,
+        "mean_probability": 0.7467218012806316,
+        "positive_rate": 0.0,
+        "upper": 0.8
+      },
+      {
+        "count": 0,
+        "lower": 0.8,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.9
+      },
+      {
+        "count": 3,
+        "lower": 0.9,
+        "mean_probability": 0.9839501688299253,
+        "positive_rate": 0.6666666666666666,
+        "upper": 1.0
+      }
+    ]
+  },
+  "constant_prevalence": {
+    "auroc": 0.5,
+    "brier": 0.2030000445825567,
+    "ece": 0.0,
+    "endpoint_fraction": 0.0,
+    "finite": true,
+    "human_mean": 0.283205268935236,
+    "in_unit_interval": true,
+    "log_loss": 0.5959551493705108,
+    "n": 1822,
+    "n_unique": 1,
+    "positive_mean": 0.283205268935236,
+    "reliability_curve": [
+      {
+        "count": 0,
+        "lower": 0.0,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.1
+      },
+      {
+        "count": 0,
+        "lower": 0.1,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.2
+      },
+      {
+        "count": 1822,
+        "lower": 0.2,
+        "mean_probability": 0.283205268935236,
+        "positive_rate": 0.283205268935236,
+        "upper": 0.30000000000000004
+      },
+      {
+        "count": 0,
+        "lower": 0.30000000000000004,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.4
+      },
+      {
+        "count": 0,
+        "lower": 0.4,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.5
+      },
+      {
+        "count": 0,
+        "lower": 0.5,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.6000000000000001
+      },
+      {
+        "count": 0,
+        "lower": 0.6000000000000001,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.7000000000000001
+      },
+      {
+        "count": 0,
+        "lower": 0.7000000000000001,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.8
+      },
+      {
+        "count": 0,
+        "lower": 0.8,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.9
+      },
+      {
+        "count": 0,
+        "lower": 0.9,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 1.0
+      }
+    ]
+  },
+  "detector_skip_rows": 4276,
+  "eligible_rows": 1822,
+  "in_support_rows": 1822,
+  "legacy_unsafe_clip_diagnostic": {
+    "auroc": 0.39036216270759877,
+    "brier": 0.6186946433314154,
+    "ece": 0.6124605974593261,
+    "endpoint_fraction": 0.5933040614709111,
+    "finite": true,
+    "human_mean": 0.9118024699410363,
+    "in_unit_interval": true,
+    "log_loss": 17.266872555143678,
+    "n": 1822,
+    "n_unique": 42,
+    "positive_mean": 0.8548239977284863,
+    "reliability_curve": [
+      {
+        "count": 0,
+        "lower": 0.0,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.1
+      },
+      {
+        "count": 0,
+        "lower": 0.1,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.2
+      },
+      {
+        "count": 0,
+        "lower": 0.2,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.30000000000000004
+      },
+      {
+        "count": 0,
+        "lower": 0.30000000000000004,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.4
+      },
+      {
+        "count": 0,
+        "lower": 0.4,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.5
+      },
+      {
+        "count": 0,
+        "lower": 0.5,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.6000000000000001
+      },
+      {
+        "count": 0,
+        "lower": 0.6000000000000001,
+        "mean_probability": null,
+        "positive_rate": null,
+        "upper": 0.7000000000000001
+      },
+      {
+        "count": 669,
+        "lower": 0.7000000000000001,
+        "mean_probability": 0.7233826163459427,
+        "positive_rate": 0.3961136023916293,
+        "upper": 0.8
+      },
+      {
+        "count": 7,
+        "lower": 0.8,
+        "mean_probability": 0.8694689647714858,
+        "positive_rate": 0.14285714285714285,
+        "upper": 0.9
+      },
+      {
+        "count": 1146,
+        "lower": 0.9,
+        "mean_probability": 0.9963996121134872,
+        "positive_rate": 0.2181500872600349,
+        "upper": 1.0
+      }
+    ]
+  },
+  "raw": {
+    "auroc": 0.3603983403967378,
+    "human_mean": -0.4111637043072598,
+    "max": 0.3932385191415747,
+    "min": -49.91209297104977,
+    "positive_mean": -0.8701578307484568
+  },
+  "support": [
+    -208.7164371206058,
+    0.4100659212904795
+  ],
+  "support_coverage": 1.0,
+  "tolerance": 52.28162576047407
+}

@@ -1,0 +1,40 @@
+{
+  "alpha": 0.05,
+  "calibrated_at": "2026-07-11T09:25:42.344408+00:00",
+  "class_counts": {
+    "0": 1830,
+    "1": 1830
+  },
+  "dataset_path": "data\\prompts_only_calib.jsonl",
+  "dataset_sha256": "1ea4d7bd2ce61e355f3ddb9adb8240750a2fc1bab10158961b8874fc58a76035",
+  "features_cache_path": "outputs\\tocsin_retrain_2026-07-10\\caches\\prompts_only_calib.features.jsonl",
+  "features_cache_sha256": "996c35014e842b87d763a60ce640abb5a3b2b763fbb83e86c422529061cdaec3",
+  "n_calibration": 3660,
+  "numpy_version": "2.4.4",
+  "python_version": "3.14.3",
+  "router_counts": {
+    "insufficient": 1747,
+    "mixed": 101,
+    "prompt": 33,
+    "prose": 1779
+  },
+  "sklearn_version": "1.8.0",
+  "threshold_per_class": {
+    "0": 0.7352671115457344,
+    "1": 0.7662157870513319
+  },
+  "threshold_per_router": {
+    "insufficient": {
+      "0": 0.912467370728605,
+      "1": 0.6271801040767346
+    },
+    "mixed": {
+      "0": 0.9938184174765446,
+      "1": 0.6458358142291885
+    },
+    "prose": {
+      "0": 0.47725794873201244,
+      "1": 0.9201832598527898
+    }
+  }
+}
