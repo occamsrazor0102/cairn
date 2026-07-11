@@ -356,6 +356,11 @@ class EBMFusion:
         # Per-feature contributions from EBM
         try:
             local_data = self._model.explain_local(X).data(0)
+        except Exception:
+            logger.warning("EBM explain_local failed; feature attributions unavailable", exc_info=True)
+            contribs = {}
+            top = []
+        else:
             names = list(local_data.get("names") or features)
             scores = list(local_data["scores"])
             if len(names) != len(scores):
@@ -370,10 +375,6 @@ class EBMFusion:
             top = sorted(
                 contribs.items(), key=lambda item: abs(item[1]), reverse=True
             )[:5]
-        except Exception:
-            logger.warning("EBM explain_local failed; feature attributions unavailable", exc_info=True)
-            contribs = {}
-            top = []
 
         ci = self._conformal_ci(p_llm, router_class=domain) or (
             max(0.0, p_llm - 0.10), min(1.0, p_llm + 0.10)

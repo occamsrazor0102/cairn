@@ -83,6 +83,11 @@ def main() -> None:
         help="Optional path for an atomic calibration provenance manifest.",
     )
     args = ap.parse_args()
+    if (
+        args.manifest_out is not None
+        and args.out.resolve() == args.manifest_out.resolve()
+    ):
+        ap.error("--manifest-out must differ from --out")
 
     pipeline = (
         CachedPipeline(args.features_cache, args.config)

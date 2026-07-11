@@ -284,7 +284,7 @@ def test_ebm_interaction_contributions_reconstruct_probability():
     assert reconstructed == pytest.approx(result.p_llm, abs=1e-9)
 
 
-def test_ebm_interaction_name_score_mismatch_uses_empty_fallback(caplog):
+def test_ebm_interaction_name_score_mismatch_raises_runtime_error():
     class _MismatchedExplanationModel:
         _cairn_feature_names = ["preamble_p_llm"]
         _cairn_column_means = {"preamble_p_llm": 0.5}
@@ -304,19 +304,15 @@ def test_ebm_interaction_name_score_mismatch_uses_empty_fallback(caplog):
 
     fusion = EBMFusion(model=_MismatchedExplanationModel())
 
-    with caplog.at_level("WARNING", logger="cairn.fusion"):
-        result = fusion.fuse(
+    with pytest.raises(
+        RuntimeError,
+        match="EBM explanation returned 1 names for 2 scores",
+    ):
+        fusion.fuse(
             [_make_layer_result("preamble", 0.5)],
             word_count=100,
             domain="prose",
         )
-
-    assert result.feature_contributions == {}
-    assert result.top_contributors == []
-    assert any(
-        "feature attributions unavailable" in message
-        for message in caplog.messages
-    )
 
 
 def test_ebm_interaction_explanation_unsupported_preserves_fallback(caplog):

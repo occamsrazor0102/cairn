@@ -120,3 +120,45 @@ def test_manifest_records_hashed_cached_calibration_provenance(tmp_path):
     assert manifest["sklearn_version"]
     assert manifest["calibrated_at"].endswith("+00:00")
     assert not list(tmp_path.glob(f".{manifest_path.name}.*.tmp"))
+
+
+def test_manifest_out_cannot_alias_conformal_output(tmp_path):
+    dataset = tmp_path / "calibration.jsonl"
+    cache = tmp_path / "calibration.features.jsonl"
+    _write_cached_fixture(dataset, cache)
+    out = tmp_path / "shared-output.json"
+    sentinel = "existing output must survive\n"
+    out.write_text(sentinel, encoding="utf-8")
+    repo_root = Path(__file__).resolve().parent.parent
+    config = repo_root / "configs" / "default.yaml"
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    existing_pp = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        f"{repo_root}{os.pathsep}{existing_pp}" if existing_pp else str(repo_root)
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/calibrate_conformal.py",
+            "--dataset",
+            str(dataset),
+            "--config",
+            str(config),
+            "--features-cache",
+            str(cache),
+            "--out",
+            str(out),
+            "--manifest-out",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(repo_root),
+    )
+
+    assert result.returncode == 2
+    assert "--manifest-out must differ from --out" in result.stderr
+    assert out.read_text(encoding="utf-8") == sentinel
