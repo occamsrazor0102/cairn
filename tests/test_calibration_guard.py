@@ -235,6 +235,21 @@ def test_matching_entry_allows_score_on_tolerance_boundary():
     assert result.calibrator_applied is True
 
 
+def test_missing_raw_is_rejected_without_mutating_native_evidence():
+    result = layer(raw=None)
+    native_signals = copy.deepcopy(result.signals)
+
+    assert fitted_versioned().apply(result) is False
+    assert result.calibrator_applied is False
+    assert result.determination == "SKIP"
+    assert result.signals == {
+        **native_signals,
+        "calibrator_missing_raw": {"raw_score": None},
+    }
+    assert result.raw_score is None
+    assert result.p_llm == pytest.approx(0.37)
+
+
 @pytest.mark.parametrize(
     ("raw", "raw_repr"),
     [

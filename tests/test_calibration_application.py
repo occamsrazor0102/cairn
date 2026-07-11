@@ -389,6 +389,42 @@ def test_per_detector_auroc_filters_invalid_raw_after_optional_guard(
         assert len({id(result) for result in apply_calls}) == len(samples)
 
 
+def test_per_detector_auroc_matching_calibrator_excludes_missing_raw():
+    calibrator = make_versioned_calibrator()
+    samples = []
+    cache = {}
+    for index in range(12):
+        text = normalize_text(f"matching calibrator sample {index}")
+        label = 0 if index < 6 else 1
+        result = make_tocsin_result(
+            -0.3 if label == 0 else 0.05,
+            TOCSIN_COMBINED_SIGNATURE,
+            "AMBER",
+        )
+        samples.append({"text": text, "label": label})
+        cache[text_hash(text)] = {
+            "results": [asdict(result)],
+            "router": {},
+        }
+    missing_text = normalize_text("matching calibrator missing raw")
+    missing = make_tocsin_result(
+        None,
+        TOCSIN_COMBINED_SIGNATURE,
+        "AMBER",
+    )
+    missing.p_llm = 0.99
+    samples.append({"text": missing_text, "label": 1})
+    cache[text_hash(missing_text)] = {
+        "results": [asdict(missing)],
+        "router": {},
+    }
+
+    auroc, counts = per_detector_auroc(samples, cache, calibrator)
+
+    assert counts["token_cohesiveness"] == 12
+    assert auroc["token_cohesiveness"] == pytest.approx(1.0)
+
+
 class _RecordingEBM:
     _cairn_feature_names = ["tocsin_missing"]
 

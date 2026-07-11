@@ -121,6 +121,10 @@ class DetectorCalibrator:
         model = self._models.get(result.layer_id)
         if model is None:
             return False
+        if result.raw_score is None:
+            result.signals["calibrator_missing_raw"] = {"raw_score": None}
+            result.determination = "SKIP"
+            return False
         raw = float(result.raw_score)
         if not np.isfinite(raw):
             result.signals["calibrator_nonfinite_raw"] = {"raw_score": repr(raw)}
