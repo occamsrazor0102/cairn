@@ -121,6 +121,15 @@ venv/
 
 # Claude Code — ephemeral runtime locks (session/machine specific)
 .claude/scheduled_tasks.lock
+.claude/homunculus/
+
+# Analysis run artifacts — versioned separately in the private
+# cairn-outputs repo (outputs/ is its own git repository)
+/outputs/
+
+# Website — its own git repository; ignoring avoids accidental
+# gitlink (submodule-pointer) commits
+/website/
 
 # OS
 .DS_Store
