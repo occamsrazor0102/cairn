@@ -110,6 +110,20 @@ detectors:
     # the EBM cache. Calibrated profiles whose detector calibrator covers
     # semantic_kinematics flip this to false.
     heuristic_suppress: true
+  # compression_profile / typographic_signature / reasoning_artifact are the
+  # 2026-08-26 slate. Code-only for now: they ship DISABLED so no calibrated
+  # profile changes until the feature cache is rebuilt and the EBM retrained
+  # (docs/retrain-with-new-detectors.md). The assembler already emits their
+  # columns; existing artifacts ignore them as `extra_in_assembler`.
+  compression_profile:
+    enabled: false
+    weight: 0.70
+  typographic_signature:
+    enabled: false
+    weight: 0.60
+  reasoning_artifact:
+    enabled: false
+    weight: 0.80
   cross_similarity:
     enabled: false
     weight: 0.70

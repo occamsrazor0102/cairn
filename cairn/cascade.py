@@ -3,7 +3,11 @@ from cairn.contracts import LayerResult
 # Phase membership uses tuples so iteration order is deterministic across
 # process restarts. Set iteration is hash-randomised in CPython, which
 # leaks into report ordering and detector_errors sequencing.
-PHASE1_DETECTORS = ("preamble", "fingerprint_vocab", "prompt_structure", "voice_spec", "instruction_density", "nssi")
+# compression_profile (redundancy / Kolmogorov proxy) and
+# typographic_signature (formatting habits) are stdlib-only and both
+# fire on short input, where every tier-2 detector is gated off by its
+# min_text_length floor. Both ship disabled in config pending a retrain.
+PHASE1_DETECTORS = ("preamble", "fingerprint_vocab", "prompt_structure", "voice_spec", "instruction_density", "nssi", "compression_profile", "typographic_signature")
 # mixed_boundary operates on sentence-level style dissonance within a single
 # submission, so it's a Phase-2 detector despite earlier being parked in
 # Phase 4 (batch-only) where it never fired.
@@ -12,7 +16,11 @@ PHASE1_DETECTORS = ("preamble", "fingerprint_vocab", "prompt_structure", "voice_
 # Phase 2 alongside the other single-pass LM-scoring detectors. The
 # expensive perturbation detector stays declared in Phase 3 but ships
 # disabled in config (superseded; kept for reproducibility of old runs).
-PHASE2_DETECTORS = ("surprisal_dynamics", "contrastive_lm", "fast_detectgpt", "token_cohesiveness", "mixed_boundary", "semantic_kinematics", "specdetect")
+# reasoning_artifact targets the hidden-reasoning stealth gap (Track A3
+# of the post-honest-calibration roadmap). Pure Python, but Phase 2
+# per that spec: it is a register judgement on longer prose, not a
+# cheap gate, and Phase 1 short-circuits on aggregate p_llm.
+PHASE2_DETECTORS = ("surprisal_dynamics", "contrastive_lm", "fast_detectgpt", "token_cohesiveness", "mixed_boundary", "semantic_kinematics", "specdetect", "reasoning_artifact")
 PHASE3_DETECTORS = ("perturbation", "contrastive_gen", "dna_gpt", "lapd")
 # Phase 4 is batch-only; contributor_graph is invoked separately via
 # pipeline.analyze_contributors, not through the normal cascade.

@@ -142,6 +142,44 @@ class FeatureAssembler:
             "specdetect_high_band": sig("specdetect", "dft_high_band_energy"),
             "specdetect_low_mid_ratio": sig("specdetect", "dft_low_mid_ratio"),
             "specdetect_spectral_entropy": sig("specdetect", "dft_spectral_entropy"),
+            # The three 2026-08-26 detectors use their detector id as the
+            # feature prefix, unlike the older hand-chosen aliases
+            # (contrastive_lm -> binoculars, token_cohesiveness -> tocsin,
+            # ...). That keeps them out of the `_ALIAS` map in
+            # tests/test_ebm_schema_coverage.py and removes a class of
+            # rename bug rather than adding to it.
+            # compression_profile (Phase 1, stdlib). p_llm comes from the two
+            # length-robust terms only; the compression ratios are strongly
+            # length-dependent, so they are handed to the EBM raw to combine
+            # with log_word_count / is_short / is_medium / is_long rather than
+            # being squeezed into a fixed heuristic band. See the detector's
+            # module docstring for why that split exists.
+            "compression_profile_p_llm": p("compression_profile"),
+            "compression_profile_zlib_ratio": sig("compression_profile", "zlib_ratio"),
+            "compression_profile_lzma_ratio": sig("compression_profile", "lzma_ratio"),
+            "compression_profile_mattr_100": sig("compression_profile", "mattr_100"),
+            "compression_profile_distinct_4": sig("compression_profile", "distinct_4"),
+            "compression_profile_max_ngram_repeat": sig("compression_profile", "max_ngram_repeat"),
+            "compression_profile_redundancy": sig("compression_profile", "redundancy"),
+            # typographic_signature (Phase 1, stdlib). Every signal is a style
+            # ratio in [0, 1], gated to 0.0 below three observations so a
+            # single em-dash in a short note cannot saturate a term.
+            "typographic_signature_p_llm": p("typographic_signature"),
+            "typographic_signature_dash_style_ratio": sig("typographic_signature", "dash_style_ratio"),
+            "typographic_signature_curly_quote_ratio": sig("typographic_signature", "curly_quote_ratio"),
+            "typographic_signature_fancy_bullet_ratio": sig("typographic_signature", "fancy_bullet_ratio"),
+            "typographic_signature_oxford_comma_ratio": sig("typographic_signature", "oxford_comma_ratio"),
+            "typographic_signature_heading_title_case": sig("typographic_signature", "heading_title_case"),
+            "typographic_signature_score": sig("typographic_signature", "typography_score"),
+            # reasoning_artifact (Phase 2, stdlib). Marker densities are
+            # per-1000-words; register_uniformity is already a [0, 1] fraction.
+            "reasoning_artifact_p_llm": p("reasoning_artifact"),
+            "reasoning_artifact_deliberation_density": sig("reasoning_artifact", "deliberation_density"),
+            "reasoning_artifact_self_correction_density": sig("reasoning_artifact", "self_correction_density"),
+            "reasoning_artifact_intent_density": sig("reasoning_artifact", "intent_density"),
+            "reasoning_artifact_enum_scaffold_density": sig("reasoning_artifact", "enum_scaffold_density"),
+            "reasoning_artifact_register_uniformity": sig("reasoning_artifact", "register_uniformity"),
+            "reasoning_artifact_score": sig("reasoning_artifact", "artifact_score"),
             # Tier 3 / advanced
             "perturbation_p_llm": p("perturbation"),
             "contrastive_gen_p_llm": p("contrastive_gen"),
@@ -166,6 +204,9 @@ class FeatureAssembler:
             "tocsin_missing": missing("token_cohesiveness"),
             "semantic_kinematics_missing": missing("semantic_kinematics"),
             "specdetect_missing": missing("specdetect"),
+            "compression_profile_missing": missing("compression_profile"),
+            "typographic_signature_missing": missing("typographic_signature"),
+            "reasoning_artifact_missing": missing("reasoning_artifact"),
             "perturbation_missing": missing("perturbation"),
             "contrastive_gen_missing": missing("contrastive_gen"),
             "dna_gpt_missing": missing("dna_gpt"),
@@ -189,6 +230,9 @@ class FeatureAssembler:
             "tocsin_confidence": conf("token_cohesiveness"),
             "semantic_kinematics_confidence": conf("semantic_kinematics"),
             "specdetect_confidence": conf("specdetect"),
+            "compression_profile_confidence": conf("compression_profile"),
+            "typographic_signature_confidence": conf("typographic_signature"),
+            "reasoning_artifact_confidence": conf("reasoning_artifact"),
             "perturbation_confidence": conf("perturbation"),
             "contrastive_gen_confidence": conf("contrastive_gen"),
             "dna_gpt_confidence": conf("dna_gpt"),

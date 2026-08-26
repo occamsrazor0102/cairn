@@ -145,6 +145,90 @@ If a profile regresses, the additive schema means you can flip the
 offending new detector to `enabled: false` in that profile and retrain
 without touching the others.
 
+---
+
+# Slate 2026-08-26 -- compression_profile / typographic_signature / reasoning_artifact
+
+Same shape as the PR-#51 runbook above, and same constraint: the branch
+ships **code only**, all three `enabled: false`. They change nothing
+until you rebuild the cache and retrain locally. Design spec:
+`docs/superpowers/specs/2026-08-26-detector-slate-design.md`.
+
+All three are **stdlib-only** -- no torch, no transformers, no API key.
+That makes the cache rebuild much cheaper than the PR-#51 pass: the new
+detectors add microseconds per sample, so the cost is dominated by the
+tier-2 detectors you are re-running anyway.
+
+## What changed
+
+27 new EBM columns (assembler 102 -> 129, strictly additive -- existing
+artifacts keep loading and log the extras until retrained):
+
+- `compression_profile_{p_llm,missing,confidence,zlib_ratio,lzma_ratio,
+  mattr_100,distinct_4,max_ngram_repeat,redundancy}`
+- `typographic_signature_{p_llm,missing,confidence,dash_style_ratio,
+  curly_quote_ratio,fancy_bullet_ratio,oxford_comma_ratio,
+  heading_title_case,score}`
+- `reasoning_artifact_{p_llm,missing,confidence,deliberation_density,
+  self_correction_density,intent_density,enum_scaffold_density,
+  register_uniformity,score}`
+
+## 1. Enable, then rebuild the cache
+
+Flip the three `enabled: false` flags in your cache-build profile, then:
+
+```bash
+modal run scripts/modal_cache_features.py \
+    --dataset-path data/calib2000_v6_train.jsonl \
+    --out-path data/all_features_v11.jsonl \
+    --config-path configs/.profile_full_coverage.yaml
+```
+
+Same **CRITICAL** caveat as above: build with
+`configs/.profile_full_coverage.yaml`. `reasoning_artifact` is a Phase-2
+detector, so under the default cascade it only fires on the
+ambiguous-middle slice and starves the EBM of its features.
+
+Repeat for the calib split and every OOD/test slice you validate on.
+
+## 2. Retrain
+
+Identical to §2 above, swapping `--features-cache data/all_features_v11.jsonl`.
+Do it for both production profiles.
+
+## 3. Gates
+
+The slate-wide gates from §3 still apply (in-domain >= 0.94, RAID >= 0.73,
+MAGE >= 0.60, no per-attack regression > 0.02). Plus one gate per
+detector, since each targets a specific measured hole:
+
+| detector | gate | if it fails |
+|---|---|---|
+| `compression_profile` | `summarization_attack` improves on 0.4167 and clears 0.55 | `enabled: false`; keep the columns as EBM-only features |
+| `typographic_signature` | short-form (< 150 words) in-domain AUROC improves >= 0.02, or `verb_low` improves | `enabled: false` |
+| `reasoning_artifact` | OpenAI per-provider AUROC >= 0.96 AND Gemini drops <= 0.02 | `enabled: false` -- a Gemini drop means it learned one provider's UX |
+
+`summarization_attack` is the number to watch. It is the only cell in
+the per-attack grid below the random floor (0.4167), and
+`compression_profile` exists specifically for it. If that cell does not
+move, the detector has not earned its slot regardless of what the
+aggregate does.
+
+**Also check cascade-phase distribution, not just AUROC.**
+`compression_profile` and `typographic_signature` are Phase-1 detectors,
+so they feed the confidence-weighted `aggregate_p_llm` that gates phases
+2 and 3. Both cap confidence low (0.80 / 0.65) to limit this, but a
+slate that lifts AUROC while short-circuiting more samples away from the
+phase-2 detectors has not improved the system. Compare the
+`cascade_phases` histogram before and after.
+
+## 4. Ship
+
+As §4: commit the regenerated artifacts for both profiles plus a
+refreshed `per_detector_auroc_v11.csv`. Any detector that misses its
+gate flips to `enabled: false` -- the additive schema means that is a
+config change, not another retrain.
+
 ## Optional fast-follow (not in this PR)
 
 - `semantic_kinematics` suppress branch uses `SKIP`, which the assembler
