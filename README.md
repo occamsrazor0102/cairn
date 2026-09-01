@@ -152,6 +152,7 @@ tests/                       ~80 test modules (~760+ passing) covering contracts
 - [`docs/byo_dataset.md`](docs/byo_dataset.md) — bring-your-own-dataset recipes
 - [`docs/deployment.md`](docs/deployment.md) — runtime options, Docker, REST API
 - [`docs/building.md`](docs/building.md) — Tauri desktop shell build
+- [`docs/backup.md`](docs/backup.md) — mirroring the repo to a backup remote, offline bundles, restore drill
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — design specs for the six GUI phases and the drift-wiring enhancement
 
 ## Running the tests
