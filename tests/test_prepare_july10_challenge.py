@@ -16,6 +16,12 @@ ACTUAL_ROWS = Path("outputs/cairn_blinded_rerun_2026-07-10/source_rows.json")
 ACTUAL_TRUTH = Path(
     "outputs/cairn_blinded_rerun_2026-07-10/ground_truth_analysis.json"
 )
+_requires_named_training = pytest.mark.skipif(
+    not all(path.is_file() for path in NAMED_TRAINING_PATHS),
+    reason="git-ignored training corpora under data/ are absent from this checkout",
+)
+
+
 def _challenge_sources(tmp_path: Path) -> tuple[Path, Path]:
     rows = {
         "source": "private.xlsx",
@@ -53,6 +59,7 @@ def _challenge_sources(tmp_path: Path) -> tuple[Path, Path]:
     return rows_path, truth_path
 
 
+@_requires_named_training
 def test_prepare_challenge_emits_exact_locked_slice_and_excludes_training(tmp_path):
     rows_path, truth_path = _challenge_sources(tmp_path)
     out = tmp_path / "july10_labelled.jsonl"
@@ -82,6 +89,7 @@ def test_prepare_challenge_emits_exact_locked_slice_and_excludes_training(tmp_pa
     } & training_hashes
 
 
+@_requires_named_training
 def test_prepare_challenge_rejects_normalized_training_overlap(tmp_path):
     rows_path, truth_path = _challenge_sources(tmp_path)
     named_training_row = json.loads(
