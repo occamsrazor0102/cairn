@@ -196,6 +196,18 @@ class LAPDDetector:
             ids[pos] = rng.choice(ids)
         return input_ids.new_tensor([ids])
 
+    def _resolve_device(self) -> str:
+        """Pick 'cuda' when a real torch with CUDA is present, else 'cpu'.
+
+        Guarded against NameError: `_HAS_TORCH` may be forced True (tests
+        stub the scorer) or torch may have failed to import at module load,
+        in which case the module-global `torch` symbol doesn't exist.
+        """
+        try:
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        except NameError:
+            return "cpu"
+
     # ----- main entry point -----
 
     def analyze(self, text: str, config: dict) -> LayerResult:
@@ -215,7 +227,7 @@ class LAPDDetector:
         perturbation_rate = float(config.get("perturbation_rate", 0.10))
         max_tokens = int(config.get("max_tokens", 512))
         seed = int(config.get("seed", 42))
-        device = config.get("device") or ("cuda" if torch.cuda.is_available() else "cpu")
+        device = config.get("device") or self._resolve_device()
 
         if quantize_4bit and not _HAS_BITSANDBYTES:
             return _skip(self, {

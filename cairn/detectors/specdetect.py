@@ -158,6 +158,18 @@ class SpecDetectDetector:
             "dft_spectral_entropy": entropy,
         }
 
+    def _resolve_device(self) -> str:
+        """Pick 'cuda' when a real torch with CUDA is present, else 'cpu'.
+
+        Guarded against NameError: `_HAS_TORCH` may be forced True (tests
+        stub the scorer) or torch may have failed to import at module load,
+        in which case the module-global `torch` symbol doesn't exist.
+        """
+        try:
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        except NameError:
+            return "cpu"
+
     # ----- main entry point -----
 
     def analyze(self, text: str, config: dict) -> LayerResult:
@@ -172,7 +184,7 @@ class SpecDetectDetector:
 
         model_name = config.get("model", "gpt2")
         max_tokens = int(config.get("max_tokens", 512))
-        device = config.get("device") or ("cuda" if torch.cuda.is_available() else "cpu")
+        device = config.get("device") or self._resolve_device()
 
         try:
             self._ensure_loaded(model_name, device)
