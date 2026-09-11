@@ -50,7 +50,7 @@ GUI banner:
 
 | Tier | Stage 3 artifacts present | Coverage guarantee |
 |------|---------------------------|--------------------|
-| `degraded` | a declared detector-calibration artifact failed to load | none; operator action required before calibrated use |
+| `degraded` | a declared detector-calibration artifact failed to load, **or loaded but does not match the running detector** — e.g. a legacy unsigned `token_cohesiveness` entry against the faithful TOCSIN detector, which is what every shipped `master_minus_arxiv*` profile produces today (TOCSIN results are marked `SKIP` with `calibrator_signature_mismatch` and dropped from fusion) | none; operator action required before calibrated use |
 | `heuristic` | none — no EBM, no conformal | none; naive weighted-mean fusion |
 | `fusion-only` | EBM `model_path` only | none; calibrated `p_llm` but no conformal sets |
 | `calibrated` | EBM + split-conformal (v1/v2 schema) | marginal coverage at calibrated alpha |
@@ -61,7 +61,13 @@ artifacts populated and `calibrate_conformal.py` was run with
 `--router-classes` (the default for the production profile recipes
 under `models/calib2000/profiles/`). Profiles trained without
 router-classes land at the `calibrated` tier; production profiles
-land at `calibrated-router-conditional`.
+land at `calibrated-router-conditional` — provided their detector
+calibrator still matches the running detectors. The shipped
+`master_minus_arxiv*` profiles currently land at `degraded` instead
+(see the row above) until they get the matched calibrator + EBM +
+conformal retrain that
+[`docs/superpowers/specs/2026-07-10-tocsin-calibration-retrain-design.md`](superpowers/specs/2026-07-10-tocsin-calibration-retrain-design.md)
+describes for `prompts_only`.
 
 ## Stage 1 — Corpus generation
 

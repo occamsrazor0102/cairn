@@ -11,10 +11,32 @@ The current production-grade calibration is the **calib2000 v6**
 corpus + profile family — see [the calib2000 results](#calib2000-six-provider-master-corpus--profile-grid)
 section below for the production numbers and
 [`docs/calibration.md`](../calibration.md) for the training pipeline.
-All `models/calib2000/profiles/*` artifacts ship at the
-`calibrated-router-conditional` tier (the strongest of the four
+All `models/calib2000/profiles/*` artifacts were trained to the
+`calibrated-router-conditional` tier (the strongest of the five
 `/health::calibration_status` values), meaning the conformal coverage
 guarantee is class- *and* router-stratified.
+
+**Current status: `degraded`, TOCSIN channel dropped.** On the current
+detector implementation every tracked `master_minus_arxiv*` profile
+loads with `calibration_status: "degraded"` and
+`detector_calibration.state: "loaded-incompatible"`. Each profile's
+`detector_calibration.json` carries a legacy, unsigned
+`token_cohesiveness` entry fitted to the retired MiniLM
+deletion-impact score, while the faithful TOCSIN detector now signs
+its output (`tocsin-bart-fastdetectgpt-combined-w-v1`, raw channel
+`combined_w`). The pipeline rejects the entry at startup, marks every
+`token_cohesiveness` result `SKIP` (`calibrator_signature_mismatch`)
+so it never reaches fusion, and mean-imputes the EBM's TOCSIN columns.
+The tier is set by that startup identity check regardless of whether
+the EBM and conformal artifacts load, so the live tier stays
+`degraded` — and the grid numbers below predate the TOCSIN rewrite, so
+they do not reflect the dropped channel — until the
+`master_minus_arxiv` family gets the matched calibrator + EBM +
+conformal retrain that
+[`docs/superpowers/specs/2026-07-10-tocsin-calibration-retrain-design.md`](../superpowers/specs/2026-07-10-tocsin-calibration-retrain-design.md)
+describes for `prompts_only`. (The tracked `prompts_specdetect`
+profile carries the same legacy entry and loads `degraded` for the
+same reason.)
 
 The earlier per-corpus profiles (`calibrated`, `calibrated_all`,
 `calibrated_regen`, `calibrated_union`, `calibrated_full`) remain in
