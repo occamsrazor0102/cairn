@@ -168,6 +168,53 @@ def test_cached_replay_forced_full_runs_all_phases_and_filters_disabled_layers(
     ]
 
 
+def test_cached_replay_accepts_in_memory_config_equivalent_to_path(tmp_path):
+    cache_path, config_path, text = _write_replay_fixture(
+        tmp_path, force_full=True
+    )
+    via_path, path_results, _ = CachedPipeline(
+        cache_path, config_path
+    ).analyze_detailed(text)
+    via_dict, dict_results, _ = CachedPipeline(
+        cache_path, config=load_config(config_path)
+    ).analyze_detailed(text)
+
+    assert via_dict.p_llm == pytest.approx(via_path.p_llm)
+    assert via_dict.label == via_path.label
+    assert via_dict.cascade_phases == via_path.cascade_phases
+    assert [r.layer_id for r in dict_results] == [
+        r.layer_id for r in path_results
+    ]
+
+
+def test_cached_replay_in_memory_overlay_changes_cascade(tmp_path):
+    cache_path, config_path, text = _write_replay_fixture(
+        tmp_path, force_full=True
+    )
+    overlay = load_config(config_path)
+    # Block phase 3 the same way a phase-restricted screen would.
+    overlay["cascade"]["phase3_always_run"] = False
+    overlay["cascade"]["phase2_short_circuit_low"] = 1.01
+    overlay["cascade"]["phase2_short_circuit_high"] = -0.01
+
+    determination, results, _ = CachedPipeline(
+        cache_path, config=overlay
+    ).analyze_detailed(text)
+
+    assert determination.cascade_phases == [1, 2]
+    assert [r.layer_id for r in results] == ["preamble", "token_cohesiveness"]
+
+
+def test_cached_replay_requires_exactly_one_config_source(tmp_path):
+    cache_path, config_path, _text = _write_replay_fixture(
+        tmp_path, force_full=True
+    )
+    with pytest.raises(ValueError, match="exactly one"):
+        CachedPipeline(cache_path)
+    with pytest.raises(ValueError, match="exactly one"):
+        CachedPipeline(cache_path, config_path, config=load_config(config_path))
+
+
 @pytest.mark.parametrize(
     "calibration_status",
     ["heuristic", "fusion-only", "calibrated", "degraded"],

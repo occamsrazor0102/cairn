@@ -569,3 +569,16 @@ In heuristic mode (no trained fusion / conformal):
 After training a fusion model and a conformal wrapper, re-run every
 benchmark and replace the entries here. At that point ECE and Brier
 become meaningful.
+
+## Buckeye prompt screen — all available profiles, phases 1+2 (2026-09-11)
+
+`docs/benchmarks/buckeye_prompts/` holds a *screen* (no ground truth) of
+16 engineering-scenario prompts through every calibrated profile whose
+artifacts ship in this checkout — the 12-member `master_minus_arxiv`
+family — with the cascade restricted to phases 1 and 2. Headline: the
+verdict depends more on the profile than on the prompt (the two
+production-grade profiles agree on 4/16 labels), every shipped profile
+runs `degraded` because its TOCSIN calibrator entry is legacy, and the
+prompt-domain profile (`prompts_only`) is not runnable from the repo.
+Runner: `scripts/run_profile_screen.py` (reusable for any JSONL of
+texts; `--dry-run` lists profile availability).

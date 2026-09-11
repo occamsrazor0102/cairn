@@ -1,0 +1,1284 @@
+[
+  {
+    "name": "ablation_full",
+    "declared_profile": "ablation_full",
+    "path": "configs/.ablation_full.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/full/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/full/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/full/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/full/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/full/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/full/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_loo_anthropic",
+    "declared_profile": "ablation_loo_anthropic",
+    "path": "configs/.ablation_loo_anthropic.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/loo_anthropic/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/loo_anthropic/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/loo_anthropic/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/loo_anthropic/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/loo_anthropic/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/loo_anthropic/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_loo_deepseek",
+    "declared_profile": "ablation_loo_deepseek",
+    "path": "configs/.ablation_loo_deepseek.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/loo_deepseek/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/loo_deepseek/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/loo_deepseek/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/loo_deepseek/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/loo_deepseek/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/loo_deepseek/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_loo_gemini",
+    "declared_profile": "ablation_loo_gemini",
+    "path": "configs/.ablation_loo_gemini.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/loo_gemini/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/loo_gemini/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/loo_gemini/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/loo_gemini/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/loo_gemini/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/loo_gemini/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_loo_mistral",
+    "declared_profile": "ablation_loo_mistral",
+    "path": "configs/.ablation_loo_mistral.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/loo_mistral/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/loo_mistral/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/loo_mistral/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/loo_mistral/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/loo_mistral/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/loo_mistral/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_loo_moonshot",
+    "declared_profile": "ablation_loo_moonshot",
+    "path": "configs/.ablation_loo_moonshot.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/loo_moonshot/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/loo_moonshot/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/loo_moonshot/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/loo_moonshot/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/loo_moonshot/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/loo_moonshot/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_loo_openai",
+    "declared_profile": "ablation_loo_openai",
+    "path": "configs/.ablation_loo_openai.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/loo_openai/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/loo_openai/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/loo_openai/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/loo_openai/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/loo_openai/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/loo_openai/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_solo_anthropic",
+    "declared_profile": "ablation_solo_anthropic",
+    "path": "configs/.ablation_solo_anthropic.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/solo_anthropic/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/solo_anthropic/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/solo_anthropic/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/solo_anthropic/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/solo_anthropic/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/solo_anthropic/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_solo_deepseek",
+    "declared_profile": "ablation_solo_deepseek",
+    "path": "configs/.ablation_solo_deepseek.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/solo_deepseek/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/solo_deepseek/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/solo_deepseek/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/solo_deepseek/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/solo_deepseek/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/solo_deepseek/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_solo_gemini",
+    "declared_profile": "ablation_solo_gemini",
+    "path": "configs/.ablation_solo_gemini.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/solo_gemini/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/solo_gemini/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/solo_gemini/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/solo_gemini/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/solo_gemini/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/solo_gemini/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_solo_mistral",
+    "declared_profile": "ablation_solo_mistral",
+    "path": "configs/.ablation_solo_mistral.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/solo_mistral/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/solo_mistral/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/solo_mistral/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/solo_mistral/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/solo_mistral/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/solo_mistral/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_solo_moonshot",
+    "declared_profile": "ablation_solo_moonshot",
+    "path": "configs/.ablation_solo_moonshot.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/solo_moonshot/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/solo_moonshot/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/solo_moonshot/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/solo_moonshot/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/solo_moonshot/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/solo_moonshot/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "ablation_solo_openai",
+    "declared_profile": "ablation_solo_openai",
+    "path": "configs/.ablation_solo_openai.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/ablation/solo_openai/ebm.pkl",
+    "conformal_path": "models/calib2000/ablation/solo_openai/conformal.json",
+    "detector_calibration_path": "models/calib2000/ablation/solo_openai/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/ablation/solo_openai/ebm.pkl not found",
+      "conformal: models/calib2000/ablation/solo_openai/conformal.json not found",
+      "detector_calibration: models/calib2000/ablation/solo_openai/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calib2000_mix",
+    "declared_profile": "calib2000_mix",
+    "path": "configs/.calib2000_mix.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/mix/ebm.pkl",
+    "conformal_path": "models/calib2000/mix/conformal.json",
+    "detector_calibration_path": "models/calib2000/mix/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/mix/ebm.pkl not found",
+      "conformal: models/calib2000/mix/conformal.json not found",
+      "detector_calibration: models/calib2000/mix/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calib2000_v2",
+    "declared_profile": "calib2000_v2",
+    "path": "configs/.calib2000_v2.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/v2/ebm.pkl",
+    "conformal_path": "models/calib2000/v2/conformal.json",
+    "detector_calibration_path": "models/calib2000/v2/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/v2/ebm.pkl not found",
+      "conformal: models/calib2000/v2/conformal.json not found",
+      "detector_calibration: models/calib2000/v2/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calib2000_v3",
+    "declared_profile": "calib2000_v3",
+    "path": "configs/.calib2000_v3.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/v3/ebm.pkl",
+    "conformal_path": "models/calib2000/v3/conformal.json",
+    "detector_calibration_path": "models/calib2000/v3/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/v3/ebm.pkl not found",
+      "conformal: models/calib2000/v3/conformal.json not found",
+      "detector_calibration: models/calib2000/v3/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calib2000_v4",
+    "declared_profile": "calib2000_v4",
+    "path": "configs/.calib2000_v4.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/v4/ebm.pkl",
+    "conformal_path": "models/calib2000/v4/conformal.json",
+    "detector_calibration_path": "models/calib2000/v4/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/v4/ebm.pkl not found",
+      "conformal: models/calib2000/v4/conformal.json not found",
+      "detector_calibration: models/calib2000/v4/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calib2000_v4_1",
+    "declared_profile": "calib2000_v4_1",
+    "path": "configs/.calib2000_v4_1.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/v4_1/ebm.pkl",
+    "conformal_path": "models/calib2000/v4_1/conformal.json",
+    "detector_calibration_path": "models/calib2000/v4_1/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/v4_1/ebm.pkl not found",
+      "conformal: models/calib2000/v4_1/conformal.json not found",
+      "detector_calibration: models/calib2000/v4_1/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calib2000_v5",
+    "declared_profile": "calib2000_v5",
+    "path": "configs/.calib2000_v5.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/v5/ebm.pkl",
+    "conformal_path": "models/calib2000/v5/conformal.json",
+    "detector_calibration_path": "models/calib2000/v5/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/v5/ebm.pkl not found",
+      "conformal: models/calib2000/v5/conformal.json not found",
+      "detector_calibration: models/calib2000/v5/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calib2000_v6",
+    "declared_profile": "calib2000_v6",
+    "path": "configs/.calib2000_v6.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/v6/ebm.pkl",
+    "conformal_path": "models/calib2000/v6/conformal.json",
+    "detector_calibration_path": "models/calib2000/v6/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/v6/ebm.pkl not found",
+      "conformal: models/calib2000/v6/conformal.json not found",
+      "detector_calibration: models/calib2000/v6/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_domain_arxiv",
+    "declared_profile": "loo_domain_arxiv",
+    "path": "configs/.loo_domain_arxiv.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/domain_arxiv/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/domain_arxiv/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/domain_arxiv/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/domain_arxiv/ebm.pkl not found",
+      "conformal: models/calib2000/loo/domain_arxiv/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/domain_arxiv/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_domain_gsm8k",
+    "declared_profile": "loo_domain_gsm8k",
+    "path": "configs/.loo_domain_gsm8k.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/domain_gsm8k/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/domain_gsm8k/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/domain_gsm8k/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/domain_gsm8k/ebm.pkl not found",
+      "conformal: models/calib2000/loo/domain_gsm8k/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/domain_gsm8k/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_domain_humaneval",
+    "declared_profile": "loo_domain_humaneval",
+    "path": "configs/.loo_domain_humaneval.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/domain_humaneval/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/domain_humaneval/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/domain_humaneval/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/domain_humaneval/ebm.pkl not found",
+      "conformal: models/calib2000/loo/domain_humaneval/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/domain_humaneval/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_hc3_finance",
+    "declared_profile": "loo_hc3_finance",
+    "path": "configs/.loo_hc3_finance.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/hc3_finance/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/hc3_finance/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/hc3_finance/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/hc3_finance/ebm.pkl not found",
+      "conformal: models/calib2000/loo/hc3_finance/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/hc3_finance/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_hc3_medicine",
+    "declared_profile": "loo_hc3_medicine",
+    "path": "configs/.loo_hc3_medicine.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/hc3_medicine/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/hc3_medicine/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/hc3_medicine/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/hc3_medicine/ebm.pkl not found",
+      "conformal: models/calib2000/loo/hc3_medicine/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/hc3_medicine/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_hc3_open",
+    "declared_profile": "loo_hc3_open",
+    "path": "configs/.loo_hc3_open.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/hc3_open/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/hc3_open/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/hc3_open/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/hc3_open/ebm.pkl not found",
+      "conformal: models/calib2000/loo/hc3_open/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/hc3_open/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_hc3_reddit",
+    "declared_profile": "loo_hc3_reddit",
+    "path": "configs/.loo_hc3_reddit.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/hc3_reddit/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/hc3_reddit/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/hc3_reddit/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/hc3_reddit/ebm.pkl not found",
+      "conformal: models/calib2000/loo/hc3_reddit/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/hc3_reddit/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_hc3_wiki",
+    "declared_profile": "loo_hc3_wiki",
+    "path": "configs/.loo_hc3_wiki.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/hc3_wiki/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/hc3_wiki/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/hc3_wiki/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/hc3_wiki/ebm.pkl not found",
+      "conformal: models/calib2000/loo/hc3_wiki/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/hc3_wiki/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_mage",
+    "declared_profile": "loo_mage",
+    "path": "configs/.loo_mage.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/mage/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/mage/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/mage/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/mage/ebm.pkl not found",
+      "conformal: models/calib2000/loo/mage/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/mage/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_prompt_alpaca",
+    "declared_profile": "loo_prompt_alpaca",
+    "path": "configs/.loo_prompt_alpaca.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/prompt_alpaca/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/prompt_alpaca/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/prompt_alpaca/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/prompt_alpaca/ebm.pkl not found",
+      "conformal: models/calib2000/loo/prompt_alpaca/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/prompt_alpaca/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_prompt_gsm8k",
+    "declared_profile": "loo_prompt_gsm8k",
+    "path": "configs/.loo_prompt_gsm8k.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/prompt_gsm8k/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/prompt_gsm8k/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/prompt_gsm8k/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/prompt_gsm8k/ebm.pkl not found",
+      "conformal: models/calib2000/loo/prompt_gsm8k/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/prompt_gsm8k/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_prompt_magpie",
+    "declared_profile": "loo_prompt_magpie",
+    "path": "configs/.loo_prompt_magpie.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/prompt_magpie/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/prompt_magpie/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/prompt_magpie/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/prompt_magpie/ebm.pkl not found",
+      "conformal: models/calib2000/loo/prompt_magpie/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/prompt_magpie/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_prompt_medqa",
+    "declared_profile": "loo_prompt_medqa",
+    "path": "configs/.loo_prompt_medqa.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/prompt_medqa/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/prompt_medqa/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/prompt_medqa/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/prompt_medqa/ebm.pkl not found",
+      "conformal: models/calib2000/loo/prompt_medqa/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/prompt_medqa/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_prompt_mmlu",
+    "declared_profile": "loo_prompt_mmlu",
+    "path": "configs/.loo_prompt_mmlu.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/prompt_mmlu/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/prompt_mmlu/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/prompt_mmlu/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/prompt_mmlu/ebm.pkl not found",
+      "conformal: models/calib2000/loo/prompt_mmlu/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/prompt_mmlu/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_prompt_slimorca",
+    "declared_profile": "loo_prompt_slimorca",
+    "path": "configs/.loo_prompt_slimorca.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/prompt_slimorca/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/prompt_slimorca/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/prompt_slimorca/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/prompt_slimorca/ebm.pkl not found",
+      "conformal: models/calib2000/loo/prompt_slimorca/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/prompt_slimorca/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "loo_raid_abstracts",
+    "declared_profile": "loo_raid_abstracts",
+    "path": "configs/.loo_raid_abstracts.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loo/raid_abstracts/ebm.pkl",
+    "conformal_path": "models/calib2000/loo/raid_abstracts/conformal.json",
+    "detector_calibration_path": "models/calib2000/loo/raid_abstracts/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loo/raid_abstracts/ebm.pkl not found",
+      "conformal: models/calib2000/loo/raid_abstracts/conformal.json not found",
+      "detector_calibration: models/calib2000/loo/raid_abstracts/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "lossfilter_exclude_easy",
+    "declared_profile": "lossfilter_exclude_easy",
+    "path": "configs/.lossfilter_exclude_easy.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loss_filter/exclude_easy/ebm.pkl",
+    "conformal_path": "models/calib2000/loss_filter/exclude_easy/conformal.json",
+    "detector_calibration_path": "models/calib2000/loss_filter/exclude_easy/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loss_filter/exclude_easy/ebm.pkl not found",
+      "conformal: models/calib2000/loss_filter/exclude_easy/conformal.json not found",
+      "detector_calibration: models/calib2000/loss_filter/exclude_easy/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "lossfilter_high_loss_top30",
+    "declared_profile": "lossfilter_high_loss_top30",
+    "path": "configs/.lossfilter_high_loss_top30.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loss_filter/high_loss_top30/ebm.pkl",
+    "conformal_path": "models/calib2000/loss_filter/high_loss_top30/conformal.json",
+    "detector_calibration_path": "models/calib2000/loss_filter/high_loss_top30/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loss_filter/high_loss_top30/ebm.pkl not found",
+      "conformal: models/calib2000/loss_filter/high_loss_top30/conformal.json not found",
+      "detector_calibration: models/calib2000/loss_filter/high_loss_top30/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "lossfilter_high_loss_top50",
+    "declared_profile": "lossfilter_high_loss_top50",
+    "path": "configs/.lossfilter_high_loss_top50.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loss_filter/high_loss_top50/ebm.pkl",
+    "conformal_path": "models/calib2000/loss_filter/high_loss_top50/conformal.json",
+    "detector_calibration_path": "models/calib2000/loss_filter/high_loss_top50/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loss_filter/high_loss_top50/ebm.pkl not found",
+      "conformal: models/calib2000/loss_filter/high_loss_top50/conformal.json not found",
+      "detector_calibration: models/calib2000/loss_filter/high_loss_top50/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "lossfilter_uncertain",
+    "declared_profile": "lossfilter_uncertain",
+    "path": "configs/.lossfilter_uncertain.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/loss_filter/uncertain/ebm.pkl",
+    "conformal_path": "models/calib2000/loss_filter/uncertain/conformal.json",
+    "detector_calibration_path": "models/calib2000/loss_filter/uncertain/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/loss_filter/uncertain/ebm.pkl not found",
+      "conformal: models/calib2000/loss_filter/uncertain/conformal.json not found",
+      "detector_calibration: models/calib2000/loss_filter/uncertain/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "cascade_default_with_specdetect",
+    "declared_profile": "cascade_default_with_specdetect",
+    "path": "configs/.profile_cascade_default_with_specdetect.yaml",
+    "extends": "default",
+    "model_path": null,
+    "conformal_path": null,
+    "detector_calibration_path": null,
+    "status": "not-calibrated",
+    "missing": [],
+    "note": "no fusion.model_path (heuristic profile)"
+  },
+  {
+    "name": "chat_prompts",
+    "declared_profile": "profile_chat_prompts",
+    "path": "configs/.profile_chat_prompts.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/chat_prompts/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/chat_prompts/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/chat_prompts/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/chat_prompts/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/chat_prompts/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/chat_prompts/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "drop_top3_drags",
+    "declared_profile": "profile_drop_top3_drags",
+    "path": "configs/.profile_drop_top3_drags.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/drop_top3_drags/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/drop_top3_drags/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/drop_top3_drags/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/drop_top3_drags/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/drop_top3_drags/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/drop_top3_drags/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "everything",
+    "declared_profile": "profile_everything",
+    "path": "configs/.profile_everything.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/everything/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/everything/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/everything/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/everything/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/everything/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/everything/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "finance",
+    "declared_profile": "profile_finance",
+    "path": "configs/.profile_finance.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/finance/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/finance/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/finance/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/finance/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/finance/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/finance/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "full_coverage",
+    "declared_profile": "full_coverage",
+    "path": "configs/.profile_full_coverage.yaml",
+    "extends": "default",
+    "model_path": null,
+    "conformal_path": null,
+    "detector_calibration_path": null,
+    "status": "not-calibrated",
+    "missing": [],
+    "note": "no fusion.model_path (heuristic profile)"
+  },
+  {
+    "name": "full_coverage_with_specdetect",
+    "declared_profile": "full_coverage_with_specdetect",
+    "path": "configs/.profile_full_coverage_with_specdetect.yaml",
+    "extends": ".profile_full_coverage",
+    "model_path": null,
+    "conformal_path": null,
+    "detector_calibration_path": null,
+    "status": "not-calibrated",
+    "missing": [],
+    "note": "no fusion.model_path (heuristic profile)"
+  },
+  {
+    "name": "general_full",
+    "declared_profile": "profile_general_full",
+    "path": "configs/.profile_general_full.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/general_full/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/general_full/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/general_full/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/general_full/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/general_full/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/general_full/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "general_hc3",
+    "declared_profile": "profile_general_hc3",
+    "path": "configs/.profile_general_hc3.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/general_hc3/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/general_hc3/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/general_hc3/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/general_hc3/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/general_hc3/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/general_hc3/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "general_plus_medical",
+    "declared_profile": "profile_general_plus_medical",
+    "path": "configs/.profile_general_plus_medical.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/general_plus_medical/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/general_plus_medical/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/general_plus_medical/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/general_plus_medical/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/general_plus_medical/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/general_plus_medical/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "general_plus_short",
+    "declared_profile": "profile_general_plus_short",
+    "path": "configs/.profile_general_plus_short.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/general_plus_short/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/general_plus_short/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/general_plus_short/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/general_plus_short/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/general_plus_short/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/general_plus_short/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "general_plus_stem",
+    "declared_profile": "profile_general_plus_stem",
+    "path": "configs/.profile_general_plus_stem.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/general_plus_stem/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/general_plus_stem/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/general_plus_stem/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/general_plus_stem/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/general_plus_stem/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/general_plus_stem/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv",
+    "declared_profile": "profile_master_minus_arxiv",
+    "path": "configs/.profile_master_minus_arxiv.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_clean",
+    "declared_profile": "profile_master_minus_arxiv_clean",
+    "path": "configs/.profile_master_minus_arxiv_clean.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_clean/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_clean/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_clean/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/master_minus_arxiv_clean/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/master_minus_arxiv_clean/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/master_minus_arxiv_clean/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v1",
+    "declared_profile": "profile_master_minus_arxiv_robust_v1",
+    "path": "configs/.profile_master_minus_arxiv_robust_v1.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v1/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v1/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v1/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2",
+    "declared_profile": "master_minus_arxiv_robust_v2",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2a_ablated",
+    "declared_profile": "master_minus_arxiv_robust_v2a_ablated",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2a_ablated.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2a_ablated/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2b_cascade",
+    "declared_profile": "master_minus_arxiv_robust_v2b_cascade",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2b_cascade.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2b_cascade/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2c_lowint",
+    "declared_profile": "master_minus_arxiv_robust_v2c_lowint",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2c_lowint.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2c_lowint/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2d_gated",
+    "declared_profile": "master_minus_arxiv_robust_v2d_gated",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2d_gated.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2d_gated/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2e_no_specdetect",
+    "declared_profile": "master_minus_arxiv_robust_v2e_no_specdetect",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2e_no_specdetect.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2e_no_specdetect/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2f_pllm_only",
+    "declared_profile": "master_minus_arxiv_robust_v2f_pllm_only",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2f_pllm_only.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2f_pllm_only/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2g_clean_control",
+    "declared_profile": "master_minus_arxiv_robust_v2g_clean_control",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2g_clean_control.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2g_clean_control/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2h_clean_full",
+    "declared_profile": "master_minus_arxiv_robust_v2h_clean_full",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2h_clean_full.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2h_clean_full/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "master_minus_arxiv_robust_v2i_v1_calibrator",
+    "declared_profile": "master_minus_arxiv_robust_v2i_v1_calibrator",
+    "path": "configs/.profile_master_minus_arxiv_robust_v2i_v1_calibrator.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/master_minus_arxiv_robust_v2i_v1_calibrator/detector_calibration.json",
+    "status": "available",
+    "missing": [],
+    "note": ""
+  },
+  {
+    "name": "medical",
+    "declared_profile": "profile_medical",
+    "path": "configs/.profile_medical.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/medical/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/medical/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/medical/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/medical/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/medical/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/medical/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "prompts_only",
+    "declared_profile": "profile_prompts_only",
+    "path": "configs/.profile_prompts_only.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/prompts_only/ebm.skops",
+    "conformal_path": "models/calib2000/profiles/prompts_only/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/prompts_only/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/prompts_only/ebm.skops not found",
+      "conformal: models/calib2000/profiles/prompts_only/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/prompts_only/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "prompts_specdetect",
+    "declared_profile": "profile_prompts_specdetect",
+    "path": "configs/.profile_prompts_specdetect.yaml",
+    "extends": ".profile_full_coverage_with_specdetect",
+    "model_path": "models/calib2000/profiles/prompts_specdetect/ebm.skops",
+    "conformal_path": "models/calib2000/profiles/prompts_specdetect/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/prompts_specdetect/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/prompts_specdetect/ebm.skops not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "short_form",
+    "declared_profile": "profile_short_form",
+    "path": "configs/.profile_short_form.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/short_form/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/short_form/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/short_form/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/short_form/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/short_form/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/short_form/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "stem",
+    "declared_profile": "profile_stem",
+    "path": "configs/.profile_stem.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/stem/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/stem/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/stem/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/stem/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/stem/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/stem/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "stem_with_prompts",
+    "declared_profile": "profile_stem_with_prompts",
+    "path": "configs/.profile_stem_with_prompts.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/profiles/stem_with_prompts/ebm.pkl",
+    "conformal_path": "models/calib2000/profiles/stem_with_prompts/conformal.json",
+    "detector_calibration_path": "models/calib2000/profiles/stem_with_prompts/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/profiles/stem_with_prompts/ebm.pkl not found",
+      "conformal: models/calib2000/profiles/stem_with_prompts/conformal.json not found",
+      "detector_calibration: models/calib2000/profiles/stem_with_prompts/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "prompts_only",
+    "declared_profile": "prompts_only",
+    "path": "configs/.prompts_only.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/prompts_only/ebm.pkl",
+    "conformal_path": "models/calib2000/prompts_only/conformal.json",
+    "detector_calibration_path": "models/calib2000/prompts_only/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/prompts_only/ebm.pkl not found",
+      "conformal: models/calib2000/prompts_only/conformal.json not found",
+      "detector_calibration: models/calib2000/prompts_only/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated",
+    "declared_profile": "calibrated",
+    "path": "configs/calibrated.yaml",
+    "extends": "default",
+    "model_path": "models/fusion/hc3_finance_ebm.pkl",
+    "conformal_path": "models/conformal/hc3_finance.json",
+    "detector_calibration_path": "models/calibrators/hc3_finance.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/fusion/hc3_finance_ebm.pkl not found",
+      "conformal: models/conformal/hc3_finance.json not found",
+      "detector_calibration: models/calibrators/hc3_finance.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated_all",
+    "declared_profile": "calibrated_all",
+    "path": "configs/calibrated_all.yaml",
+    "extends": "default",
+    "model_path": "models/fusion/hc3_all_ebm.pkl",
+    "conformal_path": "models/conformal/hc3_all.json",
+    "detector_calibration_path": "models/calibrators/hc3_all.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/fusion/hc3_all_ebm.pkl not found",
+      "conformal: models/conformal/hc3_all.json not found",
+      "detector_calibration: models/calibrators/hc3_all.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated_calib2000",
+    "declared_profile": "calibrated_calib2000",
+    "path": "configs/calibrated_calib2000.yaml",
+    "extends": "default",
+    "model_path": "models/calib2000/full/ebm.pkl",
+    "conformal_path": "models/calib2000/full/conformal.json",
+    "detector_calibration_path": "models/calib2000/full/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/calib2000/full/ebm.pkl not found",
+      "conformal: models/calib2000/full/conformal.json not found",
+      "detector_calibration: models/calib2000/full/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated_full",
+    "declared_profile": "calibrated_full",
+    "path": "configs/calibrated_full.yaml",
+    "extends": "default",
+    "model_path": "models/fusion/superunion_ebm.pkl",
+    "conformal_path": "models/conformal/superunion.json",
+    "detector_calibration_path": "models/calibrators/superunion.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/fusion/superunion_ebm.pkl not found",
+      "conformal: models/conformal/superunion.json not found",
+      "detector_calibration: models/calibrators/superunion.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated_matched_mixed",
+    "declared_profile": "calibrated_matched_mixed",
+    "path": "configs/calibrated_matched_mixed.yaml",
+    "extends": "default",
+    "model_path": "models/fusion/matched_mixed_ebm.pkl",
+    "conformal_path": "models/conformal/matched_mixed.json",
+    "detector_calibration_path": "models/calibrators/matched_mixed.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/fusion/matched_mixed_ebm.pkl not found",
+      "conformal: models/conformal/matched_mixed.json not found",
+      "detector_calibration: models/calibrators/matched_mixed.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated_matched_single",
+    "declared_profile": "calibrated_matched_single",
+    "path": "configs/calibrated_matched_single.yaml",
+    "extends": "default",
+    "model_path": "models/fusion/matched_single_ebm.pkl",
+    "conformal_path": "models/conformal/matched_single.json",
+    "detector_calibration_path": "models/calibrators/matched_single.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/fusion/matched_single_ebm.pkl not found",
+      "conformal: models/conformal/matched_single.json not found",
+      "detector_calibration: models/calibrators/matched_single.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated_regen",
+    "declared_profile": "calibrated_regen",
+    "path": "configs/calibrated_regen.yaml",
+    "extends": "default",
+    "model_path": "models/fusion/regen_mixed_ebm.pkl",
+    "conformal_path": "models/conformal/regen_mixed.json",
+    "detector_calibration_path": "models/calibrators/regen_mixed.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/fusion/regen_mixed_ebm.pkl not found",
+      "conformal: models/conformal/regen_mixed.json not found",
+      "detector_calibration: models/calibrators/regen_mixed.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "calibrated_union",
+    "declared_profile": "calibrated_union",
+    "path": "configs/calibrated_union.yaml",
+    "extends": "default",
+    "model_path": "models/fusion/union_ebm.pkl",
+    "conformal_path": "models/conformal/union.json",
+    "detector_calibration_path": "models/calibrators/union.json",
+    "status": "unavailable",
+    "missing": [
+      "model: models/fusion/union_ebm.pkl not found",
+      "conformal: models/conformal/union.json not found",
+      "detector_calibration: models/calibrators/union.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "default",
+    "declared_profile": "default",
+    "path": "configs/default.yaml",
+    "extends": null,
+    "model_path": null,
+    "conformal_path": null,
+    "detector_calibration_path": null,
+    "status": "not-calibrated",
+    "missing": [],
+    "note": "no fusion.model_path (heuristic profile)"
+  },
+  {
+    "name": "no-api",
+    "declared_profile": "no-api",
+    "path": "configs/no-api.yaml",
+    "extends": "default",
+    "model_path": null,
+    "conformal_path": null,
+    "detector_calibration_path": null,
+    "status": "not-calibrated",
+    "missing": [],
+    "note": "no fusion.model_path (heuristic profile)"
+  },
+  {
+    "name": "production",
+    "declared_profile": "production",
+    "path": "configs/production.yaml",
+    "extends": "default",
+    "model_path": "/app/models/ebm_v1.pkl",
+    "conformal_path": "/app/models/conformal_cal.json",
+    "detector_calibration_path": "/app/models/detector_calibration.json",
+    "status": "unavailable",
+    "missing": [
+      "model: /app/models/ebm_v1.pkl not found",
+      "conformal: /app/models/conformal_cal.json not found",
+      "detector_calibration: /app/models/detector_calibration.json not found"
+    ],
+    "note": ""
+  },
+  {
+    "name": "screening",
+    "declared_profile": "screening",
+    "path": "configs/screening.yaml",
+    "extends": "default",
+    "model_path": null,
+    "conformal_path": null,
+    "detector_calibration_path": null,
+    "status": "not-calibrated",
+    "missing": [],
+    "note": "no fusion.model_path (heuristic profile)"
+  },
+  {
+    "name": "strict",
+    "declared_profile": "strict",
+    "path": "configs/strict.yaml",
+    "extends": "default",
+    "model_path": null,
+    "conformal_path": null,
+    "detector_calibration_path": null,
+    "status": "not-calibrated",
+    "missing": [],
+    "note": "no fusion.model_path (heuristic profile)"
+  }
+]

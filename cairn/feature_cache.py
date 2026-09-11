@@ -80,8 +80,29 @@ class CachedPipeline:
     scripts swap pipeline instances and otherwise stay unchanged.
     """
 
-    def __init__(self, cache_path: Path, config_path: Path) -> None:
-        self._inner = CairnPipeline.from_config_file(config_path)
+    def __init__(
+        self,
+        cache_path: Path,
+        config_path: Path | None = None,
+        *,
+        config: dict | None = None,
+    ) -> None:
+        """Build the replay pipeline from either a profile YAML path or an
+        already-loaded config dict (exactly one of the two).
+
+        ``config`` lets callers apply in-memory overlays (e.g. a
+        phase-restricted cascade for a screening run) on top of
+        ``cairn.config.load_config`` output without writing a temporary
+        profile file into ``configs/``.
+        """
+        if (config is None) == (config_path is None):
+            raise ValueError(
+                "CachedPipeline: pass exactly one of config_path or config"
+            )
+        if config is not None:
+            self._inner = CairnPipeline(config)
+        else:
+            self._inner = CairnPipeline.from_config_file(config_path)
         self._cache = load_cache(cache_path)
 
     def analyze_detailed(
