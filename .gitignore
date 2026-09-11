@@ -17,7 +17,10 @@ venv/
 /models/*
 # ...except the calibrated production profile that the RAID CI gate depends on
 # (.github/workflows/raid.yml loads configs/.profile_master_minus_arxiv.yaml,
-# which references these three files). Walk-down required: gitignore cannot
+# which references three artifact files; cairn/fusion/serialization.py's
+# load_model additionally refuses a skops ebm.pkl without its ebm.pkl.hmac
+# sidecar, so the sidecar must ship too or the profile silently falls back
+# to naive fusion). Walk-down required: gitignore cannot
 # re-include a file if a parent directory is excluded, so each level above
 # the artifact files must be explicitly re-included before the leaf rules.
 !/models/calib2000/
@@ -27,6 +30,7 @@ venv/
 !/models/calib2000/profiles/master_minus_arxiv/
 /models/calib2000/profiles/master_minus_arxiv/*
 !/models/calib2000/profiles/master_minus_arxiv/ebm.pkl
+!/models/calib2000/profiles/master_minus_arxiv/ebm.pkl.hmac
 !/models/calib2000/profiles/master_minus_arxiv/conformal.json
 !/models/calib2000/profiles/master_minus_arxiv/detector_calibration.json
 # A2-augmented variant ships alongside; same allowlist pattern.
