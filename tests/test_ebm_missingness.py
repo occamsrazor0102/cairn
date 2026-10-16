@@ -206,7 +206,8 @@ def test_train_ebm_applies_monotone_constraints():
     "preamble", "fingerprint", "ps", "vs", "idi", "nssi", "surprisal",
     "binoculars", "fast_detectgpt", "tocsin", "perturbation",
     "contrastive_gen", "dna_gpt", "mixed_boundary", "cross_similarity",
-    "semantic_kinematics",
+    "semantic_kinematics", "lapd", "specdetect",
+    "compression_profile", "typographic_signature", "reasoning_artifact",
 ])
 def test_each_detector_has_full_feature_triplet(prefix):
     """Every cascade detector must contribute a full {p_llm, missing, confidence}

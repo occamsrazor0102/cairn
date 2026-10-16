@@ -40,12 +40,12 @@ Paste text, click Analyze. The result panel shows:
 
 ### Detectors
 
-Eighteen detectors organised into four cascade phases:
+Twenty-one detectors organised into four cascade phases:
 
 | Phase | Cost | Detectors |
 |------:|------|-----------|
-| 1 | trivial / cheap | `preamble`, `fingerprint_vocab`, `prompt_structure`, `voice_spec`, `instruction_density`, `nssi` |
-| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `fast_detectgpt`, `token_cohesiveness`, `mixed_boundary`, `semantic_kinematics`, `specdetect` |
+| 1 | trivial / cheap | `preamble`, `fingerprint_vocab`, `prompt_structure`, `voice_spec`, `instruction_density`, `nssi`, `compression_profile`, `typographic_signature` |
+| 2 | moderate | `surprisal_dynamics`, `contrastive_lm`, `fast_detectgpt`, `token_cohesiveness`, `mixed_boundary`, `semantic_kinematics`, `specdetect`, `reasoning_artifact` |
 | 3 | expensive (LLM-backed) | `perturbation` (disabled; superseded by `fast_detectgpt`), `contrastive_gen`, `dna_gpt`, `lapd` |
 | 4 | batch-only | `cross_similarity` (and `contributor_graph` via `pipeline.analyze_contributors`) |
 
@@ -53,10 +53,18 @@ The cascade scheduler short-circuits on confident Phase 1 verdicts and
 only invokes expensive Phase 3 detectors when the cheaper signals are
 inconclusive.
 
-Six of the detectors emit **character-level spans** pointing at the
+Nine of the detectors emit **character-level spans** pointing at the
 specific tokens that triggered them (preamble, fingerprint_vocab,
-instruction_density, nssi, voice_spec, prompt_structure) — surfaced as
-highlights in the UI.
+instruction_density, nssi, voice_spec, prompt_structure,
+compression_profile, typographic_signature, reasoning_artifact) —
+surfaced as highlights in the UI. `reasoning_artifact` is the first
+Phase-2 detector to do so; the rest are Phase 1.
+
+`compression_profile`, `typographic_signature` and `reasoning_artifact`
+are the 2026-08-26 slate and ship **disabled**: they are wired into the
+cascade and the EBM assembler but contribute nothing until a feature
+cache is rebuilt and the profiles retrained. See
+[`docs/retrain-with-new-detectors.md`](docs/retrain-with-new-detectors.md).
 
 ### Fusion, calibration, decision
 

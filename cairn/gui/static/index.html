@@ -255,6 +255,9 @@
     .highlighted-text mark.span-boilerplate { background: rgba(155,118,211,0.22); color: var(--ink); }
     .highlighted-text mark.span-voice_informal { background: rgba(219,205,83,0.22); color: var(--ink); }
     .highlighted-text mark.span-spec { background: rgba(125,175,180,0.22); color: var(--ink); }
+    .highlighted-text mark.span-repetition { background: rgba(198,120,221,0.22); color: var(--ink); }
+    .highlighted-text mark.span-reasoning { background: rgba(86,182,194,0.22); color: var(--ink); }
+    .highlighted-text mark.span-typography { background: rgba(224,138,96,0.22); color: var(--ink); }
     .highlighted-text mark.span-misc { background: rgba(139,148,158,0.22); color: var(--ink); }
     .highlighted-text mark:hover { outline: 1px solid currentColor; }
     .highlight-legend {
@@ -272,6 +275,9 @@
     .highlight-legend .chip.boilerplate { background: rgba(155,118,211,0.22); color: var(--ink); }
     .highlight-legend .chip.voice_informal { background: rgba(219,205,83,0.22); color: var(--ink); }
     .highlight-legend .chip.spec { background: rgba(125,175,180,0.22); color: var(--ink); }
+    .highlight-legend .chip.repetition { background: rgba(198,120,221,0.22); color: var(--ink); }
+    .highlight-legend .chip.reasoning { background: rgba(86,182,194,0.22); color: var(--ink); }
+    .highlight-legend .chip.typography { background: rgba(224,138,96,0.22); color: var(--ink); }
 
     @media (max-width: 900px) {
       .view-analyze { grid-template-columns: 1fr; }
@@ -831,6 +837,9 @@ const KIND_LABELS = {
   boilerplate: "boilerplate phrase",
   voice_informal: "informal voice",
   spec: "spec language",
+  repetition: "repeated phrase",
+  reasoning: "reasoning artifact",
+  typography: "typographic habit",
   misc: "other",
 };
 
