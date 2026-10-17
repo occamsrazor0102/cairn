@@ -49,7 +49,7 @@ items, screening profile / Tier-1 only) is preserved alongside for
 historical comparison.
 
 The CI pipeline still runs the 100-sample smoke benchmark on every
-push to master and uploads the result as an artifact.
+push to main and uploads the result as an artifact.
 
 ### Broad calibration: HC3 `all`
 

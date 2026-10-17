@@ -181,6 +181,10 @@ def test_weighting_uses_canonical_normalized_word_count():
     assert weighted.manifest["strata"][0]["rows"] == 21
 
 
+@pytest.mark.skipif(
+    not TRAIN_DATASET.is_file(),
+    reason="data/prompts_v2_train.jsonl is git-ignored and absent from this checkout",
+)
 def test_real_train_inventory_matches_locked_source_length_targets():
     samples = load_dataset(TRAIN_DATASET)
     eligible = [
