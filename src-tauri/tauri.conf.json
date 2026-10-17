@@ -37,7 +37,7 @@
     ],
     "resources": [],
     "externalBin": ["binaries/cairn-sidecar"],
-    "copyright": "",
+    "copyright": "Copyright 2026 CAIRN contributors",
     "category": "DeveloperTool",
     "shortDescription": "LLM authorship detection",
     "longDescription": "CAIRN — detect LLM authorship via multi-detector pipeline fusion."

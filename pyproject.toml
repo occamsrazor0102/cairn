@@ -7,6 +7,8 @@ name = "cairn"
 version = "2.0.0"
 description = "CAIRN — LLM Authorship Detection Pipeline"
 requires-python = ">=3.11"
+license = "PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE"]
 dependencies = [
     "pyyaml>=6.0",
     "click>=8.1",
