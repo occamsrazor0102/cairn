@@ -298,4 +298,25 @@ case requires.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+CAIRN is source-available under the
+[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
+— see [LICENSE](LICENSE). SPDX identifier: `PolyForm-Noncommercial-1.0.0`.
+
+What that means in practice:
+
+- **Free for noncommercial use.** Personal, hobby, research, and
+  educational use is permitted, as is use by charities, educational
+  institutions, public research organizations, and government
+  institutions, regardless of their funding source.
+- **Modify and redistribute freely for noncommercial purposes.**
+  Copies, with or without your changes, must carry the license terms
+  (or their URL) and the `Required Notice:` line at the top of
+  [LICENSE](LICENSE).
+- **Commercial use is not licensed.** Using CAIRN in or for a
+  commercial product or service needs a separate agreement — open an
+  issue or contact the maintainers to discuss one.
+
+Earlier versions of CAIRN were published under the MIT License; that
+grant still applies to the copies distributed under it, but this and
+later versions are offered under the PolyForm Noncommercial License
+only.

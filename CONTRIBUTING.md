@@ -145,5 +145,7 @@ if applicable. Conventional-commit prefixes (`feat:`, `fix:`, `docs:`,
 
 ## Licensing
 
-MIT. By contributing you agree your work is made available under the
-same license.
+CAIRN is licensed under the
+[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
+(see `LICENSE`). By contributing you agree your work is made
+available under the same license.
