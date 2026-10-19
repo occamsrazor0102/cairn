@@ -1,0 +1,64 @@
+name: backup-mirror
+
+# Mirrors this repository to a second remote (see docs/backup.md).
+#
+# Inert until both repository secrets are set:
+#   BACKUP_REMOTE_URL  e.g. https://github.com/<you>/cairn-backup.git
+#   BACKUP_TOKEN       PAT with contents:write on the backup repo only
+# Without them the job logs that it is unconfigured and exits 0.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, so the backup stays current even during quiet periods.
+    - cron: "17 4 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: push mirror
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A shallow checkout would mirror a truncated history.
+          fetch-depth: 0
+
+      - name: Push mirror to backup remote
+        env:
+          BACKUP_REMOTE_URL: ${{ secrets.BACKUP_REMOTE_URL }}
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BACKUP_REMOTE_URL}" ]; then
+            echo "BACKUP_REMOTE_URL is not set — backup mirroring is not configured."
+            echo "See docs/backup.md to enable it."
+            exit 0
+          fi
+
+          if [ -z "${BACKUP_TOKEN}" ]; then
+            echo "::error::BACKUP_REMOTE_URL is set but BACKUP_TOKEN is missing."
+            exit 1
+          fi
+
+          # Inject the token without it landing in a remote URL that later
+          # commands (or `set -x`) could echo.
+          git config --local \
+            "http.${BACKUP_REMOTE_URL}.extraheader" \
+            "AUTHORIZATION: basic $(printf 'x-access-token:%s' "${BACKUP_TOKEN}" | base64 -w0)"
+
+          # actions/checkout narrows the fetch refspec to the triggering ref;
+          # widen it so every origin branch is available to mirror.
+          git config --local remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+          git fetch --prune --tags origin
+
+          ./scripts/backup_repo.sh --remote "${BACKUP_REMOTE_URL}"
