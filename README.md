@@ -190,8 +190,13 @@ restarted by the Tauri shell on relaunch.
 CAIRN now ships trained EBM + isotonic + split-conformal artifacts
 for several profiles, but several caveats still apply:
 
-- **Four fusion tiers coexist.** `/health` reports
+- **Five `calibration_status` values coexist.** `/health` reports
   `calibration_status` as one of:
+  - `degraded` — a declared `detector_calibration_path` failed to
+    load (no detector calibration applies), or loaded but does not
+    match a running detector (that detector's results are marked
+    `SKIP` and dropped from fusion). The EBM and conformal artifacts
+    may still be loaded, but the coverage guarantee no longer holds.
   - `heuristic` — no trained EBM, no conformal. Fusion falls back to
     naive weighted-mean across detector `p_llm` values; the GUI shows
     an "untrained" banner. The `default` / `screening` / `strict` /
@@ -203,9 +208,11 @@ for several profiles, but several caveats still apply:
     is populated with marginal coverage at the calibrated alpha.
   - `calibrated-router-conditional` — additionally, the conformal
     artifact carries per-router-class thresholds (Phase 3 v3 schema),
-    so coverage is class- *and* router-stratified. The
-    `master_minus_arxiv`, `prompts_only`, and other production
-    profiles under `models/calib2000/profiles/` ship at this tier.
+    so coverage is class- *and* router-stratified. The production
+    profiles under `models/calib2000/profiles/` were trained to this
+    tier — but on the current code the shipped `master_minus_arxiv*`
+    profiles load as `degraded` instead (see the deployment note at
+    the end of this section).
 - **Heuristic mode uses hand-picked detector tables.** When no
   `detector_calibration_path` is loaded, the `_HEURISTIC_*` constants
   in `preamble`, `fingerprint_vocab`, `instruction_density`,
@@ -294,7 +301,14 @@ calibrated profile (`master_minus_arxiv` recommended for prose,
 `prompts_only` for prompt detection), benchmark it against a sample
 of your actual input distribution, and tune
 `decision.*_threshold` to the precision/recall trade-off your use
-case requires.
+case requires. Note that on the current detector implementation the
+shipped `master_minus_arxiv*` profiles report
+`calibration_status: "degraded"` with the TOCSIN channel dropped from
+fusion (their `detector_calibration.json` predates the faithful
+TOCSIN detector's signed output) until the family gets the matched
+calibrator + EBM + conformal retrain that
+[the 2026-07-10 TOCSIN retrain spec](docs/superpowers/specs/2026-07-10-tocsin-calibration-retrain-design.md)
+describes for `prompts_only`.
 
 ## License
 

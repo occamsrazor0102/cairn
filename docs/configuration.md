@@ -45,6 +45,18 @@ how the corpus and artifacts are produced.
 | `everything` | Full v6 (reference baseline) | Strictly worse than `master_minus_arxiv` on OOD; kept for comparison |
 | `general_plus_*` | HC3+OOD plus stem / short / medical | Adjustable mixes |
 
+> **Current status caveat.** On the current detector implementation
+> every tracked `master_minus_arxiv*` profile loads as
+> `calibration_status: "degraded"` because its
+> `detector_calibration.json` carries a legacy, unsigned
+> `token_cohesiveness` entry that the faithful TOCSIN detector rejects
+> (`calibrator_signature_mismatch`), so the TOCSIN channel is dropped
+> from fusion until the family gets the matched calibrator + EBM +
+> conformal retrain that
+> [`docs/superpowers/specs/2026-07-10-tocsin-calibration-retrain-design.md`](superpowers/specs/2026-07-10-tocsin-calibration-retrain-design.md)
+> describes for `prompts_only`. Details in the Status section of
+> [`docs/benchmarks/README.md`](benchmarks/README.md).
+
 ### Picking a profile
 
 ```
